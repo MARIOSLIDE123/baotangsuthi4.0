@@ -19,6 +19,7 @@ import {
   TransformNode,
   UniversalCamera,
   Vector3,
+  VertexData,
 } from '@babylonjs/core';
 import {
   CameraMode,
@@ -412,6 +413,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       const matPlankFloor = makePBRMat('matPlankFloor', pal.bambooFloor, 0.38, 0.08, 'bamboo');
       const matWovenWalls = makePBRMat('matWovenWalls', pal.wovenBambooWall, 0.7, 0.04, 'bamboo');
       const matThatchRoof = makePBRMat('matThatchRoof', pal.thatchRoofDark, 0.82, 0.02, 'thatch');
+      matThatchRoof.backFaceCulling = false;
       const matRiverStone = makePBRMat('matRiverStone', pal.riverStoneGray, 0.78, 0.05);
       const matBronze = makePBRMat('matBronze', pal.bronzeGold, 0.24, 0.9);
       const matCeramic = makePBRMat('matCeramic', pal.ceramicGlazeTuk, 0.16, 0.12, 'ceramic');
@@ -833,6 +835,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       const slopeLen = Math.hypot(roofHalfSpan, roofDrop);
       const slopeAngle = Math.atan2(roofDrop, roofHalfSpan);
 
+      // 1. Two Symmetrical Pitched Roof Planes (sloping down from ridge peak x=0 to eaves x=±roofHalfSpan)
       for (const side of [-1, 1]) {
         // Main pitched golden thatch plane
         const roofPlane = MeshBuilder.CreateBox(
@@ -841,54 +844,111 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
           scene
         );
         roofPlane.position = new Vector3(side * (roofHalfSpan / 2), (rf.peakHeight + rf.eaveHeight) / 2, 0.4);
-        roofPlane.rotation.z = side * slopeAngle;
+        roofPlane.rotation.z = -side * slopeAngle; // Negative for right, positive for left = correct pitched roof
         roofPlane.material = matThatchRoof;
         addShadow(roofPlane, false);
         roofPlane.parent = roofNode;
         registerInteractive(roofPlane, 'ext-facade');
 
-        // Lower thick eave overhang
+        // Lower thick eave overhang (draping down naturally)
         const eaveOverhang = MeshBuilder.CreateBox(
           `eaveOverhang_${side}`,
           { width: 0.95, height: 0.32, depth: rf.length + 0.6 },
           scene
         );
         eaveOverhang.position = new Vector3(side * (roofHalfSpan + 0.28), rf.eaveHeight - 0.1, 0.4);
-        eaveOverhang.rotation.z = side * (slopeAngle + 0.15);
+        eaveOverhang.rotation.z = -side * (slopeAngle + 0.15);
         eaveOverhang.material = matThatchRoof;
         eaveOverhang.parent = roofNode;
       }
 
-      // Deep Front Gable Overhang Over the Porch (Mái tranh nhô ra bao trùm đầu hiên như ảnh mẫu!)
-      const frontGableRoof = MeshBuilder.CreateCylinder(
-        'frontGableThatch',
-        { diameterTop: 0, diameterBottom: rf.overhangWidth * 2.2, height: 3.8, tessellation: 3 },
-        scene
-      );
-      frontGableRoof.rotation.x = Math.PI / 2;
-      frontGableRoof.position = new Vector3(0, rf.peakHeight - 0.5, 14.2);
-      frontGableRoof.scaling = new Vector3(1, 0.8, 0.95);
-      frontGableRoof.material = matThatchRoof;
-      frontGableRoof.parent = roofNode;
-      registerInteractive(frontGableRoof, 'ext-facade');
-
-      // Heavy Roof Ridge Purlin (Đòn nóc tròn)
+      // 2. Heavy Roof Ridge Purlin (Đòn nóc tròn chạy suốt đỉnh mái)
       const ridge = MeshBuilder.CreateCylinder('roofRidge', { diameter: rf.ridgeRadius * 2, height: rf.length + 1.2 }, scene);
       ridge.rotation.x = Math.PI / 2;
       ridge.position = new Vector3(0, rf.peakHeight + 0.12, 0.4);
       ridge.material = matTimberBeams;
       ridge.parent = roofNode;
 
-      // Crossed Gable Horns (Khau Kut) at gables
-      for (const gz of [rf.length / 2 + 0.2, -rf.length / 2 - 0.2]) {
+      // 3. Triangular Gable Pediments (Vách tam giác đầu hồi khép kín đỉnh vách)
+      const createGablePediment = (name: string, zPos: number) => {
+        const gableMesh = new Mesh(name, scene);
+        const w2 = arch.floor.width / 2;
+        const yBottom = arch.floor.elevationY + arch.walls.height;
+        const yTop = rf.peakHeight;
+        const thick = arch.walls.thickness;
+
+        const positions = [
+          -w2, yBottom, zPos + thick / 2, // 0: BL front
+           w2, yBottom, zPos + thick / 2, // 1: BR front
+            0, yTop,    zPos + thick / 2, // 2: Peak front
+          -w2, yBottom, zPos - thick / 2, // 3: BL back
+           w2, yBottom, zPos - thick / 2, // 4: BR back
+            0, yTop,    zPos - thick / 2, // 5: Peak back
+        ];
+
+        const indices = [
+          // Front face (two-sided so visible from inside & outside)
+          0, 1, 2,  0, 2, 1,
+          // Back face
+          3, 4, 5,  3, 5, 4,
+          // Left sloped side
+          0, 2, 5,  0, 5, 3,
+          // Right sloped side
+          1, 5, 2,  1, 4, 5,
+          // Bottom side
+          0, 3, 4,  0, 4, 1,
+        ];
+
+        const normals: number[] = [];
+        const uvs = [0, 0, 1, 0, 0.5, 1, 0, 0, 1, 0, 0.5, 1];
+        VertexData.ComputeNormals(positions, indices, normals);
+
+        const vData = new VertexData();
+        vData.positions = positions;
+        vData.indices = indices;
+        vData.normals = normals;
+        vData.uvs = uvs;
+        vData.applyToMesh(gableMesh);
+
+        gableMesh.material = matWovenWalls;
+        gableMesh.checkCollisions = true;
+        addShadow(gableMesh);
+        return gableMesh;
+      };
+
+      const frontGableWall = createGablePediment('frontGablePediment', wallZEnd);
+      frontGableWall.parent = roofNode;
+      registerInteractive(frontGableWall, 'ext-facade');
+
+      const rearGableWall = createGablePediment('rearGablePediment', wallZStart);
+      rearGableWall.parent = roofNode;
+
+      // 4. Decorative Bargeboard Rafters & Crossed Buffalo Horns (Khau Kut) at Front & Rear Gables
+      const gableZPositions = [0.4 + rf.length / 2, 0.4 - rf.length / 2];
+      for (const gz of gableZPositions) {
         for (const side of [-1, 1]) {
-          const horn = MeshBuilder.CreateBox(
-            `gableHorn_${side}_${gz}`,
-            { width: 0.18, height: rf.gableHornLength, depth: 0.18 },
+          const barge = MeshBuilder.CreateBox(
+            `bargeboard_${side}_${gz}`,
+            { width: slopeLen, height: 0.28, depth: 0.22 },
             scene
           );
-          horn.position = new Vector3(side * 0.45, rf.peakHeight + 0.65, gz);
-          horn.rotation.z = side * (Math.PI / 5.5);
+          barge.position = new Vector3(
+            side * (roofHalfSpan / 2),
+            (rf.peakHeight + rf.eaveHeight) / 2,
+            gz
+          );
+          barge.rotation.z = -side * slopeAngle;
+          barge.material = matTimberBeams;
+          barge.parent = roofNode;
+
+          // Crossed Horns (Khau Kut)
+          const horn = MeshBuilder.CreateBox(
+            `gableHorn_${side}_${gz}`,
+            { width: 0.16, height: rf.gableHornLength, depth: 0.16 },
+            scene
+          );
+          horn.position = new Vector3(side * 0.35, rf.peakHeight + 0.65, gz);
+          horn.rotation.z = side * (Math.PI / 6);
           horn.material = matTimberBeams;
           horn.parent = roofNode;
         }

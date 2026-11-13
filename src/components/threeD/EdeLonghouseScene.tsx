@@ -11,6 +11,7 @@ import {
   MeshBuilder,
   PBRMaterial,
   PointLight,
+  PointerEventTypes,
   Scene,
   ShadowGenerator,
   StandardMaterial,
@@ -81,6 +82,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
   const [loading, setLoading] = useState(true);
   const [webglError, setWebglError] = useState<string | null>(null);
   const [joystickThumb, setJoystickThumb] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [hoveredHotspot, setHoveredHotspot] = useState<Museum3DHotspot | null>(null);
 
   const joystickVecRef = useRef<{ vx: number; vz: number }>({ vx: 0, vz: 0 });
   const joyActiveRef = useRef(false);
@@ -112,12 +114,12 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
     });
 
     if (hearthLightRef.current) {
-      hearthLightRef.current.intensity = isFestive ? 2.6 : 1.2;
-      hearthLightRef.current.range = isFestive ? 14 : 9;
+      hearthLightRef.current.intensity = isFestive ? 3.0 : 1.8;
+      hearthLightRef.current.range = isFestive ? 16 : 12;
     }
   }, [exhibitionMode]);
 
-  // Handle active camera mode switch
+  // Handle camera mode switch
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
@@ -157,7 +159,6 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         }
       );
     } catch {
-      // Fallback canvas data URL
       const canvas = canvasRef.current;
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png');
@@ -177,7 +178,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
     cam.position = new Vector3(sp.x, sp.y, sp.z);
     cam.setTarget(
       teleportRequest.target === 'A'
-        ? new Vector3(0, 2.8, 13)
+        ? new Vector3(-1.5, 2.5, 14)
         : new Vector3(0, 3.6, -4)
     );
   }, [teleportRequest]);
@@ -214,18 +215,18 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       scene = new Scene(engine);
       sceneRef.current = scene;
 
-      // Photorealistic Tone Mapping & Clear Color
-      scene.clearColor = new Color4(0.48, 0.62, 0.72, 1.0);
-      scene.ambientColor = new Color3(0.25, 0.28, 0.26);
+      // Bright, vibrant atmospheric clear color & tone mapping
+      scene.clearColor = new Color4(0.55, 0.7, 0.85, 1.0);
+      scene.ambientColor = new Color3(0.55, 0.52, 0.48);
 
       if (scene.imageProcessingConfiguration) {
         scene.imageProcessingConfiguration.toneMappingEnabled = true;
         scene.imageProcessingConfiguration.toneMappingType = 1; // ACES Filmic Tone Mapping
-        scene.imageProcessingConfiguration.exposure = 1.15;
-        scene.imageProcessingConfiguration.contrast = 1.12;
+        scene.imageProcessingConfiguration.exposure = 1.35; // Bright exposure for clear interior visibility
+        scene.imageProcessingConfiguration.contrast = 1.15;
       }
 
-      // Highlands Mist / Atmospheric Fog
+      // Highlands Mist / Light Fog
       scene.fogMode = Scene.FOGMODE_EXP2;
       scene.fogDensity = LONGHOUSE_3D_CONFIG.world.fogDensity;
       scene.fogColor = Color3.FromArray(LONGHOUSE_3D_CONFIG.world.fogColorRgb);
@@ -234,23 +235,23 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       scene.collisionsEnabled = true;
       scene.gravity = new Vector3(0, LONGHOUSE_3D_CONFIG.world.gravityY, 0);
 
-      // 1. Natural Highlands Lighting Setup
-      // Sky Hemispheric Ambient Light
+      // 1. Natural Bright Highlands Lighting Setup
+      // Sky Hemispheric Ambient Light (Bright fill)
       const hemiLight = new HemisphericLight('hemiSkyLight', new Vector3(0, 1, 0), scene);
-      hemiLight.intensity = 0.75;
-      hemiLight.diffuse = new Color3(0.92, 0.95, 0.98);
-      hemiLight.groundColor = new Color3(0.35, 0.28, 0.22);
+      hemiLight.intensity = 1.1;
+      hemiLight.diffuse = new Color3(1.0, 0.98, 0.95);
+      hemiLight.groundColor = new Color3(0.45, 0.38, 0.3);
 
       // Sun Directional Light with Warm Golden Angle
       const sunLight = new DirectionalLight(
         'sunLight',
-        new Vector3(-0.65, -1.2, -0.75).normalize(),
+        new Vector3(-0.6, -1.1, -0.7).normalize(),
         scene
       );
       sunLight.position = new Vector3(35, 60, 45);
-      sunLight.intensity = 1.6;
-      sunLight.diffuse = new Color3(1.0, 0.95, 0.88);
-      sunLight.specular = new Color3(0.3, 0.28, 0.22);
+      sunLight.intensity = 1.85;
+      sunLight.diffuse = new Color3(1.0, 0.96, 0.88);
+      sunLight.specular = new Color3(0.4, 0.35, 0.28);
 
       let shadowGen: ShadowGenerator | null = null;
       if (preset.shadowsEnabled) {
@@ -258,7 +259,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         shadowGen.usePoissonSampling = true;
         shadowGen.bias = 0.002;
         shadowGen.normalBias = 0.02;
-        shadowGen.darkness = 0.35;
+        shadowGen.darkness = 0.3;
       }
 
       const addShadow = (mesh: Mesh, receive = true) => {
@@ -266,21 +267,31 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         if (receive) mesh.receiveShadows = true;
       };
 
+      // --- Enhanced Interior Illumination for clear visibility of all objects ---
+      // 4 Ambient interior fill lights distributed along the roof ridge
+      const interiorZSpots = [8.5, 3.0, -3.5, -9.0];
+      interiorZSpots.forEach((iz, idx) => {
+        const fillLight = new PointLight(`interiorFill_${idx}`, new Vector3(0, 4.2, iz), scene!);
+        fillLight.diffuse = new Color3(1.0, 0.92, 0.82);
+        fillLight.intensity = 1.35;
+        fillLight.range = 14.0;
+      });
+
       // Interior Hearth Light in Gian Gah (Central Guest Fireplace)
-      const hearthGahLight = new PointLight('hearthGahLight', new Vector3(0, 2.65, 4.2), scene);
-      hearthGahLight.diffuse = new Color3(1.0, 0.52, 0.15);
-      hearthGahLight.specular = new Color3(0.6, 0.25, 0.05);
-      hearthGahLight.intensity = 1.9;
-      hearthGahLight.range = 11.5;
+      const hearthGahLight = new PointLight('hearthGahLight', new Vector3(0, 2.7, 4.2), scene);
+      hearthGahLight.diffuse = new Color3(1.0, 0.58, 0.18);
+      hearthGahLight.specular = new Color3(0.8, 0.35, 0.1);
+      hearthGahLight.intensity = 2.2;
+      hearthGahLight.range = 14.0;
       hearthLightRef.current = hearthGahLight;
 
       // Interior Hearth Light in Gian Ôk (Family Kitchen)
-      const hearthOkLight = new PointLight('hearthOkLight', new Vector3(-1.2, 2.65, -7.5), scene);
-      hearthOkLight.diffuse = new Color3(0.98, 0.48, 0.12);
-      hearthOkLight.intensity = 1.4;
-      hearthOkLight.range = 9.0;
+      const hearthOkLight = new PointLight('hearthOkLight', new Vector3(-1.2, 2.7, -7.5), scene);
+      hearthOkLight.diffuse = new Color3(1.0, 0.55, 0.15);
+      hearthOkLight.intensity = 1.8;
+      hearthOkLight.range = 12.0;
 
-      // 2. Procedural Dynamic Textures for Organic PBR Materials
+      // 2. Procedural Textures for Organic PBR Materials
       const pal = LONGHOUSE_3D_CONFIG.palette;
 
       const makeProceduralTexture = (
@@ -298,7 +309,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         ctx.fillRect(0, 0, size, size);
 
         if (pattern === 'wood') {
-          // Longitudinal wood fibers & growth rings
+          // Fine longitudinal wood grain
           ctx.fillStyle = 'rgba(0,0,0,0.12)';
           for (let i = 0; i < size; i += 6) {
             ctx.fillRect(i, 0, 2 + (i % 3), size);
@@ -313,43 +324,42 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
           for (let y = 0; y < size; y += tileSize) {
             for (let x = 0; x < size; x += tileSize) {
               const alt = ((x / tileSize) + (y / tileSize)) % 2 === 0;
-              ctx.fillStyle = alt ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.12)';
+              ctx.fillStyle = alt ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.14)';
               ctx.fillRect(x, y, tileSize - 2, tileSize - 2);
             }
           }
         } else if (pattern === 'thatch') {
-          // Diagonal layered straw strands
-          ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+          // Golden layered straw strands
+          ctx.strokeStyle = 'rgba(0,0,0,0.18)';
           ctx.lineWidth = 2;
-          for (let i = 0; i < 180; i++) {
+          for (let i = 0; i < 220; i++) {
             const sx = Math.random() * size;
             const sy = Math.random() * size;
             ctx.beginPath();
             ctx.moveTo(sx, sy);
-            ctx.lineTo(sx + (Math.random() - 0.5) * 40, sy + 30 + Math.random() * 40);
+            ctx.lineTo(sx + (Math.random() - 0.5) * 35, sy + 30 + Math.random() * 45);
             ctx.stroke();
           }
         } else if (pattern === 'soil') {
-          // Noisy pebble and basalt red clay flecks
-          for (let i = 0; i < 400; i++) {
+          for (let i = 0; i < 350; i++) {
             const sx = Math.random() * size;
             const sy = Math.random() * size;
-            const radius = 1 + Math.random() * 3;
-            ctx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.22)' : 'rgba(255,180,120,0.18)';
+            const radius = 1 + Math.random() * 2.5;
+            ctx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.2)' : 'rgba(255,200,140,0.2)';
             ctx.beginPath();
             ctx.arc(sx, sy, radius, 0, Math.PI * 2);
             ctx.fill();
           }
         } else if (pattern === 'brocade') {
-          // Traditional Ede geometric diamond, zigzag, and lizard motifs
-          ctx.fillStyle = '#6e141a';
+          // Vibrant scarlet, indigo and golden diamond pattern
+          ctx.fillStyle = '#b81e28';
           ctx.fillRect(0, 0, size, size);
-          ctx.fillStyle = '#1c344a';
+          ctx.fillStyle = '#1e486e';
           for (let y = 0; y < size; y += 48) {
-            ctx.fillRect(0, y, size, 20);
+            ctx.fillRect(0, y, size, 22);
           }
-          ctx.strokeStyle = '#e0aa34';
-          ctx.lineWidth = 4;
+          ctx.strokeStyle = '#f5c53b';
+          ctx.lineWidth = 5;
           for (let x = 0; x < size; x += 32) {
             ctx.beginPath();
             ctx.moveTo(x, 0);
@@ -358,12 +368,9 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
             ctx.stroke();
           }
         } else if (pattern === 'ceramic') {
-          // Antique glazed Tuk jar ceramic speckles
-          ctx.fillStyle = 'rgba(0,0,0,0.3)';
+          ctx.fillStyle = 'rgba(0,0,0,0.25)';
           for (let i = 0; i < 200; i++) {
-            const sx = Math.random() * size;
-            const sy = Math.random() * size;
-            ctx.fillRect(sx, sy, 3, 3);
+            ctx.fillRect(Math.random() * size, Math.random() * size, 3, 3);
           }
         }
 
@@ -371,7 +378,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         return dt;
       };
 
-      // 3. PBR Materials Builder
+      // 3. Bright, Vibrant PBR Materials
       const makePBRMat = (
         name: string,
         albedoRgb: [number, number, number],
@@ -383,7 +390,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         mat.albedoColor = Color3.FromArray(albedoRgb);
         mat.roughness = roughness;
         mat.metallic = metallic;
-        mat.environmentIntensity = 0.85;
+        mat.environmentIntensity = 1.0;
 
         if (pattern) {
           const tex = makeProceduralTexture(`${name}_tex`, pattern, albedoRgb);
@@ -391,40 +398,36 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
             mat.albedoTexture = tex;
             if (pattern === 'wood' || pattern === 'bamboo') {
               mat.bumpTexture = tex;
-              mat.bumpTexture.level = 0.35;
+              mat.bumpTexture.level = 0.3;
             }
           }
         }
         return mat;
       };
 
-      const matGround = makePBRMat('matGround', pal.forestGround, 0.95, 0.02, 'soil');
-      const matRedSoil = makePBRMat('matRedSoil', pal.redBazanSoil, 0.88, 0.02, 'soil');
-      const matTimberPillars = makePBRMat('matTimberPillars', pal.timberPillars, 0.68, 0.06, 'wood');
-      const matTimberBeams = makePBRMat('matTimberBeams', pal.timberDarkAged, 0.72, 0.06, 'wood');
-      const matPlankFloor = makePBRMat('matPlankFloor', pal.bambooFloor, 0.42, 0.08, 'bamboo');
-      const matWovenWalls = makePBRMat('matWovenWalls', pal.wovenBambooWall, 0.75, 0.04, 'bamboo');
-      const matThatchRoof = makePBRMat('matThatchRoof', pal.thatchRoofDark, 0.86, 0.02, 'thatch');
-      const matRiverStone = makePBRMat('matRiverStone', pal.riverStoneGray, 0.82, 0.05);
-      const matBronze = makePBRMat('matBronze', pal.bronzeGold, 0.32, 0.88);
-      const matCeramic = makePBRMat('matCeramic', pal.ceramicGlazeTuk, 0.18, 0.12, 'ceramic');
-      const matBrocade = makePBRMat('matBrocade', pal.brocadeCrimson, 0.82, 0.04, 'brocade');
+      const matGround = makePBRMat('matGround', pal.forestGround, 0.92, 0.02, 'soil');
+      const matRedSoil = makePBRMat('matRedSoil', pal.redBazanSoil, 0.85, 0.02, 'soil');
+      const matTimberPillars = makePBRMat('matTimberPillars', pal.timberPillars, 0.65, 0.06, 'wood');
+      const matTimberBeams = makePBRMat('matTimberBeams', pal.timberDarkAged, 0.68, 0.06, 'wood');
+      const matPlankFloor = makePBRMat('matPlankFloor', pal.bambooFloor, 0.38, 0.08, 'bamboo');
+      const matWovenWalls = makePBRMat('matWovenWalls', pal.wovenBambooWall, 0.7, 0.04, 'bamboo');
+      const matThatchRoof = makePBRMat('matThatchRoof', pal.thatchRoofDark, 0.82, 0.02, 'thatch');
+      const matRiverStone = makePBRMat('matRiverStone', pal.riverStoneGray, 0.78, 0.05);
+      const matBronze = makePBRMat('matBronze', pal.bronzeGold, 0.24, 0.9);
+      const matCeramic = makePBRMat('matCeramic', pal.ceramicGlazeTuk, 0.16, 0.12, 'ceramic');
+      const matBrocade = makePBRMat('matBrocade', pal.brocadeCrimson, 0.75, 0.04, 'brocade');
 
-      // Emissive Hotspot & Ember Materials
-      const makeHotspotMat = (name: string, rgb: [number, number, number]) => {
-        const mat = new StandardMaterial(name, scene!);
-        mat.diffuseColor = Color3.FromArray(rgb);
-        mat.emissiveColor = Color3.FromArray(rgb).scale(0.85);
-        return mat;
+      const matEmber = new StandardMaterial('matEmber', scene);
+      matEmber.diffuseColor = Color3.FromArray(pal.emberGlow);
+      matEmber.emissiveColor = Color3.FromArray(pal.emberGlow).scale(0.9);
+
+      // Helper to register interactive mesh for raycast clicking (Requirement 3)
+      const registerInteractive = (mesh: Mesh, hotspotId: string) => {
+        mesh.metadata = { hotspotId };
+        mesh.isPickable = true;
       };
 
-      const matEmber = makeHotspotMat('matEmber', pal.emberGlow);
-      const matHotspotIdle = makeHotspotMat('matHotspotIdle', pal.hotspotIdle);
-      const matHotspotNear = makeHotspotMat('matHotspotNear', pal.hotspotNear);
-      const matHotspotDone = makeHotspotMat('matHotspotDone', pal.hotspotDone);
-
-      // 4. Exterior Environment: Highlands Ground, Mountains, Trees & Path
-      // Wide undulating ground
+      // 4. Exterior Environment: Ground, Mountains, Pathway & Ancient Trees
       const ground = MeshBuilder.CreateGround(
         'forestGround',
         { width: LONGHOUSE_3D_CONFIG.world.groundSize, height: LONGHOUSE_3D_CONFIG.world.groundSize },
@@ -434,28 +437,22 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       ground.checkCollisions = true;
       ground.receiveShadows = true;
 
-      // Distant Highlands Mountain Ridge (Chu Yang Sin Vista)
-      const mountainColors = [pal.mountainBlue, pal.canopyGreenDark];
+      // Distant Highlands Mountain Ridge
       for (let m = 0; m < 7; m++) {
         const mountain = MeshBuilder.CreateCylinder(
           `mountain_${m}`,
-          {
-            diameterTop: 0,
-            diameterBottom: 42 + (m % 3) * 14,
-            height: 24 + (m % 2) * 12,
-            tessellation: 6,
-          },
+          { diameterTop: 0, diameterBottom: 45 + (m % 3) * 14, height: 26 + (m % 2) * 12, tessellation: 6 },
           scene
         );
         const ang = (m / 7) * Math.PI - Math.PI / 2;
-        const dist = 54 + (m % 2) * 8;
-        mountain.position = new Vector3(Math.sin(ang) * dist, 10, -Math.cos(ang) * dist - 8);
-        const mMat = new StandardMaterial(`mMat_${m}`, scene!);
-        mMat.diffuseColor = Color3.FromArray(mountainColors[m % 2]).scale(0.65);
+        const dist = 55 + (m % 2) * 8;
+        mountain.position = new Vector3(Math.sin(ang) * dist, 11, -Math.cos(ang) * dist - 8);
+        const mMat = new StandardMaterial(`mMat_${m}`, scene);
+        mMat.diffuseColor = Color3.FromArray(m % 2 === 0 ? pal.mountainBlue : pal.canopyGreenDark).scale(0.75);
         mountain.material = mMat;
       }
 
-      // Red Bazan Soil Path from Entrance Gate to Longhouse Front Porch
+      // Red Bazan Soil Path leading to stairs
       const arch = LONGHOUSE_3D_CONFIG.architecture;
       const pathLen = arch.pathway.endZ - arch.pathway.startZ;
       const pathway = MeshBuilder.CreateBox(
@@ -463,24 +460,23 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         { width: arch.pathway.width, height: 0.08, depth: pathLen },
         scene
       );
-      pathway.position = new Vector3(0, 0.04, arch.pathway.startZ + pathLen / 2);
+      pathway.position = new Vector3(-1.5, 0.04, arch.pathway.startZ + pathLen / 2);
       pathway.material = matRedSoil;
       pathway.checkCollisions = true;
       pathway.receiveShadows = true;
 
-      // Ancient Ko-nia & Highlands Forest Trees with root buttresses
+      // Ko-nia & Highlands Forest Trees
       const treeCoords: Array<[number, number, number]> = [
-        [-14, 25, 1.2], [-18, 17, 1.35], [-15, 8, 1.1], [-17, -2, 1.25], [-16, -11, 1.2],
-        [-13, -20, 1.1], [14, 25, 1.15], [18, 16, 1.3], [15, 7, 1.2], [18, -4, 1.25],
+        [-15, 25, 1.2], [-18, 17, 1.35], [-16, 8, 1.1], [-18, -2, 1.25], [-17, -11, 1.2],
+        [-14, -20, 1.1], [14, 25, 1.15], [18, 16, 1.3], [15, 7, 1.2], [18, -4, 1.25],
         [15, -15, 1.3], [10, -24, 1.15], [-9, -24, 1.2], [0, -26, 1.4],
         [-22, 12, 1.3], [22, 11, 1.25], [-23, -6, 1.2], [23, -10, 1.2],
-        [-21, -19, 1.1], [21, -21, 1.25], [-7, 31, 1.0], [7, 31, 1.1],
       ];
 
       treeCoords.slice(0, preset.treeCount).forEach(([tx, tz, sc], idx) => {
         const trunk = MeshBuilder.CreateCylinder(
           `treeTrunk_${idx}`,
-          { diameterTop: 0.48 * sc, diameterBottom: 0.88 * sc, height: 6.2 * sc, tessellation: 12 },
+          { diameterTop: 0.48 * sc, diameterBottom: 0.88 * sc, height: 6.2 * sc, tessellation: 10 },
           scene
         );
         trunk.position = new Vector3(tx, 3.1 * sc, tz);
@@ -488,31 +484,17 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         trunk.checkCollisions = true;
         addShadow(trunk, false);
 
-        // Flared root base
-        const rootBase = MeshBuilder.CreateCylinder(
-          `treeRoots_${idx}`,
-          { diameterTop: 0.85 * sc, diameterBottom: 1.65 * sc, height: 0.9 * sc, tessellation: 8 },
-          scene
-        );
-        rootBase.position = new Vector3(tx, 0.45 * sc, tz);
-        rootBase.material = matTimberPillars;
-
-        // Lush layered canopy
-        const canopyA = MeshBuilder.CreateSphere(
-          `canopyA_${idx}`,
-          { diameter: 5.6 * sc, segments: 8 },
-          scene
-        );
+        const canopyA = MeshBuilder.CreateSphere(`canopyA_${idx}`, { diameter: 5.6 * sc, segments: 8 }, scene);
         canopyA.scaling = new Vector3(1.15, 0.8, 1.15);
         canopyA.position = new Vector3(tx, 6.8 * sc, tz);
-        const cMat = new StandardMaterial(`canopyMat_${idx}`, scene!);
+        const cMat = new StandardMaterial(`canopyMat_${idx}`, scene);
         cMat.diffuseColor = Color3.FromArray(pal.canopyGreenDark);
         canopyA.material = cMat;
         addShadow(canopyA, false);
       });
 
       // River stones flanking pathway
-      for (let s = 0; s < 8; s++) {
+      for (let s = 0; s < 7; s++) {
         for (const side of [-1, 1]) {
           const stone = MeshBuilder.CreateSphere(
             `riverStone_${s}_${side}`,
@@ -520,12 +502,12 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
             scene
           );
           stone.scaling = new Vector3(1.3, 0.65, 1.1);
-          stone.position = new Vector3(side * 2.2, 0.2, 18.5 + s * 1.8);
+          stone.position = new Vector3(-1.5 + side * 2.3, 0.2, 19.0 + s * 1.9);
           stone.material = matRiverStone;
         }
       }
 
-      // Invisible outer boundary walls so player doesn't walk off into the void
+      // Invisible perimeter boundary walls around forest yard
       const makeBoundary = (name: string, w: number, h: number, d: number, x: number, z: number) => {
         const b = MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, scene);
         b.position = new Vector3(x, h / 2, z);
@@ -537,26 +519,24 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       makeBoundary('boundW', 1, 8, 70, -32, 1);
       makeBoundary('boundE', 1, 8, 70, 32, 1);
 
-      // 5. ARCHITECTURAL HIERARCHY: Longhouse Ê-đê Model
+      // 5. LONGHOUSE MODEL: Rebuilt to match user's reference photo
       const houseRoot = new TransformNode('Longhouse_Root', scene);
 
-      // A. Longhouse_Pillars: 32 Stilt Pillars (Jing Gơr & Jing Đê) with Stone Plinths
+      // A. Longhouse_Pillars: 32 Stilt Pillars with stone plinths
       const pillarsNode = new TransformNode('Longhouse_Pillars', scene);
       pillarsNode.parent = houseRoot;
 
       for (const px of arch.pillars.xPositions) {
         for (const pz of arch.pillars.zPositions) {
-          // Stone plinth under pillar
           const plinth = MeshBuilder.CreateCylinder(
             `plinth_${px}_${pz}`,
-            { diameter: 0.65, height: 0.24, tessellation: 8 },
+            { diameter: 0.68, height: 0.25, tessellation: 8 },
             scene
           );
           plinth.position = new Vector3(px, 0.12, pz);
           plinth.material = matRiverStone;
           plinth.parent = pillarsNode;
 
-          // Main vertical timber stilt column
           const stilt = MeshBuilder.CreateCylinder(
             `stilt_${px}_${pz}`,
             { diameter: arch.pillars.stiltRadius * 2, height: arch.floor.elevationY - 0.1, tessellation: 12 },
@@ -568,8 +548,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
           addShadow(stilt);
           stilt.parent = pillarsNode;
 
-          // Upper wall post extending up to roof beam (along outer rows)
-          if (Math.abs(px) >= 3.8) {
+          if (Math.abs(px) >= 3.8 && pz <= 11) {
             const wallPost = MeshBuilder.CreateCylinder(
               `wallPost_${px}_${pz}`,
               { diameter: arch.pillars.wallPostRadius * 2, height: arch.pillars.wallHeight, tessellation: 12 },
@@ -584,208 +563,191 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         }
       }
 
-      // B. Longhouse_Floor: Raised Timber & Bamboo Deck
+      // B. Longhouse_Floor: Raised Deck + Extended Front Porch (Hiên Dring) as in photo
       const floorNode = new TransformNode('Longhouse_Floor', scene);
       floorNode.parent = houseRoot;
 
+      // Main enclosed floor deck (z: -13.2 to 10.8)
       const floorDeck = MeshBuilder.CreateBox(
         'floorDeck',
-        { width: arch.floor.width, height: arch.floor.thickness, depth: arch.floor.length },
+        { width: arch.floor.width, height: arch.floor.thickness, depth: 24.0 },
         scene
       );
-      floorDeck.position = new Vector3(0, arch.floor.elevationY, 0);
+      floorDeck.position = new Vector3(0, arch.floor.elevationY, -1.2);
       floorDeck.material = matPlankFloor;
       floorDeck.checkCollisions = true;
       floorDeck.receiveShadows = true;
       floorDeck.parent = floorNode;
 
-      // Heavy longitudinal timber edge beams (Đòn tay sàn)
-      for (const side of [-1, 1]) {
-        const edgeBeam = MeshBuilder.CreateBox(
-          `floorEdgeBeam_${side}`,
-          { width: 0.28, height: 0.38, depth: arch.floor.length + 0.4 },
+      // Wide Open Front Porch (Hiên Dring - z: 10.8 to 14.1) as in photo!
+      const porchDeck = MeshBuilder.CreateBox(
+        'porchDeck',
+        { width: arch.floor.width, height: arch.floor.thickness, depth: 4.8 },
+        scene
+      );
+      porchDeck.position = new Vector3(0, arch.floor.elevationY, 12.3);
+      porchDeck.material = matPlankFloor;
+      porchDeck.checkCollisions = true;
+      porchDeck.receiveShadows = true;
+      porchDeck.parent = floorNode;
+      registerInteractive(porchDeck, 'ext-facade');
+
+      // Exposed round timber log ends along the front & side edge of porch (as in photo!)
+      for (let rx = -4.0; rx <= 4.0; rx += 0.45) {
+        const logBeam = MeshBuilder.CreateCylinder(
+          `porchLog_${rx}`,
+          { diameter: 0.28, height: 4.9, tessellation: 10 },
           scene
         );
-        edgeBeam.position = new Vector3(side * (arch.floor.width / 2), arch.floor.elevationY - 0.1, 0);
-        edgeBeam.material = matTimberBeams;
-        edgeBeam.parent = floorNode;
+        logBeam.rotation.x = Math.PI / 2;
+        logBeam.position = new Vector3(rx, arch.floor.elevationY - 0.12, 12.3);
+        logBeam.material = matTimberPillars;
+        logBeam.parent = floorNode;
       }
 
-      // C. Longhouse_Beams: Transverse Tie Beams, Queen Posts & Longitudinal Purlins
-      const beamsNode = new TransformNode('Longhouse_Beams', scene);
-      beamsNode.parent = houseRoot;
+      // Decorative water/washing pot near porch front as seen in user's photo!
+      const porchWaterPot = MeshBuilder.CreateCylinder(
+        'porchWaterPot',
+        { diameterTop: 0.9, diameterBottom: 0.65, height: 0.72, tessellation: 16 },
+        scene
+      );
+      porchWaterPot.position = new Vector3(1.2, arch.floor.elevationY + 0.45, 13.6);
+      porchWaterPot.material = matRiverStone;
+      porchWaterPot.checkCollisions = true;
+      porchWaterPot.parent = floorNode;
+      registerInteractive(porchWaterPot, 'ext-facade');
 
-      for (const pz of arch.pillars.zPositions) {
-        // Transverse tie beam (Xà ngang đỡ mái)
-        const tieBeam = MeshBuilder.CreateBox(
-          `tieBeam_${pz}`,
-          { width: arch.floor.width - 0.4, height: 0.24, depth: 0.26 },
-          scene
-        );
-        tieBeam.position = new Vector3(0, arch.floor.elevationY + arch.pillars.wallHeight, pz);
-        tieBeam.material = matTimberBeams;
-        addShadow(tieBeam);
-        tieBeam.parent = beamsNode;
-
-        // Vertical queen post (Cột nghé chống nóc)
-        const queenPost = MeshBuilder.CreateCylinder(
-          `queenPost_${pz}`,
-          {
-            diameter: 0.24,
-            height: arch.roof.peakHeight - (arch.floor.elevationY + arch.pillars.wallHeight),
-            tessellation: 10,
-          },
-          scene
-        );
-        queenPost.position = new Vector3(
-          0,
-          (arch.floor.elevationY + arch.pillars.wallHeight + arch.roof.peakHeight) / 2,
-          pz
-        );
-        queenPost.material = matTimberBeams;
-        queenPost.parent = beamsNode;
-      }
-
-      // Longitudinal roof purlins along each side (Xà dọc đỡ vì kèo)
-      for (const side of [-1, 1]) {
-        const purlin = MeshBuilder.CreateBox(
-          `purlin_${side}`,
-          { width: 0.22, height: 0.24, depth: arch.roof.length },
-          scene
-        );
-        purlin.position = new Vector3(
-          side * (arch.floor.width / 2 - 0.2),
-          arch.floor.elevationY + arch.pillars.wallHeight + 0.1,
-          0
-        );
-        purlin.material = matTimberBeams;
-        purlin.parent = beamsNode;
-      }
-
-      // D. Longhouse_Stairs: Master Staircase (K'Kha Drai) with 3D Sculpted Crescent Moon & Breasts
+      // C. Longhouse_Stairs: TWO STAIRS SIDE-BY-SIDE (as in photo!)
+      // Cầu thang cái (K'Kha Drai) with crescent moon & sculpted breasts + Cầu thang đực (K'Kha găm)
       const stairsNode = new TransformNode('Longhouse_Stairs', scene);
       stairsNode.parent = houseRoot;
 
-      const mst = arch.masterStairs;
-      const mstSpanZ = mst.bottomZ - mst.topZ;
-      const mstRiseY = mst.topY - mst.bottomY;
-      const stairAngle = Math.atan2(mstRiseY, mstSpanZ);
+      const stCai = arch.twoStairs.stairCai;
+      const stDuc = arch.twoStairs.stairDuc;
+      const stairSpanZ = stCai.bottomZ - stCai.topZ;
+      const stairRiseY = stCai.topY - stCai.bottomY;
+      const stairAngle = Math.atan2(stairRiseY, stairSpanZ);
 
-      // Solid inclined timber beam of K'Kha Drai
-      const stairSlabLength = Math.hypot(mstSpanZ, mstRiseY) + 1.2;
-      const stairSlab = MeshBuilder.CreateBox(
+      // --- 1. Cầu thang cái (K'Kha Drai) - On the right side of the pair (x = -1.35) ---
+      const stairCaiLength = Math.hypot(stairSpanZ, stairRiseY) + 1.2;
+      const stairCaiSlab = MeshBuilder.CreateBox(
         'masterStairSlab',
-        { width: mst.width, height: mst.boardThickness, depth: stairSlabLength },
+        { width: stCai.width, height: 0.28, depth: stairCaiLength },
         scene
       );
-      stairSlab.position = new Vector3(0, (mst.bottomY + mst.topY) / 2 + 0.15, (mst.bottomZ + mst.topZ) / 2 + 0.3);
-      stairSlab.rotation.x = stairAngle;
-      stairSlab.material = matTimberBeams;
-      addShadow(stairSlab);
-      stairSlab.parent = stairsNode;
+      stairCaiSlab.position = new Vector3(stCai.x, (stCai.bottomY + stCai.topY) / 2 + 0.15, (stCai.bottomZ + stCai.topZ) / 2 + 0.3);
+      stairCaiSlab.rotation.x = stairAngle;
+      stairCaiSlab.material = matTimberBeams;
+      addShadow(stairCaiSlab);
+      stairCaiSlab.parent = stairsNode;
+      registerInteractive(stairCaiSlab, 'ext-stairs');
 
-      // 7 Individual notched footholds (Bậc thang đẽo)
-      for (let i = 0; i < mst.stepCount; i++) {
-        const t = (i + 0.5) / mst.stepCount;
+      // 7 Notched steps on Cầu thang cái
+      for (let i = 0; i < stCai.stepCount; i++) {
+        const t = (i + 0.5) / stCai.stepCount;
         const step = MeshBuilder.CreateBox(
           `mstStep_${i}`,
-          { width: mst.width * 0.92, height: 0.18, depth: 0.42 },
+          { width: stCai.width * 0.94, height: 0.18, depth: 0.45 },
           scene
         );
-        step.position = new Vector3(
-          0,
-          mst.bottomY + t * mstRiseY + 0.1,
-          mst.bottomZ - t * mstSpanZ
-        );
+        step.position = new Vector3(stCai.x, stCai.bottomY + t * stairRiseY + 0.1, stCai.bottomZ - t * stairSpanZ);
         step.material = matTimberPillars;
         addShadow(step);
         step.parent = stairsNode;
+        registerInteractive(step, 'ext-stairs');
       }
 
-      // Sculpted Head of K'Kha Drai: Curved Crest (Vầng trăng khuyết) at top
+      // Sculpted Crescent Moon Head (Trăng khuyết ở đầu cầu thang cái)
       const moonCrest = MeshBuilder.CreateTorus(
         'crescentMoonHead',
-        { diameter: mst.moonRadius * 2, thickness: 0.18, tessellation: 20 },
+        { diameter: stCai.moonRadius * 2, thickness: 0.2, tessellation: 20 },
         scene
       );
       moonCrest.rotation.x = Math.PI / 2;
-      moonCrest.scaling = new Vector3(1.2, 0.8, 1);
-      moonCrest.position = new Vector3(0, mst.topY + 0.95, mst.topZ + 0.15);
+      moonCrest.scaling = new Vector3(1.25, 0.85, 1);
+      moonCrest.position = new Vector3(stCai.x, stCai.topY + 0.95, stCai.topZ + 0.15);
       moonCrest.material = matTimberBeams;
       addShadow(moonCrest);
       moonCrest.parent = stairsNode;
+      registerInteractive(moonCrest, 'ext-stairs');
 
-      // 3D Sculpted Pair of Breasts (Đôi bầu ngực biểu tượng mẫu hệ thiêng liêng)
+      // 3D Sculpted Pair of Breasts (Đôi bầu ngực đắp nổi bằng hình học 3D thật!)
       for (const side of [-1, 1]) {
         const breast = MeshBuilder.CreateSphere(
           `sculptedBreast_${side}`,
-          { diameter: mst.breastRadius * 2, segments: 12 },
+          { diameter: stCai.breastRadius * 2, segments: 12 },
           scene
         );
         breast.scaling = new Vector3(1, 1.25, 0.9);
-        breast.position = new Vector3(side * 0.36, mst.topY + 0.52, mst.topZ + 0.28);
+        breast.position = new Vector3(stCai.x + side * 0.32, stCai.topY + 0.52, stCai.topZ + 0.28);
         breast.material = matTimberBeams;
         addShadow(breast);
         breast.parent = stairsNode;
+        registerInteractive(breast, 'ext-stairs');
 
-        // Teardrop nipple apex
-        const nipple = MeshBuilder.CreateSphere(
-          `nipple_${side}`,
-          { diameter: 0.08, segments: 6 },
-          scene
-        );
-        nipple.position = new Vector3(side * 0.36, mst.topY + 0.52, mst.topZ + 0.48);
+        const nipple = MeshBuilder.CreateSphere(`nipple_${side}`, { diameter: 0.08, segments: 6 }, scene);
+        nipple.position = new Vector3(stCai.x + side * 0.32, stCai.topY + 0.52, stCai.topZ + 0.48);
         nipple.material = matTimberPillars;
         nipple.parent = stairsNode;
       }
 
-      // Invisible ramp collider for smooth ascension up the master staircase
-      const rampLength = Math.hypot(mstSpanZ, mstRiseY) + 0.8;
-      const stairCollider = MeshBuilder.CreateBox(
-        'stairRampCollider',
-        { width: mst.width + 0.4, height: 0.22, depth: rampLength },
+      // --- 2. Cầu thang đực (K'Kha găm) - Parallel next to Cầu thang cái (x = -2.95) as in photo! ---
+      const stairDucLength = Math.hypot(stairSpanZ, stairRiseY) + 0.8;
+      const stairDucSlab = MeshBuilder.CreateBox(
+        'stairDucSlab',
+        { width: stDuc.width, height: 0.26, depth: stairDucLength },
         scene
       );
-      stairCollider.position = new Vector3(0, (mst.bottomY + mst.topY) / 2 - 0.02, (mst.bottomZ + mst.topZ) / 2);
-      stairCollider.rotation.x = stairAngle;
-      stairCollider.isVisible = false;
-      stairCollider.checkCollisions = true;
+      stairDucSlab.position = new Vector3(stDuc.x, (stDuc.bottomY + stDuc.topY) / 2 + 0.1, (stDuc.bottomZ + stDuc.topZ) / 2 + 0.2);
+      stairDucSlab.rotation.x = stairAngle;
+      stairDucSlab.material = matTimberBeams;
+      addShadow(stairDucSlab);
+      stairDucSlab.parent = stairsNode;
+      registerInteractive(stairDucSlab, 'ext-stairs');
 
-      // Rear Staircase (Cầu thang phụ K'Kha găm ở phía sau cho gia đình)
-      const rst = arch.rearStairs;
-      const rstSpanZ = rst.bottomZ - rst.topZ;
-      const rstRiseY = rst.topY - rst.bottomY;
-      const rstAngle = Math.atan2(rstRiseY, rstSpanZ);
-      const rstSlab = MeshBuilder.CreateBox(
-        'rearStairSlab',
-        { width: rst.width, height: 0.24, depth: Math.hypot(rstSpanZ, rstRiseY) + 0.6 },
+      // 7 Notched steps on Cầu thang đực
+      for (let i = 0; i < stDuc.stepCount; i++) {
+        const t = (i + 0.5) / stDuc.stepCount;
+        const step = MeshBuilder.CreateBox(
+          `ducStep_${i}`,
+          { width: stDuc.width * 0.92, height: 0.16, depth: 0.42 },
+          scene
+        );
+        step.position = new Vector3(stDuc.x, stDuc.bottomY + t * stairRiseY + 0.08, stDuc.bottomZ - t * stairSpanZ);
+        step.material = matTimberPillars;
+        addShadow(step);
+        step.parent = stairsNode;
+        registerInteractive(step, 'ext-stairs');
+      }
+
+      // --- 3. Seamless Collision Ramp spanning BOTH stairs for smooth climbing up/down (Requirement 4) ---
+      const rampWidth = Math.abs(stCai.x - stDuc.x) + stCai.width + 0.6;
+      const rampCenterX = (stCai.x + stDuc.x) / 2;
+      const rampLength = Math.hypot(stairSpanZ, stairRiseY) + 0.9;
+      const smoothStairCollider = MeshBuilder.CreateBox(
+        'smoothStairCollider',
+        { width: rampWidth, height: 0.25, depth: rampLength },
         scene
       );
-      rstSlab.position = new Vector3(0, (rst.bottomY + rst.topY) / 2 + 0.1, (rst.bottomZ + rst.topZ) / 2);
-      rstSlab.rotation.x = rstAngle;
-      rstSlab.material = matTimberBeams;
-      rstSlab.parent = stairsNode;
-
-      const rearCollider = MeshBuilder.CreateBox(
-        'rearCollider',
-        { width: rst.width + 0.4, height: 0.2, depth: Math.hypot(rstSpanZ, rstRiseY) + 0.6 },
-        scene
+      smoothStairCollider.position = new Vector3(
+        rampCenterX,
+        (stCai.bottomY + stCai.topY) / 2 + 0.02,
+        (stCai.bottomZ + stCai.topZ) / 2
       );
-      rearCollider.position = rstSlab.position.clone();
-      rearCollider.rotation.x = rstAngle;
-      rearCollider.isVisible = false;
-      rearCollider.checkCollisions = true;
+      smoothStairCollider.rotation.x = stairAngle;
+      smoothStairCollider.isVisible = false;
+      smoothStairCollider.checkCollisions = true;
 
-      // E. Longhouse_Walls: Woven Bamboo Screens, Porch Railing & Internal Partition
+      // D. Longhouse_Walls: Woven Bamboo Walls with Wide Entrance Doorway (z = 10.8)
       const wallsNode = new TransformNode('Longhouse_Walls', scene);
       wallsNode.parent = houseRoot;
 
       const wallY = arch.floor.elevationY + arch.walls.height / 2;
       const wallZStart = -13.2;
-      const wallZEnd = 11.2;
+      const wallZEnd = 10.8;
       const interiorLength = wallZEnd - wallZStart;
 
-      // Left & Right Long Woven Bamboo Walls with clerestory gap for natural lighting
+      // Side Walls with Clerestory Eave Openings
       for (const side of [-1, 1]) {
         const sideWall = MeshBuilder.CreateBox(
           `sideWall_${side}`,
@@ -799,7 +761,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         sideWall.parent = wallsNode;
       }
 
-      // Rear Wall (South Gable Wall)
+      // Rear Wall (North Gable Wall)
       const rearWall = MeshBuilder.CreateBox(
         'rearWall',
         { width: arch.floor.width - 0.2, height: arch.walls.height, depth: arch.walls.thickness },
@@ -811,7 +773,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       addShadow(rearWall);
       rearWall.parent = wallsNode;
 
-      // Front Wall with Carved Entrance Doorway (z = 11.2)
+      // Front Wall split around Wide Entrance Doorway (Doorway width: 2.6m, NO COLLIDER across opening!)
       const frontPanelWidth = (arch.floor.width - arch.walls.frontDoorWidth) / 2;
       for (const side of [-1, 1]) {
         const frontPanel = MeshBuilder.CreateBox(
@@ -830,7 +792,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         frontPanel.parent = wallsNode;
       }
 
-      // Front Carved Door Lintel
+      // Carved Front Door Lintel (Above door opening)
       const doorLintel = MeshBuilder.CreateBox(
         'doorLintel',
         { width: arch.walls.frontDoorWidth + 0.4, height: 0.42, depth: arch.walls.thickness + 0.08 },
@@ -841,7 +803,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       doorLintel.checkCollisions = true;
       doorLintel.parent = wallsNode;
 
-      // Internal Partition Wall (Vách ngăn phân chia Gian Gah và Gian Ôk tại z = 0.5)
+      // Internal Partition Wall separating Gian Gah & Gian Ôk (z = 0.5) with open center doorway
       const partPanelW = (arch.floor.width - arch.walls.partitionDoorWidth) / 2;
       for (const side of [-1, 1]) {
         const partPanel = MeshBuilder.CreateBox(
@@ -858,22 +820,10 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         partPanel.checkCollisions = true;
         addShadow(partPanel);
         partPanel.parent = wallsNode;
+        registerInteractive(partPanel, 'int-ok-living');
       }
 
-      // Front Porch (Dring) Wooden Railings
-      for (const side of [-1, 1]) {
-        const rail = MeshBuilder.CreateBox(
-          `porchRail_${side}`,
-          { width: 0.18, height: 0.95, depth: 2.8 },
-          scene
-        );
-        rail.position = new Vector3(side * (arch.floor.width / 2 - 0.1), arch.floor.elevationY + 0.55, 12.6);
-        rail.material = matTimberBeams;
-        rail.checkCollisions = true;
-        rail.parent = wallsNode;
-      }
-
-      // F. Longhouse_Roof: Sloping Thatch Roof Planes, Eaves & Crossed Horns (Khau Kut)
+      // E. Longhouse_Roof: Golden Thatch Roof matching photo contour with deep front gable overhang
       const roofNode = new TransformNode('Longhouse_Roof', scene);
       roofNode.parent = houseRoot;
 
@@ -884,51 +834,53 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       const slopeAngle = Math.atan2(roofDrop, roofHalfSpan);
 
       for (const side of [-1, 1]) {
-        // Main pitched thatch plane
+        // Main pitched golden thatch plane
         const roofPlane = MeshBuilder.CreateBox(
           `roofPlane_${side}`,
-          { width: slopeLen + 0.4, height: rf.thickness, depth: rf.length },
+          { width: slopeLen + 0.5, height: rf.thickness, depth: rf.length },
           scene
         );
-        roofPlane.position = new Vector3(
-          side * (roofHalfSpan / 2),
-          (rf.peakHeight + rf.eaveHeight) / 2,
-          0
-        );
+        roofPlane.position = new Vector3(side * (roofHalfSpan / 2), (rf.peakHeight + rf.eaveHeight) / 2, 0.4);
         roofPlane.rotation.z = side * slopeAngle;
         roofPlane.material = matThatchRoof;
         addShadow(roofPlane, false);
         roofPlane.parent = roofNode;
+        registerInteractive(roofPlane, 'ext-facade');
 
-        // Lower thick layered eave overhang (Lớp mái tranh xòe rủ)
+        // Lower thick eave overhang
         const eaveOverhang = MeshBuilder.CreateBox(
           `eaveOverhang_${side}`,
-          { width: 0.85, height: 0.28, depth: rf.length + 0.4 },
+          { width: 0.95, height: 0.32, depth: rf.length + 0.6 },
           scene
         );
-        eaveOverhang.position = new Vector3(
-          side * (roofHalfSpan + 0.25),
-          rf.eaveHeight - 0.1,
-          0
-        );
+        eaveOverhang.position = new Vector3(side * (roofHalfSpan + 0.28), rf.eaveHeight - 0.1, 0.4);
         eaveOverhang.rotation.z = side * (slopeAngle + 0.15);
         eaveOverhang.material = matThatchRoof;
         eaveOverhang.parent = roofNode;
       }
 
-      // Heavy Roof Ridge Purlin (Đòn nóc tròn)
-      const ridge = MeshBuilder.CreateCylinder(
-        'roofRidge',
-        { diameter: rf.ridgeRadius * 2, height: rf.length + 0.8 },
+      // Deep Front Gable Overhang Over the Porch (Mái tranh nhô ra bao trùm đầu hiên như ảnh mẫu!)
+      const frontGableRoof = MeshBuilder.CreateCylinder(
+        'frontGableThatch',
+        { diameterTop: 0, diameterBottom: rf.overhangWidth * 2.2, height: 3.8, tessellation: 3 },
         scene
       );
+      frontGableRoof.rotation.x = Math.PI / 2;
+      frontGableRoof.position = new Vector3(0, rf.peakHeight - 0.5, 14.2);
+      frontGableRoof.scaling = new Vector3(1, 0.8, 0.95);
+      frontGableRoof.material = matThatchRoof;
+      frontGableRoof.parent = roofNode;
+      registerInteractive(frontGableRoof, 'ext-facade');
+
+      // Heavy Roof Ridge Purlin (Đòn nóc tròn)
+      const ridge = MeshBuilder.CreateCylinder('roofRidge', { diameter: rf.ridgeRadius * 2, height: rf.length + 1.2 }, scene);
       ridge.rotation.x = Math.PI / 2;
-      ridge.position = new Vector3(0, rf.peakHeight + 0.1, 0);
+      ridge.position = new Vector3(0, rf.peakHeight + 0.12, 0.4);
       ridge.material = matTimberBeams;
       ridge.parent = roofNode;
 
-      // Crossed Gable Horns (Khau Kut) at Front and Back Gables
-      for (const gz of [rf.length / 2 - 0.1, -rf.length / 2 + 0.1]) {
+      // Crossed Gable Horns (Khau Kut) at gables
+      for (const gz of [rf.length / 2 + 0.2, -rf.length / 2 - 0.2]) {
         for (const side of [-1, 1]) {
           const horn = MeshBuilder.CreateBox(
             `gableHorn_${side}_${gz}`,
@@ -942,16 +894,16 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         }
       }
 
-      // 6. DETAILED 12 CULTURAL ARTIFACTS & INTERIOR EXHIBITS
+      // 6. DETAILED 12 CULTURAL ARTIFACTS (With Raycast Pick Metadata)
       const interiorNode = new TransformNode('Longhouse_Interior', scene);
       interiorNode.parent = houseRoot;
 
-      // --- GIAN GAH: KHÔNG GIAN TIẾP KHÁCH & CỘNG ĐỒNG (z: 0.5 đến 11.2) ---
-      // Artifact 1: Ghế Kpan nguyên khối đại ngàn (Dọc vách phía Tây, z: 1.0 đến 10.5)
+      // --- GIAN GAH: KHÔNG GIAN TIẾP KHÁCH & CỘNG ĐỒNG ---
+      // Artifact 1: Ghế Kpan nguyên khối đại ngàn (Dọc vách phía Tây)
       const kpanLen = LONGHOUSE_3D_CONFIG.artifacts.kpanBench.length;
       const kpan = MeshBuilder.CreateBox(
         'kpanBench',
-        { width: 0.9, height: 0.46, depth: kpanLen },
+        { width: 0.92, height: 0.46, depth: kpanLen },
         scene
       );
       kpan.position = new Vector3(-3.4, arch.floor.elevationY + 0.38, 5.8);
@@ -959,42 +911,33 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       kpan.checkCollisions = true;
       addShadow(kpan);
       kpan.parent = interiorNode;
+      registerInteractive(kpan, 'int-kpan');
 
-      // Brocade runner on Kpan (displayed in festive mode)
+      // Brocade runner on Kpan (festive mode)
       const kpanCloth = MeshBuilder.CreateBox(
         'kpanBrocadeCloth',
-        { width: 0.92, height: 0.04, depth: kpanLen * 0.75 },
+        { width: 0.94, height: 0.04, depth: kpanLen * 0.75 },
         scene
       );
       kpanCloth.position = new Vector3(-3.4, arch.floor.elevationY + 0.62, 5.8);
       kpanCloth.material = matBrocade;
       kpanCloth.parent = interiorNode;
+      registerInteractive(kpanCloth, 'int-kpan');
       festiveMeshesRef.current.push(kpanCloth);
 
-      // Master and Guest Chairs (Ghế Jhưng)
-      for (const jz of [2.8, 8.8]) {
-        const jhung = MeshBuilder.CreateCylinder(
-          `jhungSeat_${jz}`,
-          { diameter: 0.75, height: 0.48, tessellation: 12 },
-          scene
-        );
-        jhung.position = new Vector3(-2.2, arch.floor.elevationY + 0.38, jz);
-        jhung.material = matTimberBeams;
-        jhung.parent = interiorNode;
-      }
-
-      // Artifact 2: Dàn Cồng Chiêng Knah (7 Chiêng trên giá gỗ chạm)
+      // Artifact 2: Dàn Cồng Chiêng Knah (7 Chiêng đồng)
       const gongRack = MeshBuilder.CreateBox(
         'gongRackBar',
-        { width: 0.16, height: 2.1, depth: 3.4 },
+        { width: 0.18, height: 2.1, depth: 3.4 },
         scene
       );
       gongRack.position = new Vector3(3.2, arch.floor.elevationY + 1.25, 6.8);
       gongRack.material = matTimberBeams;
       gongRack.parent = interiorNode;
+      registerInteractive(gongRack, 'int-gong-hgor');
 
       for (let g = 0; g < 7; g++) {
-        const gongDiam = 0.65 - g * 0.04;
+        const gongDiam = 0.68 - g * 0.04;
         const gong = MeshBuilder.CreateCylinder(
           `chiengKnah_${g}`,
           { diameter: gongDiam, height: 0.08, tessellation: 20 },
@@ -1005,9 +948,10 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         gong.material = matBronze;
         addShadow(gong);
         gong.parent = interiorNode;
+        registerInteractive(gong, 'int-gong-hgor');
       }
 
-      // Artifact 3: Trống đại H'gơr truyền thống (Treo gần dàn chiêng)
+      // Artifact 3: Trống đại H'gơr
       const hgorDrum = MeshBuilder.CreateCylinder(
         'hgorDrumMesh',
         { diameter: 1.15, height: 1.6, tessellation: 20 },
@@ -1018,48 +962,37 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       hgorDrum.material = matTimberPillars;
       addShadow(hgorDrum);
       hgorDrum.parent = interiorNode;
+      registerInteractive(hgorDrum, 'int-gong-hgor');
 
-      // Drum skin leather ends
-      for (const side of [-1, 1]) {
-        const skin = MeshBuilder.CreateDisc(
-          `hgorSkin_${side}`,
-          { radius: 0.58, tessellation: 20 },
-          scene
-        );
-        skin.position = new Vector3(2.8, arch.floor.elevationY + 1.45, 9.4 + side * 0.81);
-        const sMat = new StandardMaterial(`hgorSkinMat_${side}`, scene!);
-        sMat.diffuseColor = new Color3(0.72, 0.62, 0.48);
-        skin.material = sMat;
-        skin.parent = interiorNode;
-      }
-
-      // Artifact 4: Hàng Ché Cổ Tuk, Tang & Văn hóa Rượu cần (Buộc cọc thiêng)
+      // Artifact 4: Hàng Ché Cổ Tuk, Tang & Rượu cần
       for (let c = 0; c < 5; c++) {
         const jar = MeshBuilder.CreateSphere(
           `cheTuk_${c}`,
-          { diameter: 0.68 + (c % 2) * 0.12, segments: 12 },
+          { diameter: 0.72 + (c % 2) * 0.12, segments: 12 },
           scene
         );
         jar.scaling = new Vector3(1, 1.4, 1);
-        jar.position = new Vector3(3.4, arch.floor.elevationY + 0.52, 1.5 + c * 0.7);
+        jar.position = new Vector3(3.4, arch.floor.elevationY + 0.54, 1.5 + c * 0.75);
         jar.material = matCeramic;
         addShadow(jar);
         jar.parent = interiorNode;
+        registerInteractive(jar, 'int-jars');
 
-        // Slender curved bamboo drinking reeds (Cần rượu cần - hiện ở chế độ lễ hội)
+        // Curved bamboo drinking reeds (festive mode)
         const reed = MeshBuilder.CreateCylinder(
           `wineReed_${c}`,
           { diameter: 0.04, height: 1.4, tessellation: 6 },
           scene
         );
         reed.rotation.z = Math.PI / 7;
-        reed.position = new Vector3(3.2, arch.floor.elevationY + 1.1, 1.5 + c * 0.7);
+        reed.position = new Vector3(3.2, arch.floor.elevationY + 1.1, 1.5 + c * 0.75);
         reed.material = matPlankFloor;
         reed.parent = interiorNode;
+        registerInteractive(reed, 'int-jars');
         festiveMeshesRef.current.push(reed);
       }
 
-      // Artifact 5: Bếp lửa Gian Gah (Bếp khách - Không gian kể sử thi Khan)
+      // Artifact 5: Bếp lửa Gian Gah (Không gian kể sử thi Khan)
       const hearthGahBase = MeshBuilder.CreateBox(
         'hearthGahBase',
         { width: 2.1, height: 0.28, depth: 2.1 },
@@ -1069,17 +1002,18 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       hearthGahBase.material = matRiverStone;
       hearthGahBase.checkCollisions = true;
       hearthGahBase.parent = interiorNode;
+      registerInteractive(hearthGahBase, 'int-hearth');
 
       const hearthEmberGah = MeshBuilder.CreateSphere(
         'hearthEmberGah',
-        { diameter: 0.82, segments: 8 },
+        { diameter: 0.85, segments: 8 },
         scene
       );
       hearthEmberGah.position = new Vector3(0, arch.floor.elevationY + 0.48, 4.2);
       hearthEmberGah.material = matEmber;
       hearthEmberGah.parent = interiorNode;
+      registerInteractive(hearthEmberGah, 'int-hearth');
 
-      // Iron cooking tripod on hearth
       const tripod = MeshBuilder.CreateTorus(
         'hearthTripod',
         { diameter: 0.72, thickness: 0.06, tessellation: 12 },
@@ -1088,46 +1022,29 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       tripod.position = new Vector3(0, arch.floor.elevationY + 0.48, 4.2);
       tripod.material = matBronze;
       tripod.parent = interiorNode;
+      registerInteractive(tripod, 'int-hearth');
 
-      // Bronze Shields & Spears mounted on central ceremonial pillars
-      const shield = MeshBuilder.CreateCylinder(
-        'epicShield',
-        { diameter: 1.1, height: 0.08, tessellation: 20 },
-        scene
-      );
-      shield.rotation.x = Math.PI / 2.3;
-      shield.position = new Vector3(-1.6, arch.floor.elevationY + 1.7, 7.0);
-      shield.material = matBronze;
-      shield.parent = interiorNode;
-
-      // --- GIAN ÔK: KHÔNG GIAN SINH HOẠT GIA ĐÌNH (z: -13.2 đến 0.5) ---
-      // Artifact 6: Khung dệt thổ cẩm Ê-đê truyền thống (Weaving Loom)
+      // --- GIAN ÔK: KHÔNG GIAN SINH HOẠT GIA ĐÌNH ---
+      // Artifact 6: Khung dệt thổ cẩm Ê-đê (Weaving Loom)
       const loomRoot = new TransformNode('weavingLoom', scene);
       loomRoot.position = new Vector3(2.4, arch.floor.elevationY + 0.45, -4.5);
       loomRoot.parent = interiorNode;
 
-      const loomFrameL = MeshBuilder.CreateBox('loomL', { width: 0.1, height: 0.75, depth: 2.1 }, scene);
-      loomFrameL.position = new Vector3(-0.6, 0.35, 0);
-      loomFrameL.material = matTimberBeams;
-      loomFrameL.parent = loomRoot;
-
-      const loomFrameR = MeshBuilder.CreateBox('loomR', { width: 0.1, height: 0.75, depth: 2.1 }, scene);
-      loomFrameR.position = new Vector3(0.6, 0.35, 0);
-      loomFrameR.material = matTimberBeams;
-      loomFrameR.parent = loomRoot;
-
-      const loomCloth = MeshBuilder.CreateBox('loomCloth', { width: 1.1, height: 0.02, depth: 1.6 }, scene);
+      const loomCloth = MeshBuilder.CreateBox('loomCloth', { width: 1.1, height: 0.03, depth: 1.6 }, scene);
       loomCloth.position = new Vector3(0, 0.48, 0);
       loomCloth.material = matBrocade;
       loomCloth.parent = loomRoot;
+      registerInteractive(loomCloth, 'int-loom');
 
-      const shuttle = MeshBuilder.CreateCylinder('shuttle', { diameter: 0.08, height: 0.75 }, scene);
-      shuttle.rotation.z = Math.PI / 2;
-      shuttle.position = new Vector3(0, 0.52, 0.4);
-      shuttle.material = matTimberPillars;
-      shuttle.parent = loomRoot;
+      for (const side of [-1, 1]) {
+        const frame = MeshBuilder.CreateBox(`loomFrame_${side}`, { width: 0.1, height: 0.75, depth: 2.1 }, scene);
+        frame.position = new Vector3(side * 0.6, 0.35, 0);
+        frame.material = matTimberBeams;
+        frame.parent = loomRoot;
+        registerInteractive(frame, 'int-loom');
+      }
 
-      // Artifact 7: Cối giã gạo & Chày gỗ nguyên khối
+      // Artifact 7: Cối & Chày giã gạo
       const mortar = MeshBuilder.CreateCylinder(
         'riceMortar',
         { diameterTop: 0.78, diameterBottom: 0.58, height: 0.85, tessellation: 14 },
@@ -1138,6 +1055,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       mortar.checkCollisions = true;
       addShadow(mortar);
       mortar.parent = interiorNode;
+      registerInteractive(mortar, 'int-mortar');
 
       const pestle = MeshBuilder.CreateCylinder(
         'ricePestle',
@@ -1148,8 +1066,9 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       pestle.position = new Vector3(2.65, arch.floor.elevationY + 0.95, -8.8);
       pestle.material = matTimberBeams;
       pestle.parent = interiorNode;
+      registerInteractive(pestle, 'int-mortar');
 
-      // Artifact 8: Bếp nấu ăn gia đình Gian Ôk & Giàn sấy gác củi (Smoke rack)
+      // Artifact 8: Bếp nấu ăn gia đình Gian Ôk & Giàn sấy gác củi
       const hearthOkBase = MeshBuilder.CreateBox(
         'hearthOkBase',
         { width: 1.8, height: 0.24, depth: 1.8 },
@@ -1159,66 +1078,73 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       hearthOkBase.material = matRiverStone;
       hearthOkBase.checkCollisions = true;
       hearthOkBase.parent = interiorNode;
+      registerInteractive(hearthOkBase, 'int-ok-living');
 
-      const emberOk = MeshBuilder.CreateSphere(
-        'emberOk',
-        { diameter: 0.65, segments: 6 },
-        scene
-      );
+      const emberOk = MeshBuilder.CreateSphere('emberOk', { diameter: 0.65, segments: 6 }, scene);
       emberOk.position = new Vector3(-1.2, arch.floor.elevationY + 0.4, -7.5);
       emberOk.material = matEmber;
       emberOk.parent = interiorNode;
+      registerInteractive(emberOk, 'int-ok-living');
 
-      // Multi-tier wooden smoke drying rack overhead
-      const smokeRack = MeshBuilder.CreateBox(
-        'smokeRack',
-        { width: 1.6, height: 0.1, depth: 1.6 },
-        scene
-      );
+      const smokeRack = MeshBuilder.CreateBox('smokeRack', { width: 1.6, height: 0.1, depth: 1.6 }, scene);
       smokeRack.position = new Vector3(-1.2, arch.floor.elevationY + 1.85, -7.5);
       smokeRack.material = matTimberBeams;
       smokeRack.parent = interiorNode;
+      registerInteractive(smokeRack, 'int-ok-living');
 
-      // Artifact 9: Gùi Đới hoa văn & Giỏ đan mây tre
+      // Artifact 9: Gùi Đới & Giỏ đan mây tre
       for (let b = 0; b < 3; b++) {
         const gui = MeshBuilder.CreateCylinder(
           `guiBasket_${b}`,
-          { diameterTop: 0.45, diameterBottom: 0.28, height: 0.72, tessellation: 10 },
+          { diameterTop: 0.46, diameterBottom: 0.28, height: 0.72, tessellation: 10 },
           scene
         );
         gui.position = new Vector3(-2.8 + b * 0.45, arch.floor.elevationY + 0.4, -4.2);
         gui.material = matWovenWalls;
         gui.parent = interiorNode;
+        registerInteractive(gui, 'int-baskets');
       }
 
-      // Artifact 10: Chiếu mây / Chiếu cói trải sàn gia đình
-      for (let m = 0; m < 3; m++) {
-        const matMesh = MeshBuilder.CreateBox(
-          `wovenMat_${m}`,
-          { width: 1.6, height: 0.02, depth: 2.2 },
-          scene
-        );
-        matMesh.position = new Vector3(-2.5, arch.floor.elevationY + 0.15, -1.8 - m * 2.8);
-        matMesh.material = matPlankFloor;
-        matMesh.parent = interiorNode;
-      }
-
-      // 7. Interactive Hotspot Markers (3D Floating Diamonds with Pulse Animation)
-      const hotspotMeshMap = new Map<string, Mesh>();
-      MUSEUM_3D_HOTSPOTS.forEach((hs) => {
-        const marker = MeshBuilder.CreatePolyhedron(
-          `hotspotMarker_${hs.id}`,
-          { type: 1, size: 0.38 },
-          scene
-        );
-        marker.position = new Vector3(hs.position.x, hs.position.y + 0.3, hs.position.z);
-        const isCompleted = completedRef.current.includes(hs.id);
-        marker.material = isCompleted ? matHotspotDone : matHotspotIdle;
-        hotspotMeshMap.set(hs.id, marker);
+      // 7. Raycast Pointer Down (Click on 3D object opens its info modal!)
+      scene.onPointerObservable.add((pointerInfo) => {
+        if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
+          const pick = pointerInfo.pickInfo;
+          if (pick && pick.hit && pick.pickedMesh) {
+            let m: Mesh | null = pick.pickedMesh as Mesh;
+            while (m) {
+              const hsId = m.metadata?.hotspotId;
+              if (hsId) {
+                const hotspot = MUSEUM_3D_HOTSPOTS.find((h) => h.id === hsId);
+                if (hotspot && !pausedRef.current) {
+                  onInteractHotspot(hotspot);
+                  break;
+                }
+              }
+              m = m.parent as Mesh;
+            }
+          }
+        } else if (pointerInfo.type === PointerEventTypes.POINTERMOVE) {
+          const pick = pointerInfo.pickInfo;
+          let foundHs: Museum3DHotspot | null = null;
+          if (pick && pick.hit && pick.pickedMesh) {
+            let m: Mesh | null = pick.pickedMesh as Mesh;
+            while (m) {
+              const hsId = m.metadata?.hotspotId;
+              if (hsId) {
+                foundHs = MUSEUM_3D_HOTSPOTS.find((h) => h.id === hsId) || null;
+                break;
+              }
+              m = m.parent as Mesh;
+            }
+          }
+          setHoveredHotspot(foundHs);
+          if (canvasRef.current) {
+            canvasRef.current.style.cursor = foundHs ? 'pointer' : 'default';
+          }
+        }
       });
 
       // 8. Player Cameras: First Person, Third Person & Orbit Camera
-      // First Person Camera (UniversalCamera with collision capsule)
       const fpCam = new UniversalCamera(
         'fpCamera',
         new Vector3(
@@ -1228,7 +1154,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         ),
         scene
       );
-      fpCam.setTarget(new Vector3(0, 2.8, 13.0));
+      fpCam.setTarget(new Vector3(-1.5, 2.5, 14.0));
       fpCam.checkCollisions = true;
       fpCam.applyGravity = true;
       fpCam.ellipsoid = new Vector3(
@@ -1251,7 +1177,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       avatar.isVisible = cameraMode === 'thirdPerson';
       avatarMeshRef.current = avatar;
 
-      // Orbit Camera for 360-degree Architectural Visualization
+      // Orbit Camera for 360-degree Architectural Inspection
       const orbSp = LONGHOUSE_3D_CONFIG.player.spawnOrbit;
       const orbitCam = new ArcRotateCamera(
         'orbitCamera',
@@ -1274,34 +1200,28 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         scene.activeCamera = fpCam;
       }
 
-      // Keyboard Listener for E interaction and ESC pause
+      // Keyboard Listener for ESC pause
       const onKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'e' || e.key === 'E') {
-          const nearest = nearestRef.current;
-          if (nearest && !pausedRef.current) {
-            onInteractHotspot(nearest);
-          }
-        } else if (e.key === 'Escape') {
+        if (e.key === 'Escape') {
           onTogglePause();
         }
       };
       window.addEventListener('keydown', onKeyDown);
 
-      // Render Loop & Real-Time Proximity Telemetry
+      // Render Loop
       let animTime = 0;
-      const nearestRef = { current: null as Museum3DHotspot | null };
 
       engine.runRenderLoop(() => {
         if (!scene || scene.isDisposed) return;
         animTime += 0.035;
 
-        // Animate hearth firelight flicker
+        // Hearth firelight flicker
         if (hearthGahLight) {
           const flicker = Math.sin(animTime * 6.5) * 0.18 + Math.cos(animTime * 11) * 0.12;
-          hearthGahLight.intensity = (exhibitionModeRef.current === 'festive' ? 2.6 : 1.9) + flicker;
+          hearthGahLight.intensity = (exhibitionModeRef.current === 'festive' ? 3.0 : 2.2) + flicker;
         }
 
-        // Apply virtual mobile joystick velocity to First Person camera
+        // Virtual mobile joystick velocity
         const jVec = joystickVecRef.current;
         if ((jVec.vx !== 0 || jVec.vz !== 0) && fpCameraRef.current) {
           const cam = fpCameraRef.current;
@@ -1316,7 +1236,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
           cam.cameraDirection.addInPlace(moveVec.scale(LONGHOUSE_3D_CONFIG.player.moveSpeedMobile));
         }
 
-        // Update avatar position in Third Person
+        // Avatar position in Third Person
         if (avatarMeshRef.current && fpCameraRef.current) {
           avatarMeshRef.current.position = new Vector3(
             fpCameraRef.current.position.x,
@@ -1325,38 +1245,8 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
           );
         }
 
-        // Calculate proximity to Hotspots
+        // Telemetry update
         const camPos = fpCameraRef.current ? fpCameraRef.current.position : Vector3.Zero();
-        let closestHotspot: Museum3DHotspot | null = null;
-        let minDistance = Infinity;
-
-        MUSEUM_3D_HOTSPOTS.forEach((hs) => {
-          const marker = hotspotMeshMap.get(hs.id);
-          const dist = Math.hypot(camPos.x - hs.position.x, camPos.z - hs.position.z);
-          const isDone = completedRef.current.includes(hs.id);
-
-          if (marker) {
-            // Floating bounce animation
-            marker.position.y = hs.position.y + 0.3 + Math.sin(animTime * 2.5 + hs.position.x) * 0.12;
-            marker.rotation.y = animTime * 1.5;
-
-            if (dist < hs.triggerRadius) {
-              marker.material = matHotspotNear;
-              marker.scaling.setAll(1.35 + Math.sin(animTime * 5) * 0.2);
-              if (dist < minDistance) {
-                minDistance = dist;
-                closestHotspot = hs;
-              }
-            } else {
-              marker.material = isDone ? matHotspotDone : matHotspotIdle;
-              marker.scaling.setAll(1.0);
-            }
-          }
-        });
-
-        nearestRef.current = closestHotspot;
-
-        // Telemetry callback (throttled)
         if (Math.round(animTime * 10) % 4 === 0) {
           const area: 'A' | 'B' =
             camPos.z > LONGHOUSE_3D_CONFIG.player.areaZThreshold && camPos.y < 2.5
@@ -1367,7 +1257,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
             z: Math.round(camPos.z * 10) / 10,
             yaw: Math.round(((fpCameraRef.current?.rotation.y || 0) * 180) / Math.PI),
             area,
-            nearestHotspot: closestHotspot,
+            nearestHotspot: hoveredHotspot,
           });
         }
 
@@ -1478,7 +1368,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
 
   return (
     <div className="relative w-full h-full select-none overflow-hidden bg-wood-950">
-      <canvas ref={canvasRef} className="w-full h-full block outline-none cursor-grab active:cursor-grabbing" />
+      <canvas ref={canvasRef} className="w-full h-full block outline-none" />
 
       {loading && (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-wood-950/90 text-cream space-y-3">
@@ -1486,6 +1376,15 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
           <p className="font-serif text-sm tracking-wide text-gold-400">
             Đang khởi tạo không gian Nhà dài Ê-đê 3D...
           </p>
+        </div>
+      )}
+
+      {/* Floating Interactive Hover Tooltip Pill (Requirement 3: Click directly on object!) */}
+      {hoveredHotspot && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 pointer-events-none animate-bounce">
+          <div className="px-4 py-2 rounded-xl bg-gold-500 text-wood-950 font-semibold text-xs sm:text-sm shadow-xl flex items-center gap-2 border border-gold-300">
+            <span>🔍 Nhấp chuột để tìm hiểu: {hoveredHotspot.title}</span>
+          </div>
         </div>
       )}
 

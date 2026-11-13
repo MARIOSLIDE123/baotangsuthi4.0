@@ -1,13 +1,5 @@
 /**
  * Tệp cấu hình thông số kiến trúc mô phỏng cho Bảo tàng 3D Nhà dài Ê-đê.
- * Tách biệt hoàn toàn khỏi logic dựng scene để dễ dàng điều chỉnh kích thước,
- * màu sắc, vật liệu hoặc tích hợp mô hình GLB về sau.
- *
- * Lưu ý giáo dục: Đây là mô hình mô phỏng nghệ thuật phục vụ giảng dạy,
- * không phải bản phục dựng khảo cổ chính xác của một ngôi nhà dài có thật.
- */
-/**
- * Tệp cấu hình thông số kiến trúc mô phỏng cho Bảo tàng 3D Nhà dài Ê-đê.
  * Theo tiêu chuẩn Realistic Heritage Visualization & Gameplay Babylon.js.
  *
  * Cấu trúc tách biệt hoàn toàn để dễ dàng tùy chỉnh tỷ lệ, màu sắc,
@@ -23,14 +15,14 @@ export const LONGHOUSE_3D_CONFIG = {
 
   world: {
     groundSize: 120,
-    fogDensity: 0.008,
-    fogColorRgb: [0.38, 0.44, 0.36] as [number, number, number],
-    skyColorRgb: [0.45, 0.58, 0.68] as [number, number, number],
+    fogDensity: 0.005,
+    fogColorRgb: [0.55, 0.62, 0.56] as [number, number, number],
+    skyColorRgb: [0.55, 0.68, 0.82] as [number, number, number],
     gravityY: -0.45,
   },
 
   player: {
-    spawnExterior: { x: 0, y: 1.85, z: 27.5 },
+    spawnExterior: { x: -1.5, y: 1.85, z: 22.0 },
     spawnInterior: { x: 0, y: 3.7, z: 8.5 },
     spawnOrbit: { radius: 36, alpha: -Math.PI / 2.6, beta: Math.PI / 3.2, target: { x: 0, y: 3.5, z: 0 } },
     moveSpeedDesktop: 0.22,
@@ -48,11 +40,12 @@ export const LONGHOUSE_3D_CONFIG = {
       elevationY: 1.85,
       thickness: 0.28,
       plankWidth: 0.35,
+      porchDepth: 4.8, // Hiên Dring rộng mở phía trước như ảnh mẫu
     },
     pillars: {
       xPositions: [-4.0, -1.8, 1.8, 4.0],
-      zPositions: [-13, -9, -5, -1, 3, 7, 11, 13],
-      stiltRadius: 0.22,
+      zPositions: [-13, -9, -5, -1, 3, 7, 11, 14],
+      stiltRadius: 0.24,
       wallPostRadius: 0.18,
       wallHeight: 2.85,
     },
@@ -65,46 +58,48 @@ export const LONGHOUSE_3D_CONFIG = {
       partitionDoorWidth: 2.2,
     },
     roof: {
-      peakHeight: 7.2,
-      eaveHeight: 4.45,
-      length: 30.2,
-      overhangWidth: 5.6,
-      thickness: 0.32,
+      peakHeight: 7.4,
+      eaveHeight: 4.35,
+      length: 30.6,
+      overhangWidth: 5.8,
+      thickness: 0.38,
       ridgeRadius: 0.18,
       gableHornLength: 1.8,
-      gableOverhangZ: 1.6,
+      gableOverhangZ: 2.2,
     },
-    masterStairs: {
-      // Cầu thang cái (K'Kha Drai) có trăng khuyết và đôi bầu ngực
-      width: 1.6,
-      boardThickness: 0.28,
-      stepCount: 7,
-      bottomZ: 17.6,
-      topZ: 13.4,
-      bottomY: 0.05,
-      topY: 1.85,
-      breastRadius: 0.22,
-      moonRadius: 0.42,
-    },
-    rearStairs: {
-      // Cầu thang phụ (K'Kha găm) phía sau
-      width: 1.2,
-      stepCount: 7,
-      bottomZ: -17.2,
-      topZ: -13.4,
-      bottomY: 0.05,
-      topY: 1.85,
+    twoStairs: {
+      // 2 cầu thang đặt cạnh nhau ở đầu hiên như ảnh mẫu tư liệu
+      stairCai: {
+        x: -1.35,
+        width: 1.35,
+        stepCount: 7,
+        bottomZ: 18.5,
+        topZ: 14.1,
+        bottomY: 0.05,
+        topY: 1.85,
+        breastRadius: 0.22,
+        moonRadius: 0.42,
+      },
+      stairDuc: {
+        x: -2.95,
+        width: 1.15,
+        stepCount: 7,
+        bottomZ: 18.5,
+        topZ: 14.1,
+        bottomY: 0.05,
+        topY: 1.85,
+      },
     },
     frontPorch: {
       // Hiên Dring đón khách
       width: 8.8,
-      depth: 3.2,
-      centerZ: 13.2,
+      depth: 4.8,
+      centerZ: 14.0,
     },
     pathway: {
-      startZ: 17.6,
+      startZ: 18.5,
       endZ: 33.0,
-      width: 3.8,
+      width: 4.0,
     },
   },
 
@@ -158,22 +153,22 @@ export const LONGHOUSE_3D_CONFIG = {
   },
 
   palette: {
-    forestGround: [0.22, 0.34, 0.2] as [number, number, number],
-    redBazanSoil: [0.46, 0.22, 0.14] as [number, number, number],
-    timberDarkAged: [0.24, 0.15, 0.09] as [number, number, number],
-    timberPillars: [0.29, 0.19, 0.12] as [number, number, number],
-    bambooFloor: [0.55, 0.42, 0.26] as [number, number, number],
-    wovenBambooWall: [0.58, 0.46, 0.29] as [number, number, number],
-    thatchRoofDark: [0.36, 0.28, 0.17] as [number, number, number],
-    thatchRoofLayer: [0.44, 0.34, 0.21] as [number, number, number],
-    riverStoneGray: [0.4, 0.39, 0.37] as [number, number, number],
-    bronzeGold: [0.82, 0.62, 0.25] as [number, number, number],
-    ceramicGlazeTuk: [0.26, 0.16, 0.1] as [number, number, number],
-    brocadeCrimson: [0.65, 0.14, 0.16] as [number, number, number],
-    brocadeIndigo: [0.12, 0.26, 0.38] as [number, number, number],
-    canopyGreenDark: [0.12, 0.29, 0.16] as [number, number, number],
-    emberGlow: [0.98, 0.46, 0.12] as [number, number, number],
-    mountainBlue: [0.36, 0.45, 0.48] as [number, number, number],
+    forestGround: [0.28, 0.42, 0.24] as [number, number, number],
+    redBazanSoil: [0.52, 0.26, 0.16] as [number, number, number],
+    timberDarkAged: [0.38, 0.24, 0.14] as [number, number, number],
+    timberPillars: [0.46, 0.30, 0.18] as [number, number, number],
+    bambooFloor: [0.72, 0.58, 0.38] as [number, number, number],
+    wovenBambooWall: [0.70, 0.56, 0.38] as [number, number, number],
+    thatchRoofDark: [0.66, 0.50, 0.30] as [number, number, number],
+    thatchRoofLayer: [0.74, 0.58, 0.36] as [number, number, number],
+    riverStoneGray: [0.52, 0.50, 0.46] as [number, number, number],
+    bronzeGold: [0.94, 0.78, 0.32] as [number, number, number],
+    ceramicGlazeTuk: [0.48, 0.28, 0.15] as [number, number, number],
+    brocadeCrimson: [0.88, 0.18, 0.22] as [number, number, number],
+    brocadeIndigo: [0.18, 0.44, 0.72] as [number, number, number],
+    canopyGreenDark: [0.18, 0.42, 0.22] as [number, number, number],
+    emberGlow: [1.0, 0.55, 0.14] as [number, number, number],
+    mountainBlue: [0.48, 0.58, 0.64] as [number, number, number],
     hotspotIdle: [0.18, 0.68, 0.56] as [number, number, number],
     hotspotNear: [0.95, 0.74, 0.24] as [number, number, number],
     hotspotDone: [0.25, 0.74, 0.44] as [number, number, number],

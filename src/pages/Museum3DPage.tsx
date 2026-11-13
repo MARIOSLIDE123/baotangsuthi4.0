@@ -1,18 +1,31 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Camera,
   CheckCircle2,
   Compass,
   DoorOpen,
+  Eye,
+  EyeOff,
+  Flame,
+  Layers,
   Map as MapIcon,
   Maximize2,
   Minimize2,
   Pause,
   Play,
+  RotateCcw,
   Settings,
+  Sparkles,
+  User,
+  Video,
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import { LONGHOUSE_3D_CONFIG } from '../config/longhouse3dConfig';
+import {
+  CameraMode,
+  ExhibitionMode,
+  LONGHOUSE_3D_CONFIG,
+} from '../config/longhouse3dConfig';
 import { MUSEUM_3D_HOTSPOTS } from '../data/museum3dData';
 import { Museum3DHotspot, MuseumRouteId } from '../types/museum';
 import {
@@ -60,6 +73,10 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
     nonce: number;
   } | null>(null);
   const [is169Fullscreen, setIs169Fullscreen] = useState(false);
+  const [exhibitionMode, setExhibitionMode] = useState<ExhibitionMode>('daily');
+  const [cameraMode, setCameraMode] = useState<CameraMode>('firstPerson');
+  const [screenshotNonce, setScreenshotNonce] = useState<number | null>(null);
+  const [hideHud, setHideHud] = useState(false);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -177,124 +194,248 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
       >
         <EdeLonghouseScene
           quality={quality}
+          exhibitionMode={exhibitionMode}
+          cameraMode={cameraMode}
           completedHotspotIds={completedHotspots}
           paused={isPausedOrModal}
           teleportRequest={teleportRequest}
+          screenshotNonce={screenshotNonce}
           onTelemetryUpdate={setTelemetry}
           onInteractHotspot={handleOpenHotspot}
           onTogglePause={handleTogglePause}
           onExitFallback={() => onNavigate('home')}
         />
 
-        {/* HUD Top-Left: Current Area & Progress */}
-        <div className="absolute top-3 left-3 z-20 max-w-[260px] sm:max-w-xs bg-wood-950/75 backdrop-blur-md border border-white/15 rounded-xl p-3.5 text-cream space-y-2 pointer-events-auto">
-          <div className="flex items-center justify-between gap-3 text-xs">
-            <span className="font-semibold text-gold-400">
-              {telemetry.area === 'A'
-                ? 'Khu vực A · Bên ngoài nhà dài'
-                : 'Khu vực B · Bên trong nhà dài'}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between text-[11px] text-cream/85 font-mono tabular-nums">
-            <span>
-              Điểm khám phá: {exploredCount}/{totalCount}
-            </span>
-            <span className="text-gold-400">{museum3DScore} đ</span>
-          </div>
-
-          <div className="h-1.5 rounded-full bg-wood-800 overflow-hidden">
-            <div
-              className="h-full bg-gold-500 transition-all duration-300"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
-        </div>
-
-        {/* HUD Top-Right: Minimap & Settings & Fullscreen Toggle */}
-        <div className="absolute top-3 right-3 z-20 flex items-start gap-2 pointer-events-auto">
-          {/* Compact Live Radar Minimap (Desktop/Tablet) */}
+        {/* Floating Quick Action: Hiện lại giao diện khi đang ở chế độ xem ảnh (Hide UI) */}
+        {hideHud && (
           <button
             type="button"
-            onClick={() => setMapModalOpen(true)}
-            title="Mở bản đồ hành trình"
-            className="hidden sm:block bg-wood-950/75 backdrop-blur-md border border-white/15 rounded-xl p-2 hover:border-gold-400 transition-colors cursor-pointer"
+            onClick={() => setHideHud(false)}
+            className="absolute top-3 right-3 z-30 px-3.5 py-2 rounded-xl bg-wood-950/80 backdrop-blur-md border border-gold-400 text-gold-400 font-semibold text-xs flex items-center gap-1.5 shadow-lg hover:bg-wood-900 transition-colors cursor-pointer"
           >
-            <svg width="96" height="118" viewBox="0 0 120 150" className="block">
-              {/* Longhouse footprint */}
-              <rect
-                x={mapX(-4.8)}
-                y={mapY(-13)}
-                width={mapX(4.8) - mapX(-4.8)}
-                height={mapY(13) - mapY(-13)}
-                fill="rgba(194,140,44,0.18)"
-                stroke="rgba(220,168,71,0.65)"
-                strokeWidth="1.5"
-              />
-              {/* Pathway */}
-              <line
-                x1={mapX(0)}
-                y1={mapY(13)}
-                x2={mapX(0)}
-                y2={mapY(29)}
-                stroke="rgba(255,255,255,0.28)"
-                strokeWidth="3"
-              />
-              {/* Hotspots */}
-              {MUSEUM_3D_HOTSPOTS.map((hs) => {
-                const done = completedHotspots.includes(hs.id);
-                return (
-                  <circle
-                    key={hs.id}
-                    cx={mapX(hs.position.x)}
-                    cy={mapY(hs.position.z)}
-                    r="3.2"
-                    fill={done ? '#4ADE80' : '#DCA847'}
-                  />
-                );
-              })}
-              {/* Player marker */}
-              <circle
-                cx={mapX(telemetry.x)}
-                cy={mapY(telemetry.z)}
-                r="4.2"
-                fill="#FFFFFF"
-                stroke="#173D2B"
-                strokeWidth="1.5"
-              />
-            </svg>
+            <Eye className="w-4 h-4" />
+            <span>Hiện giao diện</span>
           </button>
+        )}
 
-          <div className="flex flex-col gap-1.5">
+        {/* HUD Top-Center: Chế độ Camera, Trưng bày & Chụp ảnh */}
+        {!hideHud && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex flex-wrap items-center justify-center gap-2 pointer-events-auto max-w-[92%]">
+            {/* Chế độ Camera: Thứ nhất / Thứ ba / Xoay 360 */}
+            <div className="flex items-center p-1 rounded-xl bg-wood-950/80 backdrop-blur-md border border-white/15 text-xs text-cream shadow-md">
+              <button
+                type="button"
+                onClick={() => setCameraMode('firstPerson')}
+                title="Góc nhìn thứ nhất (Người tham quan)"
+                className={`px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  cameraMode === 'firstPerson'
+                    ? 'bg-forest-700 text-cream font-semibold'
+                    : 'text-cream/80 hover:text-cream'
+                }`}
+              >
+                <Video className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Thứ nhất</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCameraMode('thirdPerson')}
+                title="Góc nhìn thứ ba (Nhân vật di chuyển)"
+                className={`px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  cameraMode === 'thirdPerson'
+                    ? 'bg-forest-700 text-cream font-semibold'
+                    : 'text-cream/80 hover:text-cream'
+                }`}
+              >
+                <User className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Thứ ba</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCameraMode('orbit')}
+                title="Xoay 360° quan sát kiến trúc toàn cảnh"
+                className={`px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  cameraMode === 'orbit'
+                    ? 'bg-gold-500 text-wood-950 font-semibold'
+                    : 'text-cream/80 hover:text-cream'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Xoay 360°</span>
+              </button>
+            </div>
+
+            {/* Chế độ trưng bày: Sinh hoạt thường ngày / Lễ hội & Diễn xướng */}
             <button
               type="button"
-              onClick={() => setIs169Fullscreen((prev) => !prev)}
-              className="p-2.5 min-w-[42px] min-h-[42px] rounded-xl bg-wood-950/75 backdrop-blur-md border border-white/15 text-cream hover:border-gold-400 transition-colors cursor-pointer flex items-center justify-center shadow-md"
-              title={is169Fullscreen ? 'Thu nhỏ 3D' : 'Toàn màn hình 3D (16:9)'}
-              aria-label="Toàn màn hình 3D"
+              onClick={() =>
+                setExhibitionMode((prev) => (prev === 'daily' ? 'festive' : 'daily'))
+              }
+              title="Chuyển chế độ trưng bày di sản"
+              className={`px-3 py-1.5 rounded-xl border backdrop-blur-md text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-md ${
+                exhibitionMode === 'festive'
+                  ? 'bg-gold-500/90 border-gold-400 text-wood-950 shadow-gold-500/20'
+                  : 'bg-wood-950/80 border-white/15 text-cream hover:border-gold-400'
+              }`}
             >
-              {is169Fullscreen ? <Minimize2 className="w-4 h-4 text-gold-400" /> : <Maximize2 className="w-4 h-4 text-gold-400" />}
+              {exhibitionMode === 'festive' ? (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-wood-950" />
+                  <span>Lễ hội & Diễn xướng</span>
+                </>
+              ) : (
+                <>
+                  <Flame className="w-3.5 h-3.5 text-gold-400" />
+                  <span>Sinh hoạt thường ngày</span>
+                </>
+              )}
             </button>
 
+            {/* Photo mode: Chụp ảnh màn hình & Ẩn UI */}
+            <div className="flex items-center gap-1 bg-wood-950/80 backdrop-blur-md border border-white/15 rounded-xl p-1">
+              <button
+                type="button"
+                onClick={() => setScreenshotNonce(Date.now())}
+                title="Chụp ảnh màn hình 3D (Tải file PNG)"
+                className="p-1.5 text-cream/90 hover:text-gold-400 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                aria-label="Chụp ảnh 3D"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setHideHud(true)}
+                title="Ẩn giao diện để chiêm ngưỡng kiến trúc (Chế độ xem ảnh)"
+                className="p-1.5 text-cream/90 hover:text-gold-400 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                aria-label="Ẩn giao diện"
+              >
+                <EyeOff className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => triggerTeleport(telemetry.area === 'A' ? 'B' : 'A')}
+                title={telemetry.area === 'A' ? 'Vào trong nhà dài' : 'Ra ngoài sân'}
+                className="p-1.5 text-cream/90 hover:text-gold-400 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                aria-label="Đổi vị trí ngoài sân / trong nhà"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* HUD Top-Left: Current Area & Progress */}
+        {!hideHud && (
+          <div className="absolute top-3 left-3 z-20 max-w-[260px] sm:max-w-xs bg-wood-950/75 backdrop-blur-md border border-white/15 rounded-xl p-3.5 text-cream space-y-2 pointer-events-auto">
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <span className="font-semibold text-gold-400">
+                {telemetry.area === 'A'
+                  ? 'Khu vực A · Bên ngoài nhà dài'
+                  : 'Khu vực B · Bên trong nhà dài'}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] text-cream/85 font-mono tabular-nums">
+              <span>
+                Điểm khám phá: {exploredCount}/{totalCount}
+              </span>
+              <span className="text-gold-400">{museum3DScore} đ</span>
+            </div>
+
+            <div className="h-1.5 rounded-full bg-wood-800 overflow-hidden">
+              <div
+                className="h-full bg-gold-500 transition-all duration-300"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* HUD Top-Right: Minimap & Settings & Fullscreen Toggle */}
+        {!hideHud && (
+          <div className="absolute top-3 right-3 z-20 flex items-start gap-2 pointer-events-auto">
+            {/* Compact Live Radar Minimap (Desktop/Tablet) */}
             <button
               type="button"
               onClick={() => setMapModalOpen(true)}
-              className="p-2.5 min-w-[42px] min-h-[42px] rounded-xl bg-wood-950/75 backdrop-blur-md border border-white/15 text-cream hover:border-gold-400 transition-colors cursor-pointer flex items-center justify-center"
-              aria-label="Mở bản đồ khu vực"
+              title="Mở bản đồ hành trình"
+              className="hidden sm:block bg-wood-950/75 backdrop-blur-md border border-white/15 rounded-xl p-2 hover:border-gold-400 transition-colors cursor-pointer"
             >
-              <MapIcon className="w-4 h-4" />
+              <svg width="96" height="118" viewBox="0 0 120 150" className="block">
+                {/* Longhouse footprint */}
+                <rect
+                  x={mapX(-4.8)}
+                  y={mapY(-13)}
+                  width={mapX(4.8) - mapX(-4.8)}
+                  height={mapY(13) - mapY(-13)}
+                  fill="rgba(194,140,44,0.18)"
+                  stroke="rgba(220,168,71,0.65)"
+                  strokeWidth="1.5"
+                />
+                {/* Pathway */}
+                <line
+                  x1={mapX(0)}
+                  y1={mapY(13)}
+                  x2={mapX(0)}
+                  y2={mapY(29)}
+                  stroke="rgba(255,255,255,0.28)"
+                  strokeWidth="3"
+                />
+                {/* Hotspots */}
+                {MUSEUM_3D_HOTSPOTS.map((hs) => {
+                  const done = completedHotspots.includes(hs.id);
+                  return (
+                    <circle
+                      key={hs.id}
+                      cx={mapX(hs.position.x)}
+                      cy={mapY(hs.position.z)}
+                      r="3.2"
+                      fill={done ? '#4ADE80' : '#DCA847'}
+                    />
+                  );
+                })}
+                {/* Player marker */}
+                <circle
+                  cx={mapX(telemetry.x)}
+                  cy={mapY(telemetry.z)}
+                  r="4.2"
+                  fill="#FFFFFF"
+                  stroke="#173D2B"
+                  strokeWidth="1.5"
+                />
+              </svg>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setPauseMenuOpen(true)}
-              className="p-2.5 min-w-[42px] min-h-[42px] rounded-xl bg-wood-950/75 backdrop-blur-md border border-white/15 text-cream hover:border-gold-400 transition-colors cursor-pointer flex items-center justify-center"
-              aria-label="Cài đặt và tạm dừng"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
+            <div className="flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() => setIs169Fullscreen((prev) => !prev)}
+                className="p-2.5 min-w-[42px] min-h-[42px] rounded-xl bg-wood-950/75 backdrop-blur-md border border-white/15 text-cream hover:border-gold-400 transition-colors cursor-pointer flex items-center justify-center shadow-md"
+                title={is169Fullscreen ? 'Thu nhỏ 3D' : 'Toàn màn hình 3D (16:9)'}
+                aria-label="Toàn màn hình 3D"
+              >
+                {is169Fullscreen ? <Minimize2 className="w-4 h-4 text-gold-400" /> : <Maximize2 className="w-4 h-4 text-gold-400" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMapModalOpen(true)}
+                className="p-2.5 min-w-[42px] min-h-[42px] rounded-xl bg-wood-950/75 backdrop-blur-md border border-white/15 text-cream hover:border-gold-400 transition-colors cursor-pointer flex items-center justify-center"
+                aria-label="Mở bản đồ khu vực"
+              >
+                <MapIcon className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPauseMenuOpen(true)}
+                className="p-2.5 min-w-[42px] min-h-[42px] rounded-xl bg-wood-950/75 backdrop-blur-md border border-white/15 text-cream hover:border-gold-400 transition-colors cursor-pointer flex items-center justify-center"
+                aria-label="Cài đặt và tạm dừng"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Proximity Prompt: NHẤN E ĐỂ KHÁM PHÁ */}
         {telemetry.nearestHotspot && !activeHotspot && (
@@ -538,28 +679,39 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
                 <p className="text-xs font-semibold text-wood-700">
                   Tối ưu hiệu suất đồ họa (khuyên dùng Tiết kiệm trên điện thoại yếu):
                 </p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setQuality('high')}
-                    className={`px-3 py-2 text-xs font-semibold rounded-lg border cursor-pointer ${
+                    className={`px-2.5 py-2 text-xs font-semibold rounded-lg border cursor-pointer ${
                       quality === 'high'
                         ? 'bg-wood-900 text-cream border-wood-900'
                         : 'bg-parchment text-wood-800 border-sandstone'
                     }`}
                   >
-                    Đồ họa cao
+                    Cao (PC)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuality('medium')}
+                    className={`px-2.5 py-2 text-xs font-semibold rounded-lg border cursor-pointer ${
+                      quality === 'medium'
+                        ? 'bg-wood-900 text-cream border-wood-900'
+                        : 'bg-parchment text-wood-800 border-sandstone'
+                    }`}
+                  >
+                    Vừa (Laptop)
                   </button>
                   <button
                     type="button"
                     onClick={() => setQuality('low')}
-                    className={`px-3 py-2 text-xs font-semibold rounded-lg border cursor-pointer ${
+                    className={`px-2.5 py-2 text-xs font-semibold rounded-lg border cursor-pointer ${
                       quality === 'low'
                         ? 'bg-wood-900 text-cream border-wood-900'
                         : 'bg-parchment text-wood-800 border-sandstone'
                     }`}
                   >
-                    Tiết kiệm (Nhẹ)
+                    Nhẹ (Mobile)
                   </button>
                 </div>
               </div>

@@ -1,25 +1,33 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ArcRotateCamera,
   Color3,
   Color4,
   DirectionalLight,
+  DynamicTexture,
   Engine,
   HemisphericLight,
   Mesh,
   MeshBuilder,
+  PBRMaterial,
   PointLight,
   Scene,
   ShadowGenerator,
   StandardMaterial,
+  Tools,
   TransformNode,
   UniversalCamera,
   Vector3,
 } from '@babylonjs/core';
-import { LONGHOUSE_3D_CONFIG } from '../../config/longhouse3dConfig';
+import {
+  CameraMode,
+  ExhibitionMode,
+  LONGHOUSE_3D_CONFIG,
+} from '../../config/longhouse3dConfig';
 import { MUSEUM_3D_HOTSPOTS } from '../../data/museum3dData';
 import { Museum3DHotspot } from '../../types/museum';
 
-export type QualityPreset = 'high' | 'low';
+export type QualityPreset = 'high' | 'medium' | 'low';
 
 export interface PlayerTelemetry {
   x: number;
@@ -31,9 +39,12 @@ export interface PlayerTelemetry {
 
 interface EdeLonghouseSceneProps {
   quality: QualityPreset;
+  exhibitionMode: ExhibitionMode;
+  cameraMode: CameraMode;
   completedHotspotIds: string[];
   paused: boolean;
   teleportRequest: { target: 'A' | 'B'; nonce: number } | null;
+  screenshotNonce?: number | null;
   onTelemetryUpdate: (telemetry: PlayerTelemetry) => void;
   onInteractHotspot: (hotspot: Museum3DHotspot) => void;
   onTogglePause: () => void;
@@ -42,25 +53,36 @@ interface EdeLonghouseSceneProps {
 
 export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
   quality,
+  exhibitionMode,
+  cameraMode,
   completedHotspotIds,
   paused,
   teleportRequest,
+  screenshotNonce,
   onTelemetryUpdate,
   onInteractHotspot,
   onTogglePause,
   onExitFallback,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const cameraRef = useRef<UniversalCamera | null>(null);
-  const joystickVecRef = useRef<{ vx: number; vz: number }>({ vx: 0, vz: 0 });
+  const engineRef = useRef<Engine | null>(null);
+  const sceneRef = useRef<Scene | null>(null);
+  const fpCameraRef = useRef<UniversalCamera | null>(null);
+  const orbitCameraRef = useRef<ArcRotateCamera | null>(null);
+  const avatarMeshRef = useRef<Mesh | null>(null);
+
   const completedRef = useRef<string[]>(completedHotspotIds);
   const pausedRef = useRef<boolean>(paused);
-  const nearestRef = useRef<Museum3DHotspot | null>(null);
+  const exhibitionModeRef = useRef<ExhibitionMode>(exhibitionMode);
+  const festiveMeshesRef = useRef<Mesh[]>([]);
+  const dailyMeshesRef = useRef<Mesh[]>([]);
+  const hearthLightRef = useRef<PointLight | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [webglError, setWebglError] = useState<string | null>(null);
   const [joystickThumb, setJoystickThumb] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
+  const joystickVecRef = useRef<{ vx: number; vz: number }>({ vx: 0, vz: 0 });
   const joyActiveRef = useRef(false);
   const joyOriginRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const lookTouchRef = useRef<{ active: boolean; lastX: number; lastY: number }>({
@@ -77,10 +99,77 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
     pausedRef.current = paused;
   }, [paused]);
 
-  // Handle teleport between Area A and Area B
+  // Update exhibition mode visibility (daily vs festive)
   useEffect(() => {
-    if (!teleportRequest || !cameraRef.current) return;
-    const cam = cameraRef.current;
+    exhibitionModeRef.current = exhibitionMode;
+    const isFestive = exhibitionMode === 'festive';
+
+    festiveMeshesRef.current.forEach((m) => {
+      m.setEnabled(isFestive);
+    });
+    dailyMeshesRef.current.forEach((m) => {
+      m.setEnabled(!isFestive);
+    });
+
+    if (hearthLightRef.current) {
+      hearthLightRef.current.intensity = isFestive ? 2.6 : 1.2;
+      hearthLightRef.current.range = isFestive ? 14 : 9;
+    }
+  }, [exhibitionMode]);
+
+  // Handle active camera mode switch
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    if (cameraMode === 'orbit') {
+      if (orbitCameraRef.current) {
+        scene.activeCamera = orbitCameraRef.current;
+        orbitCameraRef.current.attachControl(canvasRef.current, true);
+        if (avatarMeshRef.current) avatarMeshRef.current.isVisible = true;
+      }
+    } else {
+      if (fpCameraRef.current) {
+        scene.activeCamera = fpCameraRef.current;
+        fpCameraRef.current.attachControl(canvasRef.current, true);
+        if (avatarMeshRef.current) {
+          avatarMeshRef.current.isVisible = cameraMode === 'thirdPerson';
+        }
+      }
+    }
+  }, [cameraMode]);
+
+  // Handle screenshot capture
+  useEffect(() => {
+    if (!screenshotNonce || !sceneRef.current || !canvasRef.current) return;
+    try {
+      Tools.CreateScreenshotUsingRenderTarget(
+        sceneRef.current.getEngine(),
+        sceneRef.current.activeCamera || fpCameraRef.current!,
+        { precision: 1.5 },
+        (data) => {
+          const a = document.createElement('a');
+          a.href = data;
+          a.download = `baotang-suthi-ede-3d-${Date.now()}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+      );
+    } catch {
+      // Fallback canvas data URL
+      const canvas = canvasRef.current;
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `baotang-suthi-ede-3d-${Date.now()}.png`;
+      a.click();
+    }
+  }, [screenshotNonce]);
+
+  // Handle teleport between Area A (Yard) and Area B (Interior)
+  useEffect(() => {
+    if (!teleportRequest || !fpCameraRef.current) return;
+    const cam = fpCameraRef.current;
     const sp =
       teleportRequest.target === 'A'
         ? LONGHOUSE_3D_CONFIG.player.spawnExterior
@@ -88,7 +177,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
     cam.position = new Vector3(sp.x, sp.y, sp.z);
     cam.setTarget(
       teleportRequest.target === 'A'
-        ? new Vector3(0, 2.6, 12)
+        ? new Vector3(0, 2.8, 13)
         : new Vector3(0, 3.6, -4)
     );
   }, [teleportRequest]);
@@ -99,7 +188,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
 
     let engine: Engine | null = null;
     let scene: Scene | null = null;
-    const preset = LONGHOUSE_3D_CONFIG.performancePresets[quality];
+    const preset = LONGHOUSE_3D_CONFIG.performancePresets[quality] || LONGHOUSE_3D_CONFIG.performancePresets.high;
 
     const handleContextLost = (ev: Event) => {
       ev.preventDefault();
@@ -113,701 +202,1226 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
     canvas.addEventListener('webglcontextrestored', handleContextRestored);
 
     try {
-      engine = new Engine(canvas, quality === 'high', {
-        preserveDrawingBuffer: false,
+      engine = new Engine(canvas, true, {
+        preserveDrawingBuffer: true,
         stencil: true,
-        antialias: quality === 'high',
+        antialias: quality !== 'low',
+        powerPreference: 'high-performance',
       });
+      engineRef.current = engine;
       engine.setHardwareScalingLevel(preset.hardwareScaling);
 
       scene = new Scene(engine);
+      sceneRef.current = scene;
+
+      // Photorealistic Tone Mapping & Clear Color
+      scene.clearColor = new Color4(0.48, 0.62, 0.72, 1.0);
+      scene.ambientColor = new Color3(0.25, 0.28, 0.26);
+
+      if (scene.imageProcessingConfiguration) {
+        scene.imageProcessingConfiguration.toneMappingEnabled = true;
+        scene.imageProcessingConfiguration.toneMappingType = 1; // ACES Filmic Tone Mapping
+        scene.imageProcessingConfiguration.exposure = 1.15;
+        scene.imageProcessingConfiguration.contrast = 1.12;
+      }
+
+      // Highlands Mist / Atmospheric Fog
+      scene.fogMode = Scene.FOGMODE_EXP2;
+      scene.fogDensity = LONGHOUSE_3D_CONFIG.world.fogDensity;
+      scene.fogColor = Color3.FromArray(LONGHOUSE_3D_CONFIG.world.fogColorRgb);
+
+      // Collisions & Physics Gravity
       scene.collisionsEnabled = true;
       scene.gravity = new Vector3(0, LONGHOUSE_3D_CONFIG.world.gravityY, 0);
 
-      const [sr, sg, sb] = LONGHOUSE_3D_CONFIG.world.skyColorRgb;
-      scene.clearColor = new Color4(sr, sg, sb, 1.0);
-      scene.fogMode = Scene.FOGMODE_EXP2;
-      const [fr, fg, fb] = LONGHOUSE_3D_CONFIG.world.fogColorRgb;
-      scene.fogColor = new Color3(fr, fg, fb);
-      scene.fogDensity = LONGHOUSE_3D_CONFIG.world.fogDensity;
+      // 1. Natural Highlands Lighting Setup
+      // Sky Hemispheric Ambient Light
+      const hemiLight = new HemisphericLight('hemiSkyLight', new Vector3(0, 1, 0), scene);
+      hemiLight.intensity = 0.75;
+      hemiLight.diffuse = new Color3(0.92, 0.95, 0.98);
+      hemiLight.groundColor = new Color3(0.35, 0.28, 0.22);
 
-      // First-Person Camera
-      const sp = LONGHOUSE_3D_CONFIG.player.spawnExterior;
-      const camera = new UniversalCamera('fpCamera', new Vector3(sp.x, sp.y, sp.z), scene);
-      camera.setTarget(new Vector3(0, 2.7, 11));
-      camera.attachControl(canvas, true);
-      camera.applyGravity = true;
-      camera.checkCollisions = true;
-      const el = LONGHOUSE_3D_CONFIG.player.ellipsoid;
-      camera.ellipsoid = new Vector3(el.x, el.y, el.z);
-      camera.minZ = 0.2;
-      camera.maxZ = 140;
-      camera.speed = LONGHOUSE_3D_CONFIG.player.moveSpeedDesktop;
-      camera.angularSensibility = 2600;
-      camera.inertia = 0.65;
-
-      // WASD + Arrow keys
-      camera.keysUp = [87, 38];
-      camera.keysDown = [83, 40];
-      camera.keysLeft = [65, 37];
-      camera.keysRight = [68, 39];
-      cameraRef.current = camera;
-
-      // Natural Daylight + Interior Hearth Glow
-      const hemi = new HemisphericLight('hemiSky', new Vector3(0, 1, 0), scene);
-      hemi.intensity = 0.72;
-      hemi.diffuse = new Color3(0.98, 0.94, 0.85);
-      hemi.groundColor = new Color3(0.24, 0.2, 0.14);
-
-      const sun = new DirectionalLight('sunLight', new Vector3(-0.5, -0.85, 0.4), scene);
-      sun.position = new Vector3(22, 30, -14);
-      sun.intensity = 1.25;
-      sun.diffuse = new Color3(1.0, 0.91, 0.72);
-
-      const hearthLight = new PointLight('hearthLight', new Vector3(0, 3.2, -1.5), scene);
-      hearthLight.diffuse = new Color3(1.0, 0.56, 0.2);
-      hearthLight.intensity = 1.8;
-      hearthLight.range = 18;
-
-      const indoorWarmFill = new PointLight('indoorWarmFill', new Vector3(0, 4.4, 5.5), scene);
-      indoorWarmFill.diffuse = new Color3(0.98, 0.84, 0.62);
-      indoorWarmFill.intensity = 0.95;
-      indoorWarmFill.range = 18;
+      // Sun Directional Light with Warm Golden Angle
+      const sunLight = new DirectionalLight(
+        'sunLight',
+        new Vector3(-0.65, -1.2, -0.75).normalize(),
+        scene
+      );
+      sunLight.position = new Vector3(35, 60, 45);
+      sunLight.intensity = 1.6;
+      sunLight.diffuse = new Color3(1.0, 0.95, 0.88);
+      sunLight.specular = new Color3(0.3, 0.28, 0.22);
 
       let shadowGen: ShadowGenerator | null = null;
       if (preset.shadowsEnabled) {
-        shadowGen = new ShadowGenerator(preset.shadowMapSize, sun);
-        shadowGen.useBlurExponentialShadowMap = true;
-        shadowGen.blurKernel = 12;
+        shadowGen = new ShadowGenerator(preset.shadowMapSize, sunLight);
+        shadowGen.usePoissonSampling = true;
+        shadowGen.bias = 0.002;
+        shadowGen.normalBias = 0.02;
+        shadowGen.darkness = 0.35;
       }
 
       const addShadow = (mesh: Mesh, receive = true) => {
-        mesh.receiveShadows = receive;
-        if (shadowGen) {
-          shadowGen.addShadowCaster(mesh);
-        }
+        if (shadowGen) shadowGen.addShadowCaster(mesh);
+        if (receive) mesh.receiveShadows = true;
       };
 
-      // Shared Reusable Materials (Performance Optimized)
-      const makeMat = (name: string, rgb: [number, number, number], spec = 0.12) => {
-        const m = new StandardMaterial(name, scene!);
-        m.diffuseColor = new Color3(rgb[0], rgb[1], rgb[2]);
-        m.specularColor = new Color3(spec, spec, spec);
-        return m;
-      };
+      // Interior Hearth Light in Gian Gah (Central Guest Fireplace)
+      const hearthGahLight = new PointLight('hearthGahLight', new Vector3(0, 2.65, 4.2), scene);
+      hearthGahLight.diffuse = new Color3(1.0, 0.52, 0.15);
+      hearthGahLight.specular = new Color3(0.6, 0.25, 0.05);
+      hearthGahLight.intensity = 1.9;
+      hearthGahLight.range = 11.5;
+      hearthLightRef.current = hearthGahLight;
 
+      // Interior Hearth Light in Gian Ôk (Family Kitchen)
+      const hearthOkLight = new PointLight('hearthOkLight', new Vector3(-1.2, 2.65, -7.5), scene);
+      hearthOkLight.diffuse = new Color3(0.98, 0.48, 0.12);
+      hearthOkLight.intensity = 1.4;
+      hearthOkLight.range = 9.0;
+
+      // 2. Procedural Dynamic Textures for Organic PBR Materials
       const pal = LONGHOUSE_3D_CONFIG.palette;
-      const groundMat = makeMat('groundMat', pal.forestGround, 0.03);
-      const pathMat = makeMat('pathMat', pal.redSoilPath, 0.04);
-      const timberMat = makeMat('timberMat', pal.timberDark, 0.15);
-      const bambooMat = makeMat('bambooMat', pal.bambooFloor, 0.1);
-      const thatchMat = makeMat('thatchMat', pal.thatchRoof, 0.05);
-      const stoneMat = makeMat('stoneMat', pal.stoneGray, 0.08);
-      const bronzeMat = makeMat('bronzeMat', pal.bronzeGold, 0.6);
-      const brocadeMat = makeMat('brocadeMat', pal.brocadeAccent, 0.12);
-      const canopyMat = makeMat('canopyMat', pal.canopyGreen, 0.05);
 
-      const emberMat = makeMat('emberMat', pal.emberGlow, 0.2);
-      emberMat.emissiveColor = new Color3(0.95, 0.36, 0.08);
+      const makeProceduralTexture = (
+        name: string,
+        pattern: 'wood' | 'bamboo' | 'thatch' | 'soil' | 'brocade' | 'ceramic',
+        baseRgb: [number, number, number]
+      ) => {
+        if (!preset.proceduralTextures) return null;
+        const size = quality === 'high' ? 512 : 256;
+        const dt = new DynamicTexture(name, { width: size, height: size }, scene, true);
+        const ctx = dt.getContext();
 
-      const hotspotIdleMat = makeMat('hotspotIdleMat', pal.hotspotIdle, 0.3);
-      hotspotIdleMat.emissiveColor = new Color3(0.12, 0.45, 0.38);
+        const [r, g, b] = baseRgb.map((v) => Math.round(v * 255));
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(0, 0, size, size);
 
-      const hotspotNearMat = makeMat('hotspotNearMat', pal.hotspotNear, 0.4);
-      hotspotNearMat.emissiveColor = new Color3(0.85, 0.62, 0.16);
+        if (pattern === 'wood') {
+          // Longitudinal wood fibers & growth rings
+          ctx.fillStyle = 'rgba(0,0,0,0.12)';
+          for (let i = 0; i < size; i += 6) {
+            ctx.fillRect(i, 0, 2 + (i % 3), size);
+          }
+          ctx.fillStyle = 'rgba(255,255,255,0.08)';
+          for (let i = 3; i < size; i += 12) {
+            ctx.fillRect(i, 0, 1, size);
+          }
+        } else if (pattern === 'bamboo') {
+          // Woven bamboo strips (nong mot / nong hai)
+          const tileSize = 16;
+          for (let y = 0; y < size; y += tileSize) {
+            for (let x = 0; x < size; x += tileSize) {
+              const alt = ((x / tileSize) + (y / tileSize)) % 2 === 0;
+              ctx.fillStyle = alt ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.12)';
+              ctx.fillRect(x, y, tileSize - 2, tileSize - 2);
+            }
+          }
+        } else if (pattern === 'thatch') {
+          // Diagonal layered straw strands
+          ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+          ctx.lineWidth = 2;
+          for (let i = 0; i < 180; i++) {
+            const sx = Math.random() * size;
+            const sy = Math.random() * size;
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(sx + (Math.random() - 0.5) * 40, sy + 30 + Math.random() * 40);
+            ctx.stroke();
+          }
+        } else if (pattern === 'soil') {
+          // Noisy pebble and basalt red clay flecks
+          for (let i = 0; i < 400; i++) {
+            const sx = Math.random() * size;
+            const sy = Math.random() * size;
+            const radius = 1 + Math.random() * 3;
+            ctx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.22)' : 'rgba(255,180,120,0.18)';
+            ctx.beginPath();
+            ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else if (pattern === 'brocade') {
+          // Traditional Ede geometric diamond, zigzag, and lizard motifs
+          ctx.fillStyle = '#6e141a';
+          ctx.fillRect(0, 0, size, size);
+          ctx.fillStyle = '#1c344a';
+          for (let y = 0; y < size; y += 48) {
+            ctx.fillRect(0, y, size, 20);
+          }
+          ctx.strokeStyle = '#e0aa34';
+          ctx.lineWidth = 4;
+          for (let x = 0; x < size; x += 32) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x + 16, 24);
+            ctx.lineTo(x + 32, 0);
+            ctx.stroke();
+          }
+        } else if (pattern === 'ceramic') {
+          // Antique glazed Tuk jar ceramic speckles
+          ctx.fillStyle = 'rgba(0,0,0,0.3)';
+          for (let i = 0; i < 200; i++) {
+            const sx = Math.random() * size;
+            const sy = Math.random() * size;
+            ctx.fillRect(sx, sy, 3, 3);
+          }
+        }
 
-      const hotspotDoneMat = makeMat('hotspotDoneMat', pal.hotspotDone, 0.3);
-      hotspotDoneMat.emissiveColor = new Color3(0.16, 0.52, 0.28);
+        dt.update();
+        return dt;
+      };
 
-      // 1. Forest Terrain & Pathway (Area A)
+      // 3. PBR Materials Builder
+      const makePBRMat = (
+        name: string,
+        albedoRgb: [number, number, number],
+        roughness: number,
+        metallic = 0.05,
+        pattern?: 'wood' | 'bamboo' | 'thatch' | 'soil' | 'brocade' | 'ceramic'
+      ) => {
+        const mat = new PBRMaterial(name, scene!);
+        mat.albedoColor = Color3.FromArray(albedoRgb);
+        mat.roughness = roughness;
+        mat.metallic = metallic;
+        mat.environmentIntensity = 0.85;
+
+        if (pattern) {
+          const tex = makeProceduralTexture(`${name}_tex`, pattern, albedoRgb);
+          if (tex) {
+            mat.albedoTexture = tex;
+            if (pattern === 'wood' || pattern === 'bamboo') {
+              mat.bumpTexture = tex;
+              mat.bumpTexture.level = 0.35;
+            }
+          }
+        }
+        return mat;
+      };
+
+      const matGround = makePBRMat('matGround', pal.forestGround, 0.95, 0.02, 'soil');
+      const matRedSoil = makePBRMat('matRedSoil', pal.redBazanSoil, 0.88, 0.02, 'soil');
+      const matTimberPillars = makePBRMat('matTimberPillars', pal.timberPillars, 0.68, 0.06, 'wood');
+      const matTimberBeams = makePBRMat('matTimberBeams', pal.timberDarkAged, 0.72, 0.06, 'wood');
+      const matPlankFloor = makePBRMat('matPlankFloor', pal.bambooFloor, 0.42, 0.08, 'bamboo');
+      const matWovenWalls = makePBRMat('matWovenWalls', pal.wovenBambooWall, 0.75, 0.04, 'bamboo');
+      const matThatchRoof = makePBRMat('matThatchRoof', pal.thatchRoofDark, 0.86, 0.02, 'thatch');
+      const matRiverStone = makePBRMat('matRiverStone', pal.riverStoneGray, 0.82, 0.05);
+      const matBronze = makePBRMat('matBronze', pal.bronzeGold, 0.32, 0.88);
+      const matCeramic = makePBRMat('matCeramic', pal.ceramicGlazeTuk, 0.18, 0.12, 'ceramic');
+      const matBrocade = makePBRMat('matBrocade', pal.brocadeCrimson, 0.82, 0.04, 'brocade');
+
+      // Emissive Hotspot & Ember Materials
+      const makeHotspotMat = (name: string, rgb: [number, number, number]) => {
+        const mat = new StandardMaterial(name, scene!);
+        mat.diffuseColor = Color3.FromArray(rgb);
+        mat.emissiveColor = Color3.FromArray(rgb).scale(0.85);
+        return mat;
+      };
+
+      const matEmber = makeHotspotMat('matEmber', pal.emberGlow);
+      const matHotspotIdle = makeHotspotMat('matHotspotIdle', pal.hotspotIdle);
+      const matHotspotNear = makeHotspotMat('matHotspotNear', pal.hotspotNear);
+      const matHotspotDone = makeHotspotMat('matHotspotDone', pal.hotspotDone);
+
+      // 4. Exterior Environment: Highlands Ground, Mountains, Trees & Path
+      // Wide undulating ground
       const ground = MeshBuilder.CreateGround(
         'forestGround',
         { width: LONGHOUSE_3D_CONFIG.world.groundSize, height: LONGHOUSE_3D_CONFIG.world.groundSize },
         scene
       );
-      ground.material = groundMat;
+      ground.material = matGround;
       ground.checkCollisions = true;
       ground.receiveShadows = true;
 
+      // Distant Highlands Mountain Ridge (Chu Yang Sin Vista)
+      const mountainColors = [pal.mountainBlue, pal.canopyGreenDark];
+      for (let m = 0; m < 7; m++) {
+        const mountain = MeshBuilder.CreateCylinder(
+          `mountain_${m}`,
+          {
+            diameterTop: 0,
+            diameterBottom: 42 + (m % 3) * 14,
+            height: 24 + (m % 2) * 12,
+            tessellation: 6,
+          },
+          scene
+        );
+        const ang = (m / 7) * Math.PI - Math.PI / 2;
+        const dist = 54 + (m % 2) * 8;
+        mountain.position = new Vector3(Math.sin(ang) * dist, 10, -Math.cos(ang) * dist - 8);
+        const mMat = new StandardMaterial(`mMat_${m}`, scene!);
+        mMat.diffuseColor = Color3.FromArray(mountainColors[m % 2]).scale(0.65);
+        mountain.material = mMat;
+      }
+
+      // Red Bazan Soil Path from Entrance Gate to Longhouse Front Porch
       const arch = LONGHOUSE_3D_CONFIG.architecture;
       const pathLen = arch.pathway.endZ - arch.pathway.startZ;
       const pathway = MeshBuilder.CreateBox(
-        'pathway',
+        'redBazanPathway',
         { width: arch.pathway.width, height: 0.08, depth: pathLen },
         scene
       );
       pathway.position = new Vector3(0, 0.04, arch.pathway.startZ + pathLen / 2);
-      pathway.material = pathMat;
+      pathway.material = matRedSoil;
       pathway.checkCollisions = true;
       pathway.receiveShadows = true;
 
-      // Entrance museum wooden gate arch (z = 26)
-      const gatePostL = MeshBuilder.CreateCylinder('gatePostL', { diameter: 0.36, height: 3.8 }, scene);
-      gatePostL.position = new Vector3(-2.3, 1.9, 25.5);
-      gatePostL.material = timberMat;
-      gatePostL.checkCollisions = true;
-      addShadow(gatePostL);
+      // Ancient Ko-nia & Highlands Forest Trees with root buttresses
+      const treeCoords: Array<[number, number, number]> = [
+        [-14, 25, 1.2], [-18, 17, 1.35], [-15, 8, 1.1], [-17, -2, 1.25], [-16, -11, 1.2],
+        [-13, -20, 1.1], [14, 25, 1.15], [18, 16, 1.3], [15, 7, 1.2], [18, -4, 1.25],
+        [15, -15, 1.3], [10, -24, 1.15], [-9, -24, 1.2], [0, -26, 1.4],
+        [-22, 12, 1.3], [22, 11, 1.25], [-23, -6, 1.2], [23, -10, 1.2],
+        [-21, -19, 1.1], [21, -21, 1.25], [-7, 31, 1.0], [7, 31, 1.1],
+      ];
 
-      const gatePostR = MeshBuilder.CreateCylinder('gatePostR', { diameter: 0.36, height: 3.8 }, scene);
-      gatePostR.position = new Vector3(2.3, 1.9, 25.5);
-      gatePostR.material = timberMat;
-      gatePostR.checkCollisions = true;
-      addShadow(gatePostR);
+      treeCoords.slice(0, preset.treeCount).forEach(([tx, tz, sc], idx) => {
+        const trunk = MeshBuilder.CreateCylinder(
+          `treeTrunk_${idx}`,
+          { diameterTop: 0.48 * sc, diameterBottom: 0.88 * sc, height: 6.2 * sc, tessellation: 12 },
+          scene
+        );
+        trunk.position = new Vector3(tx, 3.1 * sc, tz);
+        trunk.material = matTimberPillars;
+        trunk.checkCollisions = true;
+        addShadow(trunk, false);
 
-      const gateBeam = MeshBuilder.CreateBox('gateBeam', { width: 5.4, height: 0.34, depth: 0.36 }, scene);
-      gateBeam.position = new Vector3(0, 3.7, 25.5);
-      gateBeam.material = timberMat;
-      addShadow(gateBeam);
+        // Flared root base
+        const rootBase = MeshBuilder.CreateCylinder(
+          `treeRoots_${idx}`,
+          { diameterTop: 0.85 * sc, diameterBottom: 1.65 * sc, height: 0.9 * sc, tessellation: 8 },
+          scene
+        );
+        rootBase.position = new Vector3(tx, 0.45 * sc, tz);
+        rootBase.material = matTimberPillars;
 
-      // Intro Signboard at ext-gateway
-      const signPost = MeshBuilder.CreateBox('signPost', { width: 0.14, height: 1.5, depth: 0.14 }, scene);
-      signPost.position = new Vector3(-3.2, 0.75, 23.5);
-      signPost.material = timberMat;
-      signPost.checkCollisions = true;
-      const signBoard = MeshBuilder.CreateBox('signBoard', { width: 1.5, height: 0.95, depth: 0.1 }, scene);
-      signBoard.position = new Vector3(-3.2, 1.55, 23.5);
-      signBoard.rotation.y = Math.PI / 6;
-      signBoard.material = bambooMat;
+        // Lush layered canopy
+        const canopyA = MeshBuilder.CreateSphere(
+          `canopyA_${idx}`,
+          { diameter: 5.6 * sc, segments: 8 },
+          scene
+        );
+        canopyA.scaling = new Vector3(1.15, 0.8, 1.15);
+        canopyA.position = new Vector3(tx, 6.8 * sc, tz);
+        const cMat = new StandardMaterial(`canopyMat_${idx}`, scene!);
+        cMat.diffuseColor = Color3.FromArray(pal.canopyGreenDark);
+        canopyA.material = cMat;
+        addShadow(canopyA, false);
+      });
 
-      // Perimeter Invisible World Boundary Walls so player stays inside the forest museum
-      const createBoundary = (name: string, w: number, h: number, d: number, x: number, z: number) => {
+      // River stones flanking pathway
+      for (let s = 0; s < 8; s++) {
+        for (const side of [-1, 1]) {
+          const stone = MeshBuilder.CreateSphere(
+            `riverStone_${s}_${side}`,
+            { diameter: 0.65 + (s % 3) * 0.15, segments: 6 },
+            scene
+          );
+          stone.scaling = new Vector3(1.3, 0.65, 1.1);
+          stone.position = new Vector3(side * 2.2, 0.2, 18.5 + s * 1.8);
+          stone.material = matRiverStone;
+        }
+      }
+
+      // Invisible outer boundary walls so player doesn't walk off into the void
+      const makeBoundary = (name: string, w: number, h: number, d: number, x: number, z: number) => {
         const b = MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, scene);
         b.position = new Vector3(x, h / 2, z);
         b.isVisible = false;
         b.checkCollisions = true;
       };
-      createBoundary('boundN', 68, 8, 1, 0, -28);
-      createBoundary('boundS', 68, 8, 1, 0, 32);
-      createBoundary('boundW', 1, 8, 62, -28, 2);
-      createBoundary('boundE', 1, 8, 62, 28, 2);
+      makeBoundary('boundN', 76, 8, 1, 0, -32);
+      makeBoundary('boundS', 76, 8, 1, 0, 35);
+      makeBoundary('boundW', 1, 8, 70, -32, 1);
+      makeBoundary('boundE', 1, 8, 70, 32, 1);
 
-      // Surrounding Tay Nguyen Forest Trees & Boulders
-      const treeSpots: Array<[number, number, number]> = [
-        [-12, 24, 1.1], [-16, 18, 1.25], [-13, 10, 1.0], [-15, 2, 1.2], [-14, -7, 1.15],
-        [-11, -16, 1.05], [12, 23, 1.15], [15, 16, 1.0], [13, 8, 1.25], [16, -2, 1.1],
-        [13, -12, 1.2], [9, -20, 1.15], [-8, -21, 1.2], [0, -23, 1.3],
-        [-20, 13, 1.3], [20, 12, 1.25], [-21, -4, 1.15], [21, -8, 1.2],
-        [-19, -17, 1.1], [19, -18, 1.25], [-7, 29, 0.95], [8, 29, 1.05],
-      ];
+      // 5. ARCHITECTURAL HIERARCHY: Longhouse Ê-đê Model
+      const houseRoot = new TransformNode('Longhouse_Root', scene);
 
-      treeSpots.slice(0, preset.treeCount).forEach(([tx, tz, scale], idx) => {
-        const trunk = MeshBuilder.CreateCylinder(
-          `treeTrunk_${idx}`,
-          { diameterTop: 0.42 * scale, diameterBottom: 0.72 * scale, height: 5.4 * scale, tessellation: 10 },
-          scene
-        );
-        trunk.position = new Vector3(tx, 2.7 * scale, tz);
-        trunk.material = timberMat;
-        trunk.checkCollisions = true;
-        addShadow(trunk, false);
+      // A. Longhouse_Pillars: 32 Stilt Pillars (Jing Gơr & Jing Đê) with Stone Plinths
+      const pillarsNode = new TransformNode('Longhouse_Pillars', scene);
+      pillarsNode.parent = houseRoot;
 
-        const canopy = MeshBuilder.CreateSphere(
-          `treeCanopy_${idx}`,
-          { diameter: 4.8 * scale, segments: 8 },
-          scene
-        );
-        canopy.scaling = new Vector3(1.1, 0.78, 1.1);
-        canopy.position = new Vector3(tx, 6.0 * scale, tz);
-        canopy.material = canopyMat;
-        addShadow(canopy, false);
-      });
-
-      // Decorative stones along pathway
-      for (let i = 0; i < 6; i++) {
-        const stoneL = MeshBuilder.CreateSphere(`stoneL_${i}`, { diameter: 0.55, segments: 6 }, scene);
-        stoneL.scaling = new Vector3(1.2, 0.6, 1);
-        stoneL.position = new Vector3(-2.1, 0.15, 18.2 + i * 2.0);
-        stoneL.material = stoneMat;
-
-        const stoneR = MeshBuilder.CreateSphere(`stoneR_${i}`, { diameter: 0.55, segments: 6 }, scene);
-        stoneR.scaling = new Vector3(1.2, 0.6, 1);
-        stoneR.position = new Vector3(2.1, 0.15, 18.2 + i * 2.0);
-        stoneR.material = stoneMat;
-      }
-
-      // 2. Ede Longhouse Model (Modular Parametric Parts from LONGHOUSE_3D_CONFIG)
-      const houseRoot = new TransformNode('edeLonghouseRoot', scene);
-
-      // Raised Floor Deck
-      const floor = arch.floor;
-      const floorDeck = MeshBuilder.CreateBox(
-        'longhouseFloor',
-        { width: floor.width, height: floor.thickness, depth: floor.length },
-        scene
-      );
-      floorDeck.position = new Vector3(0, floor.elevationY, 0);
-      floorDeck.material = bambooMat;
-      floorDeck.checkCollisions = true;
-      floorDeck.receiveShadows = true;
-      floorDeck.parent = houseRoot;
-
-      // Under-floor Stilt Pillars
       for (const px of arch.pillars.xPositions) {
         for (const pz of arch.pillars.zPositions) {
+          // Stone plinth under pillar
+          const plinth = MeshBuilder.CreateCylinder(
+            `plinth_${px}_${pz}`,
+            { diameter: 0.65, height: 0.24, tessellation: 8 },
+            scene
+          );
+          plinth.position = new Vector3(px, 0.12, pz);
+          plinth.material = matRiverStone;
+          plinth.parent = pillarsNode;
+
+          // Main vertical timber stilt column
           const stilt = MeshBuilder.CreateCylinder(
             `stilt_${px}_${pz}`,
-            { diameter: arch.pillars.stiltRadius * 2, height: floor.elevationY, tessellation: 10 },
+            { diameter: arch.pillars.stiltRadius * 2, height: arch.floor.elevationY - 0.1, tessellation: 12 },
             scene
           );
-          stilt.position = new Vector3(px, floor.elevationY / 2, pz);
-          stilt.material = timberMat;
+          stilt.position = new Vector3(px, (arch.floor.elevationY + 0.12) / 2, pz);
+          stilt.material = matTimberPillars;
           stilt.checkCollisions = true;
           addShadow(stilt);
-          stilt.parent = houseRoot;
+          stilt.parent = pillarsNode;
+
+          // Upper wall post extending up to roof beam (along outer rows)
+          if (Math.abs(px) >= 3.8) {
+            const wallPost = MeshBuilder.CreateCylinder(
+              `wallPost_${px}_${pz}`,
+              { diameter: arch.pillars.wallPostRadius * 2, height: arch.pillars.wallHeight, tessellation: 12 },
+              scene
+            );
+            wallPost.position = new Vector3(px, arch.floor.elevationY + arch.pillars.wallHeight / 2, pz);
+            wallPost.material = matTimberPillars;
+            wallPost.checkCollisions = true;
+            addShadow(wallPost);
+            wallPost.parent = pillarsNode;
+          }
         }
       }
 
-      // Upper Interior Structural Wall Posts & Cross Beams
-      const postY = floor.elevationY + arch.pillars.wallHeight / 2;
-      for (const pz of arch.pillars.zPositions) {
-        for (const px of [-4.4, 4.4]) {
-          const post = MeshBuilder.CreateCylinder(
-            `wallPost_${px}_${pz}`,
-            { diameter: arch.pillars.wallPostRadius * 2, height: arch.pillars.wallHeight, tessellation: 10 },
-            scene
-          );
-          post.position = new Vector3(px, postY, pz);
-          post.material = timberMat;
-          post.checkCollisions = true;
-          addShadow(post);
-          post.parent = houseRoot;
-        }
+      // B. Longhouse_Floor: Raised Timber & Bamboo Deck
+      const floorNode = new TransformNode('Longhouse_Floor', scene);
+      floorNode.parent = houseRoot;
 
-        // Overhead timber tie beam
-        const beam = MeshBuilder.CreateBox(
-          `tieBeam_${pz}`,
-          { width: floor.width - 0.5, height: 0.2, depth: 0.22 },
+      const floorDeck = MeshBuilder.CreateBox(
+        'floorDeck',
+        { width: arch.floor.width, height: arch.floor.thickness, depth: arch.floor.length },
+        scene
+      );
+      floorDeck.position = new Vector3(0, arch.floor.elevationY, 0);
+      floorDeck.material = matPlankFloor;
+      floorDeck.checkCollisions = true;
+      floorDeck.receiveShadows = true;
+      floorDeck.parent = floorNode;
+
+      // Heavy longitudinal timber edge beams (Đòn tay sàn)
+      for (const side of [-1, 1]) {
+        const edgeBeam = MeshBuilder.CreateBox(
+          `floorEdgeBeam_${side}`,
+          { width: 0.28, height: 0.38, depth: arch.floor.length + 0.4 },
           scene
         );
-        beam.position = new Vector3(0, floor.elevationY + arch.pillars.wallHeight, pz);
-        beam.material = timberMat;
-        beam.parent = houseRoot;
+        edgeBeam.position = new Vector3(side * (arch.floor.width / 2), arch.floor.elevationY - 0.1, 0);
+        edgeBeam.material = matTimberBeams;
+        edgeBeam.parent = floorNode;
       }
 
-      // Stairs: Visual Steps + Smooth Invisible Collision Ramp so player climbs effortlessly
-      const st = arch.stairs;
-      const stairSpanZ = st.bottomZ - st.topZ;
-      const stairRiseY = st.topY - st.bottomY;
-      for (let i = 0; i < st.stepCount; i++) {
-        const t = (i + 0.5) / st.stepCount;
+      // C. Longhouse_Beams: Transverse Tie Beams, Queen Posts & Longitudinal Purlins
+      const beamsNode = new TransformNode('Longhouse_Beams', scene);
+      beamsNode.parent = houseRoot;
+
+      for (const pz of arch.pillars.zPositions) {
+        // Transverse tie beam (Xà ngang đỡ mái)
+        const tieBeam = MeshBuilder.CreateBox(
+          `tieBeam_${pz}`,
+          { width: arch.floor.width - 0.4, height: 0.24, depth: 0.26 },
+          scene
+        );
+        tieBeam.position = new Vector3(0, arch.floor.elevationY + arch.pillars.wallHeight, pz);
+        tieBeam.material = matTimberBeams;
+        addShadow(tieBeam);
+        tieBeam.parent = beamsNode;
+
+        // Vertical queen post (Cột nghé chống nóc)
+        const queenPost = MeshBuilder.CreateCylinder(
+          `queenPost_${pz}`,
+          {
+            diameter: 0.24,
+            height: arch.roof.peakHeight - (arch.floor.elevationY + arch.pillars.wallHeight),
+            tessellation: 10,
+          },
+          scene
+        );
+        queenPost.position = new Vector3(
+          0,
+          (arch.floor.elevationY + arch.pillars.wallHeight + arch.roof.peakHeight) / 2,
+          pz
+        );
+        queenPost.material = matTimberBeams;
+        queenPost.parent = beamsNode;
+      }
+
+      // Longitudinal roof purlins along each side (Xà dọc đỡ vì kèo)
+      for (const side of [-1, 1]) {
+        const purlin = MeshBuilder.CreateBox(
+          `purlin_${side}`,
+          { width: 0.22, height: 0.24, depth: arch.roof.length },
+          scene
+        );
+        purlin.position = new Vector3(
+          side * (arch.floor.width / 2 - 0.2),
+          arch.floor.elevationY + arch.pillars.wallHeight + 0.1,
+          0
+        );
+        purlin.material = matTimberBeams;
+        purlin.parent = beamsNode;
+      }
+
+      // D. Longhouse_Stairs: Master Staircase (K'Kha Drai) with 3D Sculpted Crescent Moon & Breasts
+      const stairsNode = new TransformNode('Longhouse_Stairs', scene);
+      stairsNode.parent = houseRoot;
+
+      const mst = arch.masterStairs;
+      const mstSpanZ = mst.bottomZ - mst.topZ;
+      const mstRiseY = mst.topY - mst.bottomY;
+      const stairAngle = Math.atan2(mstRiseY, mstSpanZ);
+
+      // Solid inclined timber beam of K'Kha Drai
+      const stairSlabLength = Math.hypot(mstSpanZ, mstRiseY) + 1.2;
+      const stairSlab = MeshBuilder.CreateBox(
+        'masterStairSlab',
+        { width: mst.width, height: mst.boardThickness, depth: stairSlabLength },
+        scene
+      );
+      stairSlab.position = new Vector3(0, (mst.bottomY + mst.topY) / 2 + 0.15, (mst.bottomZ + mst.topZ) / 2 + 0.3);
+      stairSlab.rotation.x = stairAngle;
+      stairSlab.material = matTimberBeams;
+      addShadow(stairSlab);
+      stairSlab.parent = stairsNode;
+
+      // 7 Individual notched footholds (Bậc thang đẽo)
+      for (let i = 0; i < mst.stepCount; i++) {
+        const t = (i + 0.5) / mst.stepCount;
         const step = MeshBuilder.CreateBox(
-          `stairStep_${i}`,
-          { width: st.width, height: 0.22, depth: stairSpanZ / st.stepCount + 0.08 },
+          `mstStep_${i}`,
+          { width: mst.width * 0.92, height: 0.18, depth: 0.42 },
           scene
         );
         step.position = new Vector3(
           0,
-          st.bottomY + t * stairRiseY,
-          st.bottomZ - t * stairSpanZ
+          mst.bottomY + t * mstRiseY + 0.1,
+          mst.bottomZ - t * mstSpanZ
         );
-        step.material = timberMat;
+        step.material = matTimberPillars;
         addShadow(step);
-        step.parent = houseRoot;
+        step.parent = stairsNode;
       }
 
-      // Invisible angled ramp collider for smooth First-Person walk up/down stairs
-      const rampLength = Math.hypot(stairSpanZ, stairRiseY) + 0.6;
-      const rampAngle = Math.atan2(stairRiseY, stairSpanZ);
-      const stairRamp = MeshBuilder.CreateBox(
+      // Sculpted Head of K'Kha Drai: Curved Crest (Vầng trăng khuyết) at top
+      const moonCrest = MeshBuilder.CreateTorus(
+        'crescentMoonHead',
+        { diameter: mst.moonRadius * 2, thickness: 0.18, tessellation: 20 },
+        scene
+      );
+      moonCrest.rotation.x = Math.PI / 2;
+      moonCrest.scaling = new Vector3(1.2, 0.8, 1);
+      moonCrest.position = new Vector3(0, mst.topY + 0.95, mst.topZ + 0.15);
+      moonCrest.material = matTimberBeams;
+      addShadow(moonCrest);
+      moonCrest.parent = stairsNode;
+
+      // 3D Sculpted Pair of Breasts (Đôi bầu ngực biểu tượng mẫu hệ thiêng liêng)
+      for (const side of [-1, 1]) {
+        const breast = MeshBuilder.CreateSphere(
+          `sculptedBreast_${side}`,
+          { diameter: mst.breastRadius * 2, segments: 12 },
+          scene
+        );
+        breast.scaling = new Vector3(1, 1.25, 0.9);
+        breast.position = new Vector3(side * 0.36, mst.topY + 0.52, mst.topZ + 0.28);
+        breast.material = matTimberBeams;
+        addShadow(breast);
+        breast.parent = stairsNode;
+
+        // Teardrop nipple apex
+        const nipple = MeshBuilder.CreateSphere(
+          `nipple_${side}`,
+          { diameter: 0.08, segments: 6 },
+          scene
+        );
+        nipple.position = new Vector3(side * 0.36, mst.topY + 0.52, mst.topZ + 0.48);
+        nipple.material = matTimberPillars;
+        nipple.parent = stairsNode;
+      }
+
+      // Invisible ramp collider for smooth ascension up the master staircase
+      const rampLength = Math.hypot(mstSpanZ, mstRiseY) + 0.8;
+      const stairCollider = MeshBuilder.CreateBox(
         'stairRampCollider',
-        { width: st.width, height: 0.2, depth: rampLength },
+        { width: mst.width + 0.4, height: 0.22, depth: rampLength },
         scene
       );
-      stairRamp.position = new Vector3(
-        0,
-        (st.bottomY + st.topY) / 2 - 0.04,
-        (st.bottomZ + st.topZ) / 2
-      );
-      stairRamp.rotation.x = rampAngle;
-      stairRamp.isVisible = false;
-      stairRamp.checkCollisions = true;
+      stairCollider.position = new Vector3(0, (mst.bottomY + mst.topY) / 2 - 0.02, (mst.bottomZ + mst.topZ) / 2);
+      stairCollider.rotation.x = stairAngle;
+      stairCollider.isVisible = false;
+      stairCollider.checkCollisions = true;
 
-      // Front Porch Railings (z = 10.6 to 12.9)
-      const porchRailL = MeshBuilder.CreateBox('porchRailL', { width: 0.16, height: 0.9, depth: 2.3 }, scene);
-      porchRailL.position = new Vector3(-4.5, floor.elevationY + 0.55, 11.75);
-      porchRailL.material = timberMat;
-      porchRailL.checkCollisions = true;
-      const porchRailR = MeshBuilder.CreateBox('porchRailR', { width: 0.16, height: 0.9, depth: 2.3 }, scene);
-      porchRailR.position = new Vector3(4.5, floor.elevationY + 0.55, 11.75);
-      porchRailR.material = timberMat;
-      porchRailR.checkCollisions = true;
-
-      // Exterior Walls with Solid Colliders (Entrance Wall at z = 10.4 has central Doorway!)
-      const wallY = floor.elevationY + arch.walls.height / 2;
-      const wallZStart = -12.6;
-      const wallZEnd = 10.4;
-      const interiorDepth = wallZEnd - wallZStart;
-
-      // Left & Right side walls (with low clerestory gap under roof for natural daylight)
-      const leftWall = MeshBuilder.CreateBox(
-        'leftWall',
-        { width: arch.walls.thickness, height: arch.walls.height - 0.35, depth: interiorDepth },
+      // Rear Staircase (Cầu thang phụ K'Kha găm ở phía sau cho gia đình)
+      const rst = arch.rearStairs;
+      const rstSpanZ = rst.bottomZ - rst.topZ;
+      const rstRiseY = rst.topY - rst.bottomY;
+      const rstAngle = Math.atan2(rstRiseY, rstSpanZ);
+      const rstSlab = MeshBuilder.CreateBox(
+        'rearStairSlab',
+        { width: rst.width, height: 0.24, depth: Math.hypot(rstSpanZ, rstRiseY) + 0.6 },
         scene
       );
-      leftWall.position = new Vector3(-4.6, wallY - 0.15, (wallZStart + wallZEnd) / 2);
-      leftWall.material = timberMat;
-      leftWall.checkCollisions = true;
-      addShadow(leftWall);
+      rstSlab.position = new Vector3(0, (rst.bottomY + rst.topY) / 2 + 0.1, (rst.bottomZ + rst.topZ) / 2);
+      rstSlab.rotation.x = rstAngle;
+      rstSlab.material = matTimberBeams;
+      rstSlab.parent = stairsNode;
 
-      const rightWall = MeshBuilder.CreateBox(
-        'rightWall',
-        { width: arch.walls.thickness, height: arch.walls.height - 0.35, depth: interiorDepth },
+      const rearCollider = MeshBuilder.CreateBox(
+        'rearCollider',
+        { width: rst.width + 0.4, height: 0.2, depth: Math.hypot(rstSpanZ, rstRiseY) + 0.6 },
         scene
       );
-      rightWall.position = new Vector3(4.6, wallY - 0.15, (wallZStart + wallZEnd) / 2);
-      rightWall.material = timberMat;
-      rightWall.checkCollisions = true;
-      addShadow(rightWall);
+      rearCollider.position = rstSlab.position.clone();
+      rearCollider.rotation.x = rstAngle;
+      rearCollider.isVisible = false;
+      rearCollider.checkCollisions = true;
 
-      const backWall = MeshBuilder.CreateBox(
-        'backWall',
-        { width: floor.width - 0.3, height: arch.walls.height, depth: arch.walls.thickness },
+      // E. Longhouse_Walls: Woven Bamboo Screens, Porch Railing & Internal Partition
+      const wallsNode = new TransformNode('Longhouse_Walls', scene);
+      wallsNode.parent = houseRoot;
+
+      const wallY = arch.floor.elevationY + arch.walls.height / 2;
+      const wallZStart = -13.2;
+      const wallZEnd = 11.2;
+      const interiorLength = wallZEnd - wallZStart;
+
+      // Left & Right Long Woven Bamboo Walls with clerestory gap for natural lighting
+      for (const side of [-1, 1]) {
+        const sideWall = MeshBuilder.CreateBox(
+          `sideWall_${side}`,
+          { width: arch.walls.thickness, height: arch.walls.height - 0.4, depth: interiorLength },
+          scene
+        );
+        sideWall.position = new Vector3(side * (arch.floor.width / 2 - 0.1), wallY - 0.2, (wallZStart + wallZEnd) / 2);
+        sideWall.material = matWovenWalls;
+        sideWall.checkCollisions = true;
+        addShadow(sideWall);
+        sideWall.parent = wallsNode;
+      }
+
+      // Rear Wall (South Gable Wall)
+      const rearWall = MeshBuilder.CreateBox(
+        'rearWall',
+        { width: arch.floor.width - 0.2, height: arch.walls.height, depth: arch.walls.thickness },
         scene
       );
-      backWall.position = new Vector3(0, wallY, wallZStart);
-      backWall.material = timberMat;
-      backWall.checkCollisions = true;
-      addShadow(backWall);
+      rearWall.position = new Vector3(0, wallY, wallZStart);
+      rearWall.material = matWovenWalls;
+      rearWall.checkCollisions = true;
+      addShadow(rearWall);
+      rearWall.parent = wallsNode;
 
-      // Front Entrance Wall Split Around Doorway (Door opening: x in [-1.4, 1.4])
-      const sidePanelWidth = (floor.width - arch.walls.frontDoorWidth) / 2;
-      const frontLeft = MeshBuilder.CreateBox(
-        'frontWallLeft',
-        { width: sidePanelWidth, height: arch.walls.height, depth: arch.walls.thickness },
-        scene
-      );
-      frontLeft.position = new Vector3(
-        -(arch.walls.frontDoorWidth / 2 + sidePanelWidth / 2),
-        wallY,
-        wallZEnd
-      );
-      frontLeft.material = timberMat;
-      frontLeft.checkCollisions = true;
-      addShadow(frontLeft);
+      // Front Wall with Carved Entrance Doorway (z = 11.2)
+      const frontPanelWidth = (arch.floor.width - arch.walls.frontDoorWidth) / 2;
+      for (const side of [-1, 1]) {
+        const frontPanel = MeshBuilder.CreateBox(
+          `frontWallPanel_${side}`,
+          { width: frontPanelWidth, height: arch.walls.height, depth: arch.walls.thickness },
+          scene
+        );
+        frontPanel.position = new Vector3(
+          side * (arch.walls.frontDoorWidth / 2 + frontPanelWidth / 2),
+          wallY,
+          wallZEnd
+        );
+        frontPanel.material = matWovenWalls;
+        frontPanel.checkCollisions = true;
+        addShadow(frontPanel);
+        frontPanel.parent = wallsNode;
+      }
 
-      const frontRight = MeshBuilder.CreateBox(
-        'frontWallRight',
-        { width: sidePanelWidth, height: arch.walls.height, depth: arch.walls.thickness },
-        scene
-      );
-      frontRight.position = new Vector3(
-        arch.walls.frontDoorWidth / 2 + sidePanelWidth / 2,
-        wallY,
-        wallZEnd
-      );
-      frontRight.material = timberMat;
-      frontRight.checkCollisions = true;
-      addShadow(frontRight);
-
+      // Front Carved Door Lintel
       const doorLintel = MeshBuilder.CreateBox(
         'doorLintel',
-        { width: arch.walls.frontDoorWidth, height: 0.45, depth: arch.walls.thickness },
+        { width: arch.walls.frontDoorWidth + 0.4, height: 0.42, depth: arch.walls.thickness + 0.08 },
         scene
       );
-      doorLintel.position = new Vector3(0, floor.elevationY + arch.walls.height - 0.22, wallZEnd);
-      doorLintel.material = timberMat;
+      doorLintel.position = new Vector3(0, arch.floor.elevationY + arch.walls.height - 0.21, wallZEnd);
+      doorLintel.material = matTimberBeams;
       doorLintel.checkCollisions = true;
+      doorLintel.parent = wallsNode;
 
-      // Pitched Thatched Roof & Crossed Gable Horns
+      // Internal Partition Wall (Vách ngăn phân chia Gian Gah và Gian Ôk tại z = 0.5)
+      const partPanelW = (arch.floor.width - arch.walls.partitionDoorWidth) / 2;
+      for (const side of [-1, 1]) {
+        const partPanel = MeshBuilder.CreateBox(
+          `partitionPanel_${side}`,
+          { width: partPanelW, height: arch.walls.height - 0.2, depth: 0.14 },
+          scene
+        );
+        partPanel.position = new Vector3(
+          side * (arch.walls.partitionDoorWidth / 2 + partPanelW / 2),
+          wallY - 0.1,
+          arch.walls.partitionZ
+        );
+        partPanel.material = matWovenWalls;
+        partPanel.checkCollisions = true;
+        addShadow(partPanel);
+        partPanel.parent = wallsNode;
+      }
+
+      // Front Porch (Dring) Wooden Railings
+      for (const side of [-1, 1]) {
+        const rail = MeshBuilder.CreateBox(
+          `porchRail_${side}`,
+          { width: 0.18, height: 0.95, depth: 2.8 },
+          scene
+        );
+        rail.position = new Vector3(side * (arch.floor.width / 2 - 0.1), arch.floor.elevationY + 0.55, 12.6);
+        rail.material = matTimberBeams;
+        rail.checkCollisions = true;
+        rail.parent = wallsNode;
+      }
+
+      // F. Longhouse_Roof: Sloping Thatch Roof Planes, Eaves & Crossed Horns (Khau Kut)
+      const roofNode = new TransformNode('Longhouse_Roof', scene);
+      roofNode.parent = houseRoot;
+
       const rf = arch.roof;
       const roofHalfSpan = rf.overhangWidth;
       const roofDrop = rf.peakHeight - rf.eaveHeight;
       const slopeLen = Math.hypot(roofHalfSpan, roofDrop);
       const slopeAngle = Math.atan2(roofDrop, roofHalfSpan);
 
-      const roofLeft = MeshBuilder.CreateBox(
-        'roofLeft',
-        { width: slopeLen, height: rf.thickness, depth: rf.length },
-        scene
-      );
-      roofLeft.position = new Vector3(-roofHalfSpan / 2, (rf.peakHeight + rf.eaveHeight) / 2, 0);
-      roofLeft.rotation.z = slopeAngle;
-      roofLeft.material = thatchMat;
-      addShadow(roofLeft, false);
+      for (const side of [-1, 1]) {
+        // Main pitched thatch plane
+        const roofPlane = MeshBuilder.CreateBox(
+          `roofPlane_${side}`,
+          { width: slopeLen + 0.4, height: rf.thickness, depth: rf.length },
+          scene
+        );
+        roofPlane.position = new Vector3(
+          side * (roofHalfSpan / 2),
+          (rf.peakHeight + rf.eaveHeight) / 2,
+          0
+        );
+        roofPlane.rotation.z = side * slopeAngle;
+        roofPlane.material = matThatchRoof;
+        addShadow(roofPlane, false);
+        roofPlane.parent = roofNode;
 
-      const roofRight = MeshBuilder.CreateBox(
-        'roofRight',
-        { width: slopeLen, height: rf.thickness, depth: rf.length },
-        scene
-      );
-      roofRight.position = new Vector3(roofHalfSpan / 2, (rf.peakHeight + rf.eaveHeight) / 2, 0);
-      roofRight.rotation.z = -slopeAngle;
-      roofRight.material = thatchMat;
-      addShadow(roofRight, false);
+        // Lower thick layered eave overhang (Lớp mái tranh xòe rủ)
+        const eaveOverhang = MeshBuilder.CreateBox(
+          `eaveOverhang_${side}`,
+          { width: 0.85, height: 0.28, depth: rf.length + 0.4 },
+          scene
+        );
+        eaveOverhang.position = new Vector3(
+          side * (roofHalfSpan + 0.25),
+          rf.eaveHeight - 0.1,
+          0
+        );
+        eaveOverhang.rotation.z = side * (slopeAngle + 0.15);
+        eaveOverhang.material = matThatchRoof;
+        eaveOverhang.parent = roofNode;
+      }
 
+      // Heavy Roof Ridge Purlin (Đòn nóc tròn)
       const ridge = MeshBuilder.CreateCylinder(
         'roofRidge',
-        { diameter: rf.ridgeRadius * 2, height: rf.length + 0.6 },
+        { diameter: rf.ridgeRadius * 2, height: rf.length + 0.8 },
         scene
       );
       ridge.rotation.x = Math.PI / 2;
-      ridge.position = new Vector3(0, rf.peakHeight + 0.08, 0);
-      ridge.material = timberMat;
+      ridge.position = new Vector3(0, rf.peakHeight + 0.1, 0);
+      ridge.material = matTimberBeams;
+      ridge.parent = roofNode;
 
-      for (const gz of [rf.length / 2 - 0.2, -rf.length / 2 + 0.2]) {
-        const hornA = MeshBuilder.CreateBox(
-          `gableHornA_${gz}`,
-          { width: 0.16, height: rf.gableHornLength, depth: 0.16 },
-          scene
-        );
-        hornA.position = new Vector3(0, rf.peakHeight + 0.45, gz);
-        hornA.rotation.z = Math.PI / 5;
-        hornA.material = timberMat;
-
-        const hornB = MeshBuilder.CreateBox(
-          `gableHornB_${gz}`,
-          { width: 0.16, height: rf.gableHornLength, depth: 0.16 },
-          scene
-        );
-        hornB.position = new Vector3(0, rf.peakHeight + 0.45, gz);
-        hornB.rotation.z = -Math.PI / 5;
-        hornB.material = timberMat;
-      }
-
-      // 3. Interior Exhibits (Area B)
-      // Central Hearth (z = -1.5)
-      const hearthBase = MeshBuilder.CreateBox('hearthBase', { width: 1.9, height: 0.28, depth: 1.9 }, scene);
-      hearthBase.position = new Vector3(0, floor.elevationY + 0.28, -1.5);
-      hearthBase.material = stoneMat;
-      hearthBase.checkCollisions = true;
-
-      const ember = MeshBuilder.CreateSphere('hearthEmber', { diameter: 0.68, segments: 8 }, scene);
-      ember.position = new Vector3(0, floor.elevationY + 0.56, -1.5);
-      ember.material = emberMat;
-
-      // Long Kpan Wooden Bench (left side)
-      const kpanBench = MeshBuilder.CreateBox('kpanBench', { width: 0.95, height: 0.42, depth: 7.5 }, scene);
-      kpanBench.position = new Vector3(-3.3, floor.elevationY + 0.36, -5.5);
-      kpanBench.material = timberMat;
-      kpanBench.checkCollisions = true;
-      addShadow(kpanBench);
-
-      // Decorative Brocade Panel & Hero Shield Pedestal (right side)
-      const pedestal = MeshBuilder.CreateBox('artifactPedestal', { width: 1.3, height: 1.0, depth: 1.3 }, scene);
-      pedestal.position = new Vector3(3.0, floor.elevationY + 0.64, -6.8);
-      pedestal.material = timberMat;
-      pedestal.checkCollisions = true;
-
-      const shield = MeshBuilder.CreateCylinder('shieldArtifact', { diameter: 1.05, height: 0.12, tessellation: 20 }, scene);
-      shield.rotation.x = Math.PI / 2.6;
-      shield.position = new Vector3(3.0, floor.elevationY + 1.42, -6.8);
-      shield.material = bronzeMat;
-
-      const brocadePanel = MeshBuilder.CreateBox('brocadePanel', { width: 0.1, height: 1.8, depth: 2.6 }, scene);
-      brocadePanel.position = new Vector3(4.38, floor.elevationY + 1.5, -6.8);
-      brocadePanel.material = brocadeMat;
-
-      // Material Display Table (Bamboo / Timber Samples)
-      const matTable = MeshBuilder.CreateBox('materialTable', { width: 1.4, height: 0.85, depth: 1.8 }, scene);
-      matTable.position = new Vector3(3.2, floor.elevationY + 0.56, 3.2);
-      matTable.material = bambooMat;
-      matTable.checkCollisions = true;
-
-      // Front Veranda Gong Rack
-      const gongBar = MeshBuilder.CreateBox('gongBar', { width: 2.6, height: 0.14, depth: 0.14 }, scene);
-      gongBar.position = new Vector3(2.8, floor.elevationY + 1.85, 11.4);
-      gongBar.material = timberMat;
-      for (let g = 0; g < 3; g++) {
-        const gong = MeshBuilder.CreateCylinder(
-          `verandaGong_${g}`,
-          { diameter: 0.62 - g * 0.06, height: 0.1, tessellation: 18 },
-          scene
-        );
-        gong.rotation.x = Math.PI / 2;
-        gong.position = new Vector3(2.15 + g * 0.65, floor.elevationY + 1.25, 11.4);
-        gong.material = bronzeMat;
-      }
-
-      // 4. Interactive Glowing Hotspots (Area A + Area B)
-      const hotspotVisuals: Array<{
-        hotspot: Museum3DHotspot;
-        ring: Mesh;
-        orb: Mesh;
-        baseY: number;
-      }> = [];
-
-      for (const hs of MUSEUM_3D_HOTSPOTS) {
-        const ring = MeshBuilder.CreateTorus(
-          `hsRing_${hs.id}`,
-          { diameter: 1.35, thickness: 0.08, tessellation: 24 },
-          scene
-        );
-        ring.position = new Vector3(hs.position.x, hs.position.y - 0.85, hs.position.z);
-        ring.material = hotspotIdleMat;
-
-        const orb = MeshBuilder.CreatePolyhedron(
-          `hsOrb_${hs.id}`,
-          { type: 1, size: 0.24 },
-          scene
-        );
-        const baseY = hs.position.y + 0.25;
-        orb.position = new Vector3(hs.position.x, baseY, hs.position.z);
-        orb.material = hotspotIdleMat;
-
-        hotspotVisuals.push({ hotspot: hs, ring, orb, baseY });
-      }
-
-      // Keyboard E (Interact) and ESC (Pause)
-      const onKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-          onTogglePause();
-          return;
+      // Crossed Gable Horns (Khau Kut) at Front and Back Gables
+      for (const gz of [rf.length / 2 - 0.1, -rf.length / 2 + 0.1]) {
+        for (const side of [-1, 1]) {
+          const horn = MeshBuilder.CreateBox(
+            `gableHorn_${side}_${gz}`,
+            { width: 0.18, height: rf.gableHornLength, depth: 0.18 },
+            scene
+          );
+          horn.position = new Vector3(side * 0.45, rf.peakHeight + 0.65, gz);
+          horn.rotation.z = side * (Math.PI / 5.5);
+          horn.material = matTimberBeams;
+          horn.parent = roofNode;
         }
-        if ((e.key === 'e' || e.key === 'E') && !pausedRef.current && nearestRef.current) {
-          onInteractHotspot(nearestRef.current);
+      }
+
+      // 6. DETAILED 12 CULTURAL ARTIFACTS & INTERIOR EXHIBITS
+      const interiorNode = new TransformNode('Longhouse_Interior', scene);
+      interiorNode.parent = houseRoot;
+
+      // --- GIAN GAH: KHÔNG GIAN TIẾP KHÁCH & CỘNG ĐỒNG (z: 0.5 đến 11.2) ---
+      // Artifact 1: Ghế Kpan nguyên khối đại ngàn (Dọc vách phía Tây, z: 1.0 đến 10.5)
+      const kpanLen = LONGHOUSE_3D_CONFIG.artifacts.kpanBench.length;
+      const kpan = MeshBuilder.CreateBox(
+        'kpanBench',
+        { width: 0.9, height: 0.46, depth: kpanLen },
+        scene
+      );
+      kpan.position = new Vector3(-3.4, arch.floor.elevationY + 0.38, 5.8);
+      kpan.material = matTimberPillars;
+      kpan.checkCollisions = true;
+      addShadow(kpan);
+      kpan.parent = interiorNode;
+
+      // Brocade runner on Kpan (displayed in festive mode)
+      const kpanCloth = MeshBuilder.CreateBox(
+        'kpanBrocadeCloth',
+        { width: 0.92, height: 0.04, depth: kpanLen * 0.75 },
+        scene
+      );
+      kpanCloth.position = new Vector3(-3.4, arch.floor.elevationY + 0.62, 5.8);
+      kpanCloth.material = matBrocade;
+      kpanCloth.parent = interiorNode;
+      festiveMeshesRef.current.push(kpanCloth);
+
+      // Master and Guest Chairs (Ghế Jhưng)
+      for (const jz of [2.8, 8.8]) {
+        const jhung = MeshBuilder.CreateCylinder(
+          `jhungSeat_${jz}`,
+          { diameter: 0.75, height: 0.48, tessellation: 12 },
+          scene
+        );
+        jhung.position = new Vector3(-2.2, arch.floor.elevationY + 0.38, jz);
+        jhung.material = matTimberBeams;
+        jhung.parent = interiorNode;
+      }
+
+      // Artifact 2: Dàn Cồng Chiêng Knah (7 Chiêng trên giá gỗ chạm)
+      const gongRack = MeshBuilder.CreateBox(
+        'gongRackBar',
+        { width: 0.16, height: 2.1, depth: 3.4 },
+        scene
+      );
+      gongRack.position = new Vector3(3.2, arch.floor.elevationY + 1.25, 6.8);
+      gongRack.material = matTimberBeams;
+      gongRack.parent = interiorNode;
+
+      for (let g = 0; g < 7; g++) {
+        const gongDiam = 0.65 - g * 0.04;
+        const gong = MeshBuilder.CreateCylinder(
+          `chiengKnah_${g}`,
+          { diameter: gongDiam, height: 0.08, tessellation: 20 },
+          scene
+        );
+        gong.rotation.z = Math.PI / 2;
+        gong.position = new Vector3(3.05, arch.floor.elevationY + 1.35 - (g % 2) * 0.35, 5.4 + g * 0.48);
+        gong.material = matBronze;
+        addShadow(gong);
+        gong.parent = interiorNode;
+      }
+
+      // Artifact 3: Trống đại H'gơr truyền thống (Treo gần dàn chiêng)
+      const hgorDrum = MeshBuilder.CreateCylinder(
+        'hgorDrumMesh',
+        { diameter: 1.15, height: 1.6, tessellation: 20 },
+        scene
+      );
+      hgorDrum.rotation.x = Math.PI / 2;
+      hgorDrum.position = new Vector3(2.8, arch.floor.elevationY + 1.45, 9.4);
+      hgorDrum.material = matTimberPillars;
+      addShadow(hgorDrum);
+      hgorDrum.parent = interiorNode;
+
+      // Drum skin leather ends
+      for (const side of [-1, 1]) {
+        const skin = MeshBuilder.CreateDisc(
+          `hgorSkin_${side}`,
+          { radius: 0.58, tessellation: 20 },
+          scene
+        );
+        skin.position = new Vector3(2.8, arch.floor.elevationY + 1.45, 9.4 + side * 0.81);
+        const sMat = new StandardMaterial(`hgorSkinMat_${side}`, scene!);
+        sMat.diffuseColor = new Color3(0.72, 0.62, 0.48);
+        skin.material = sMat;
+        skin.parent = interiorNode;
+      }
+
+      // Artifact 4: Hàng Ché Cổ Tuk, Tang & Văn hóa Rượu cần (Buộc cọc thiêng)
+      for (let c = 0; c < 5; c++) {
+        const jar = MeshBuilder.CreateSphere(
+          `cheTuk_${c}`,
+          { diameter: 0.68 + (c % 2) * 0.12, segments: 12 },
+          scene
+        );
+        jar.scaling = new Vector3(1, 1.4, 1);
+        jar.position = new Vector3(3.4, arch.floor.elevationY + 0.52, 1.5 + c * 0.7);
+        jar.material = matCeramic;
+        addShadow(jar);
+        jar.parent = interiorNode;
+
+        // Slender curved bamboo drinking reeds (Cần rượu cần - hiện ở chế độ lễ hội)
+        const reed = MeshBuilder.CreateCylinder(
+          `wineReed_${c}`,
+          { diameter: 0.04, height: 1.4, tessellation: 6 },
+          scene
+        );
+        reed.rotation.z = Math.PI / 7;
+        reed.position = new Vector3(3.2, arch.floor.elevationY + 1.1, 1.5 + c * 0.7);
+        reed.material = matPlankFloor;
+        reed.parent = interiorNode;
+        festiveMeshesRef.current.push(reed);
+      }
+
+      // Artifact 5: Bếp lửa Gian Gah (Bếp khách - Không gian kể sử thi Khan)
+      const hearthGahBase = MeshBuilder.CreateBox(
+        'hearthGahBase',
+        { width: 2.1, height: 0.28, depth: 2.1 },
+        scene
+      );
+      hearthGahBase.position = new Vector3(0, arch.floor.elevationY + 0.2, 4.2);
+      hearthGahBase.material = matRiverStone;
+      hearthGahBase.checkCollisions = true;
+      hearthGahBase.parent = interiorNode;
+
+      const hearthEmberGah = MeshBuilder.CreateSphere(
+        'hearthEmberGah',
+        { diameter: 0.82, segments: 8 },
+        scene
+      );
+      hearthEmberGah.position = new Vector3(0, arch.floor.elevationY + 0.48, 4.2);
+      hearthEmberGah.material = matEmber;
+      hearthEmberGah.parent = interiorNode;
+
+      // Iron cooking tripod on hearth
+      const tripod = MeshBuilder.CreateTorus(
+        'hearthTripod',
+        { diameter: 0.72, thickness: 0.06, tessellation: 12 },
+        scene
+      );
+      tripod.position = new Vector3(0, arch.floor.elevationY + 0.48, 4.2);
+      tripod.material = matBronze;
+      tripod.parent = interiorNode;
+
+      // Bronze Shields & Spears mounted on central ceremonial pillars
+      const shield = MeshBuilder.CreateCylinder(
+        'epicShield',
+        { diameter: 1.1, height: 0.08, tessellation: 20 },
+        scene
+      );
+      shield.rotation.x = Math.PI / 2.3;
+      shield.position = new Vector3(-1.6, arch.floor.elevationY + 1.7, 7.0);
+      shield.material = matBronze;
+      shield.parent = interiorNode;
+
+      // --- GIAN ÔK: KHÔNG GIAN SINH HOẠT GIA ĐÌNH (z: -13.2 đến 0.5) ---
+      // Artifact 6: Khung dệt thổ cẩm Ê-đê truyền thống (Weaving Loom)
+      const loomRoot = new TransformNode('weavingLoom', scene);
+      loomRoot.position = new Vector3(2.4, arch.floor.elevationY + 0.45, -4.5);
+      loomRoot.parent = interiorNode;
+
+      const loomFrameL = MeshBuilder.CreateBox('loomL', { width: 0.1, height: 0.75, depth: 2.1 }, scene);
+      loomFrameL.position = new Vector3(-0.6, 0.35, 0);
+      loomFrameL.material = matTimberBeams;
+      loomFrameL.parent = loomRoot;
+
+      const loomFrameR = MeshBuilder.CreateBox('loomR', { width: 0.1, height: 0.75, depth: 2.1 }, scene);
+      loomFrameR.position = new Vector3(0.6, 0.35, 0);
+      loomFrameR.material = matTimberBeams;
+      loomFrameR.parent = loomRoot;
+
+      const loomCloth = MeshBuilder.CreateBox('loomCloth', { width: 1.1, height: 0.02, depth: 1.6 }, scene);
+      loomCloth.position = new Vector3(0, 0.48, 0);
+      loomCloth.material = matBrocade;
+      loomCloth.parent = loomRoot;
+
+      const shuttle = MeshBuilder.CreateCylinder('shuttle', { diameter: 0.08, height: 0.75 }, scene);
+      shuttle.rotation.z = Math.PI / 2;
+      shuttle.position = new Vector3(0, 0.52, 0.4);
+      shuttle.material = matTimberPillars;
+      shuttle.parent = loomRoot;
+
+      // Artifact 7: Cối giã gạo & Chày gỗ nguyên khối
+      const mortar = MeshBuilder.CreateCylinder(
+        'riceMortar',
+        { diameterTop: 0.78, diameterBottom: 0.58, height: 0.85, tessellation: 14 },
+        scene
+      );
+      mortar.position = new Vector3(2.5, arch.floor.elevationY + 0.45, -8.8);
+      mortar.material = matTimberPillars;
+      mortar.checkCollisions = true;
+      addShadow(mortar);
+      mortar.parent = interiorNode;
+
+      const pestle = MeshBuilder.CreateCylinder(
+        'ricePestle',
+        { diameterTop: 0.12, diameterBottom: 0.14, height: 1.8, tessellation: 8 },
+        scene
+      );
+      pestle.rotation.z = Math.PI / 7;
+      pestle.position = new Vector3(2.65, arch.floor.elevationY + 0.95, -8.8);
+      pestle.material = matTimberBeams;
+      pestle.parent = interiorNode;
+
+      // Artifact 8: Bếp nấu ăn gia đình Gian Ôk & Giàn sấy gác củi (Smoke rack)
+      const hearthOkBase = MeshBuilder.CreateBox(
+        'hearthOkBase',
+        { width: 1.8, height: 0.24, depth: 1.8 },
+        scene
+      );
+      hearthOkBase.position = new Vector3(-1.2, arch.floor.elevationY + 0.18, -7.5);
+      hearthOkBase.material = matRiverStone;
+      hearthOkBase.checkCollisions = true;
+      hearthOkBase.parent = interiorNode;
+
+      const emberOk = MeshBuilder.CreateSphere(
+        'emberOk',
+        { diameter: 0.65, segments: 6 },
+        scene
+      );
+      emberOk.position = new Vector3(-1.2, arch.floor.elevationY + 0.4, -7.5);
+      emberOk.material = matEmber;
+      emberOk.parent = interiorNode;
+
+      // Multi-tier wooden smoke drying rack overhead
+      const smokeRack = MeshBuilder.CreateBox(
+        'smokeRack',
+        { width: 1.6, height: 0.1, depth: 1.6 },
+        scene
+      );
+      smokeRack.position = new Vector3(-1.2, arch.floor.elevationY + 1.85, -7.5);
+      smokeRack.material = matTimberBeams;
+      smokeRack.parent = interiorNode;
+
+      // Artifact 9: Gùi Đới hoa văn & Giỏ đan mây tre
+      for (let b = 0; b < 3; b++) {
+        const gui = MeshBuilder.CreateCylinder(
+          `guiBasket_${b}`,
+          { diameterTop: 0.45, diameterBottom: 0.28, height: 0.72, tessellation: 10 },
+          scene
+        );
+        gui.position = new Vector3(-2.8 + b * 0.45, arch.floor.elevationY + 0.4, -4.2);
+        gui.material = matWovenWalls;
+        gui.parent = interiorNode;
+      }
+
+      // Artifact 10: Chiếu mây / Chiếu cói trải sàn gia đình
+      for (let m = 0; m < 3; m++) {
+        const matMesh = MeshBuilder.CreateBox(
+          `wovenMat_${m}`,
+          { width: 1.6, height: 0.02, depth: 2.2 },
+          scene
+        );
+        matMesh.position = new Vector3(-2.5, arch.floor.elevationY + 0.15, -1.8 - m * 2.8);
+        matMesh.material = matPlankFloor;
+        matMesh.parent = interiorNode;
+      }
+
+      // 7. Interactive Hotspot Markers (3D Floating Diamonds with Pulse Animation)
+      const hotspotMeshMap = new Map<string, Mesh>();
+      MUSEUM_3D_HOTSPOTS.forEach((hs) => {
+        const marker = MeshBuilder.CreatePolyhedron(
+          `hotspotMarker_${hs.id}`,
+          { type: 1, size: 0.38 },
+          scene
+        );
+        marker.position = new Vector3(hs.position.x, hs.position.y + 0.3, hs.position.z);
+        const isCompleted = completedRef.current.includes(hs.id);
+        marker.material = isCompleted ? matHotspotDone : matHotspotIdle;
+        hotspotMeshMap.set(hs.id, marker);
+      });
+
+      // 8. Player Cameras: First Person, Third Person & Orbit Camera
+      // First Person Camera (UniversalCamera with collision capsule)
+      const fpCam = new UniversalCamera(
+        'fpCamera',
+        new Vector3(
+          LONGHOUSE_3D_CONFIG.player.spawnExterior.x,
+          LONGHOUSE_3D_CONFIG.player.spawnExterior.y,
+          LONGHOUSE_3D_CONFIG.player.spawnExterior.z
+        ),
+        scene
+      );
+      fpCam.setTarget(new Vector3(0, 2.8, 13.0));
+      fpCam.checkCollisions = true;
+      fpCam.applyGravity = true;
+      fpCam.ellipsoid = new Vector3(
+        LONGHOUSE_3D_CONFIG.player.ellipsoid.x,
+        LONGHOUSE_3D_CONFIG.player.ellipsoid.y,
+        LONGHOUSE_3D_CONFIG.player.ellipsoid.z
+      );
+      fpCam.speed = LONGHOUSE_3D_CONFIG.player.moveSpeedDesktop;
+      fpCam.angularSensibility = 2800;
+      fpCam.keysUp = [87, 38]; // W, Up
+      fpCam.keysDown = [83, 40]; // S, Down
+      fpCam.keysLeft = [65, 37]; // A, Left
+      fpCam.keysRight = [68, 39]; // D, Right
+      fpCam.attachControl(canvas, true);
+      fpCameraRef.current = fpCam;
+
+      // Explorer Avatar Mesh for Third Person View
+      const avatar = MeshBuilder.CreateCylinder('explorerAvatar', { diameter: 0.6, height: 1.7 }, scene);
+      avatar.material = matBrocade;
+      avatar.isVisible = cameraMode === 'thirdPerson';
+      avatarMeshRef.current = avatar;
+
+      // Orbit Camera for 360-degree Architectural Visualization
+      const orbSp = LONGHOUSE_3D_CONFIG.player.spawnOrbit;
+      const orbitCam = new ArcRotateCamera(
+        'orbitCamera',
+        orbSp.alpha,
+        orbSp.beta,
+        orbSp.radius,
+        new Vector3(orbSp.target.x, orbSp.target.y, orbSp.target.z),
+        scene
+      );
+      orbitCam.lowerRadiusLimit = 12;
+      orbitCam.upperRadiusLimit = 55;
+      orbitCam.lowerBetaLimit = 0.1;
+      orbitCam.upperBetaLimit = Math.PI / 2.05;
+      orbitCameraRef.current = orbitCam;
+
+      if (cameraMode === 'orbit') {
+        scene.activeCamera = orbitCam;
+        orbitCam.attachControl(canvas, true);
+      } else {
+        scene.activeCamera = fpCam;
+      }
+
+      // Keyboard Listener for E interaction and ESC pause
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'e' || e.key === 'E') {
+          const nearest = nearestRef.current;
+          if (nearest && !pausedRef.current) {
+            onInteractHotspot(nearest);
+          }
+        } else if (e.key === 'Escape') {
+          onTogglePause();
         }
       };
       window.addEventListener('keydown', onKeyDown);
 
-      // Render Loop & Proximity Checks
-      let tick = 0;
-      let lastHudSync = 0;
+      // Render Loop & Real-Time Proximity Telemetry
+      let animTime = 0;
+      const nearestRef = { current: null as Museum3DHotspot | null };
 
       engine.runRenderLoop(() => {
-        if (!scene || !camera) return;
-        tick += 0.03;
+        if (!scene || scene.isDisposed) return;
+        animTime += 0.035;
 
-        // Apply subtle hearth light animation
-        hearthLight.intensity = 1.6 + Math.sin(tick * 2.5) * 0.25;
-
-        // Apply mobile virtual joystick movement if active & not paused
-        if (!pausedRef.current) {
-          const jv = joystickVecRef.current;
-          if (Math.abs(jv.vx) > 0.04 || Math.abs(jv.vz) > 0.04) {
-            const forward = camera.getDirection(Vector3.Forward());
-            forward.y = 0;
-            if (forward.lengthSquared() > 0.0001) forward.normalize();
-            const right = camera.getDirection(Vector3.Right());
-            right.y = 0;
-            if (right.lengthSquared() > 0.0001) right.normalize();
-
-            const speed = LONGHOUSE_3D_CONFIG.player.moveSpeedMobile;
-            const moveVec = forward.scale(jv.vz * speed).add(right.scale(jv.vx * speed));
-            camera.cameraDirection.addInPlace(moveVec);
-          }
+        // Animate hearth firelight flicker
+        if (hearthGahLight) {
+          const flicker = Math.sin(animTime * 6.5) * 0.18 + Math.cos(animTime * 11) * 0.12;
+          hearthGahLight.intensity = (exhibitionModeRef.current === 'festive' ? 2.6 : 1.9) + flicker;
         }
 
-        // Prevent falling out of bounds
-        if (camera.position.y < 0.8) {
-          camera.position.y = 1.85;
+        // Apply virtual mobile joystick velocity to First Person camera
+        const jVec = joystickVecRef.current;
+        if ((jVec.vx !== 0 || jVec.vz !== 0) && fpCameraRef.current) {
+          const cam = fpCameraRef.current;
+          const forward = cam.getDirection(Vector3.Forward());
+          const right = cam.getDirection(Vector3.Right());
+          forward.y = 0;
+          forward.normalize();
+          right.y = 0;
+          right.normalize();
+
+          const moveVec = forward.scale(jVec.vz).add(right.scale(jVec.vx));
+          cam.cameraDirection.addInPlace(moveVec.scale(LONGHOUSE_3D_CONFIG.player.moveSpeedMobile));
         }
 
-        // Animate hotspots & locate nearest hotspot
-        let closest: Museum3DHotspot | null = null;
-        let closestDist = Infinity;
+        // Update avatar position in Third Person
+        if (avatarMeshRef.current && fpCameraRef.current) {
+          avatarMeshRef.current.position = new Vector3(
+            fpCameraRef.current.position.x,
+            fpCameraRef.current.position.y - 0.85,
+            fpCameraRef.current.position.z
+          );
+        }
 
-        for (const item of hotspotVisuals) {
-          item.orb.position.y = item.baseY + Math.sin(tick * 1.6) * 0.1;
-          item.orb.rotation.y += 0.02;
+        // Calculate proximity to Hotspots
+        const camPos = fpCameraRef.current ? fpCameraRef.current.position : Vector3.Zero();
+        let closestHotspot: Museum3DHotspot | null = null;
+        let minDistance = Infinity;
 
-          const dx = camera.position.x - item.hotspot.position.x;
-          const dz = camera.position.z - item.hotspot.position.z;
-          const dy = Math.abs(camera.position.y - item.hotspot.position.y);
-          const dist = Math.hypot(dx, dz);
+        MUSEUM_3D_HOTSPOTS.forEach((hs) => {
+          const marker = hotspotMeshMap.get(hs.id);
+          const dist = Math.hypot(camPos.x - hs.position.x, camPos.z - hs.position.z);
+          const isDone = completedRef.current.includes(hs.id);
 
-          const isNear = dist <= item.hotspot.triggerRadius && dy < 2.6;
-          const isDone = completedRef.current.includes(item.hotspot.id);
+          if (marker) {
+            // Floating bounce animation
+            marker.position.y = hs.position.y + 0.3 + Math.sin(animTime * 2.5 + hs.position.x) * 0.12;
+            marker.rotation.y = animTime * 1.5;
 
-          if (isNear) {
-            item.ring.material = hotspotNearMat;
-            item.orb.material = hotspotNearMat;
-            item.ring.scaling.setAll(1.16);
-            if (dist < closestDist) {
-              closestDist = dist;
-              closest = item.hotspot;
+            if (dist < hs.triggerRadius) {
+              marker.material = matHotspotNear;
+              marker.scaling.setAll(1.35 + Math.sin(animTime * 5) * 0.2);
+              if (dist < minDistance) {
+                minDistance = dist;
+                closestHotspot = hs;
+              }
+            } else {
+              marker.material = isDone ? matHotspotDone : matHotspotIdle;
+              marker.scaling.setAll(1.0);
             }
-          } else if (isDone) {
-            item.ring.material = hotspotDoneMat;
-            item.orb.material = hotspotDoneMat;
-            item.ring.scaling.setAll(1.0);
-          } else {
-            item.ring.material = hotspotIdleMat;
-            item.orb.material = hotspotIdleMat;
-            item.ring.scaling.setAll(1.0);
           }
-        }
+        });
 
-        nearestRef.current = closest;
+        nearestRef.current = closestHotspot;
 
-        const now = performance.now();
-        if (now - lastHudSync > 100) {
-          lastHudSync = now;
-          const isInsideB =
-            camera.position.z < LONGHOUSE_3D_CONFIG.player.areaZThreshold &&
-            camera.position.y > 2.4 &&
-            Math.abs(camera.position.x) <= 5.0;
-
+        // Telemetry callback (throttled)
+        if (Math.round(animTime * 10) % 4 === 0) {
+          const area: 'A' | 'B' =
+            camPos.z > LONGHOUSE_3D_CONFIG.player.areaZThreshold && camPos.y < 2.5
+              ? 'A'
+              : 'B';
           onTelemetryUpdate({
-            x: camera.position.x,
-            z: camera.position.z,
-            yaw: camera.rotation.y,
-            area: isInsideB ? 'B' : 'A',
-            nearestHotspot: closest,
+            x: Math.round(camPos.x * 10) / 10,
+            z: Math.round(camPos.z * 10) / 10,
+            yaw: Math.round(((fpCameraRef.current?.rotation.y || 0) * 180) / Math.PI),
+            area,
+            nearestHotspot: closestHotspot,
           });
         }
 
         scene.render();
       });
 
-      const onResize = () => engine?.resize();
-      window.addEventListener('resize', onResize);
+      const handleResize = () => {
+        if (engine && !engine.isDisposed) {
+          engine.resize();
+        }
+      };
+      window.addEventListener('resize', handleResize);
+
       setLoading(false);
 
       return () => {
+        window.removeEventListener('resize', handleResize);
         window.removeEventListener('keydown', onKeyDown);
-        window.removeEventListener('resize', onResize);
         canvas.removeEventListener('webglcontextlost', handleContextLost);
         canvas.removeEventListener('webglcontextrestored', handleContextRestored);
         scene?.dispose();
         engine?.dispose();
       };
-    } catch {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Lỗi khởi tạo 3D WebGL.';
+      setWebglError(msg);
       setLoading(false);
-      setWebglError('Thiết bị hoặc trình duyệt hiện tại không hỗ trợ WebGL để chạy không gian 3D.');
-      return () => {
-        canvas.removeEventListener('webglcontextlost', handleContextLost);
-        canvas.removeEventListener('webglcontextrestored', handleContextRestored);
-      };
     }
-  }, [quality, onInteractHotspot, onTelemetryUpdate, onTogglePause]);
+  }, [quality]);
 
-  // Toggle Babylon camera input when paused or modal is open
-  useEffect(() => {
-    const cam = cameraRef.current;
-    const canvas = canvasRef.current;
-    if (!cam || !canvas) return;
-    if (paused) {
-      cam.detachControl();
-    } else {
-      cam.attachControl(canvas, true);
-    }
-  }, [paused]);
-
-  // Virtual Joystick Handlers (Mobile Left Side)
-  const handleJoyStart = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    const rect = e.currentTarget.getBoundingClientRect();
+  // Mobile virtual joystick handlers
+  const handleJoyStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
     joyActiveRef.current = true;
-    joyOriginRef.current = {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    };
+    joyOriginRef.current = { x: touch.clientX, y: touch.clientY };
+    setJoystickThumb({ x: 0, y: 0 });
   };
 
-  const handleJoyMove = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleJoyMove = (e: React.TouchEvent) => {
     if (!joyActiveRef.current) return;
-    const maxR = 36;
-    const dx = e.clientX - joyOriginRef.current.x;
-    const dy = e.clientY - joyOriginRef.current.y;
+    const touch = e.touches[0];
+    const dx = touch.clientX - joyOriginRef.current.x;
+    const dy = touch.clientY - joyOriginRef.current.y;
     const dist = Math.hypot(dx, dy);
-    const clampedDist = Math.min(maxR, dist);
+    const maxRadius = 40;
+    const clampedDist = Math.min(dist, maxRadius);
     const angle = Math.atan2(dy, dx);
-    const tx = Math.cos(angle) * clampedDist;
-    const ty = Math.sin(angle) * clampedDist;
-    setJoystickThumb({ x: tx, y: ty });
+    const nx = Math.cos(angle) * clampedDist;
+    const ny = Math.sin(angle) * clampedDist;
+
+    setJoystickThumb({ x: nx, y: ny });
     joystickVecRef.current = {
-      vx: tx / maxR,
-      vz: -ty / maxR,
+      vx: nx / maxRadius,
+      vz: -ny / maxRadius,
     };
   };
 
@@ -817,91 +1431,86 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
     joystickVecRef.current = { vx: 0, vz: 0 };
   };
 
-  // Right Swipe Touch Look Zone (Mobile Right Side)
-  const handleLookStart = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    lookTouchRef.current = { active: true, lastX: e.clientX, lastY: e.clientY };
+  const handleLookTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    lookTouchRef.current = {
+      active: true,
+      lastX: touch.clientX,
+      lastY: touch.clientY,
+    };
   };
 
-  const handleLookMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!lookTouchRef.current.active || !cameraRef.current || pausedRef.current) return;
-    const dx = e.clientX - lookTouchRef.current.lastX;
-    const dy = e.clientY - lookTouchRef.current.lastY;
-    lookTouchRef.current.lastX = e.clientX;
-    lookTouchRef.current.lastY = e.clientY;
+  const handleLookTouchMove = (e: React.TouchEvent) => {
+    if (!lookTouchRef.current.active || !fpCameraRef.current) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - lookTouchRef.current.lastX;
+    const dy = touch.clientY - lookTouchRef.current.lastY;
+    lookTouchRef.current.lastX = touch.clientX;
+    lookTouchRef.current.lastY = touch.clientY;
 
-    cameraRef.current.rotation.y += dx * 0.0055;
-    cameraRef.current.rotation.x = Math.max(
-      -1.05,
-      Math.min(1.05, cameraRef.current.rotation.x + dy * 0.0045)
+    const sens = 0.005;
+    fpCameraRef.current.rotation.y += dx * sens;
+    fpCameraRef.current.rotation.x = Math.max(
+      -Math.PI / 3,
+      Math.min(Math.PI / 3, fpCameraRef.current.rotation.x + dy * sens)
     );
   };
 
-  const handleLookEnd = () => {
+  const handleLookTouchEnd = () => {
     lookTouchRef.current.active = false;
   };
 
   if (webglError) {
     return (
-      <div className="w-full h-full min-h-[520px] flex flex-col items-center justify-center bg-wood-950 text-cream p-8 text-center rounded-2xl border border-wood-800 space-y-4">
-        <h2 className="font-serif text-2xl sm:text-3xl font-bold text-gold-400">
-          Không thể khởi tạo không gian 3D WebGL
-        </h2>
-        <p className="text-sm text-cream/85 max-w-md leading-relaxed">{webglError}</p>
+      <div className="w-full aspect-[16/9] min-h-[440px] flex flex-col items-center justify-center p-8 bg-wood-950 text-cream rounded-2xl border border-sandstone text-center space-y-4">
+        <h3 className="font-serif text-xl font-bold text-gold-400">Không thể khởi tạo WebGL 3D</h3>
+        <p className="text-sm text-cream/80 max-w-md">{webglError}</p>
         <button
           type="button"
           onClick={onExitFallback}
-          className="px-5 py-2.5 text-sm font-semibold bg-gold-500 text-wood-950 rounded-lg hover:bg-gold-400 transition-colors cursor-pointer"
+          className="px-4 py-2 text-xs font-semibold bg-forest-700 text-cream rounded-lg hover:bg-forest-800 transition-colors"
         >
-          Quay lại Bảo tàng chính
+          Quay lại sảnh bảo tàng
         </button>
       </div>
     );
   }
 
   return (
-    <div className="relative w-full h-full min-h-[540px] bg-wood-950 rounded-2xl overflow-hidden border border-wood-800 select-none">
-      <canvas ref={canvasRef} className="w-full h-full block outline-none touch-none" />
+    <div className="relative w-full h-full select-none overflow-hidden bg-wood-950">
+      <canvas ref={canvasRef} className="w-full h-full block outline-none cursor-grab active:cursor-grabbing" />
 
       {loading && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-wood-950 text-cream gap-3">
-          <div className="w-8 h-8 border-2 border-gold-400 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-medium text-cream/90">
-            Đang dựng rừng đại ngàn và Nhà dài Ê-đê mô phỏng 3D...
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-wood-950/90 text-cream space-y-3">
+          <div className="w-10 h-10 border-3 border-gold-500 border-t-transparent rounded-full animate-spin" />
+          <p className="font-serif text-sm tracking-wide text-gold-400">
+            Đang khởi tạo không gian Nhà dài Ê-đê 3D...
           </p>
         </div>
       )}
 
-      {/* Mobile Touch Controls: Left Virtual Joystick + Right Swipe Look Area */}
-      <div className="lg:hidden absolute inset-0 pointer-events-none z-10 flex justify-between items-end p-4 pb-16">
-        {/* Left Virtual Joystick */}
+      {/* Mobile Virtual Joystick & Touch Look Overlay */}
+      <div className="lg:hidden absolute inset-0 z-20 pointer-events-none flex justify-between p-4">
+        {/* Left joystick pad */}
         <div
-          onPointerDown={handleJoyStart}
-          onPointerMove={handleJoyMove}
-          onPointerUp={handleJoyEnd}
-          onPointerCancel={handleJoyEnd}
-          aria-label="Joystick di chuyển"
-          className="pointer-events-auto w-24 h-24 rounded-full bg-wood-950/60 border border-white/25 backdrop-blur-sm flex items-center justify-center touch-none"
+          className="w-28 h-28 rounded-full border-2 border-white/20 bg-wood-950/40 backdrop-blur-xs relative pointer-events-auto self-end mb-2 flex items-center justify-center"
+          onTouchStart={handleJoyStart}
+          onTouchMove={handleJoyMove}
+          onTouchEnd={handleJoyEnd}
         >
           <div
-            className="w-10 h-10 rounded-full bg-gold-500/90 border border-cream/60 shadow-md"
-            style={{
-              transform: `translate(${joystickThumb.x}px, ${joystickThumb.y}px)`,
-            }}
+            className="w-12 h-12 rounded-full bg-gold-500/80 shadow-md transform transition-transform duration-75"
+            style={{ transform: `translate(${joystickThumb.x}px, ${joystickThumb.y}px)` }}
           />
         </div>
 
-        {/* Right Swipe Look Pad */}
+        {/* Right look touchpad */}
         <div
-          onPointerDown={handleLookStart}
-          onPointerMove={handleLookMove}
-          onPointerUp={handleLookEnd}
-          onPointerCancel={handleLookEnd}
-          aria-label="Vuốt để xoay góc nhìn"
-          className="pointer-events-auto w-28 h-24 rounded-xl bg-wood-950/45 border border-white/15 backdrop-blur-sm flex items-center justify-center text-[11px] text-cream/80 text-center px-2 touch-none"
-        >
-          Vuốt xoay góc nhìn
-        </div>
+          className="w-1/2 h-48 pointer-events-auto self-end mb-2"
+          onTouchStart={handleLookTouchStart}
+          onTouchMove={handleLookTouchMove}
+          onTouchEnd={handleLookTouchEnd}
+        />
       </div>
     </div>
   );

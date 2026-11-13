@@ -14,6 +14,7 @@ import { CompassEvaluationResult, StationStatus, SunGoddessStation } from '../ty
 import { SafeImage } from '../components/common/SafeImage';
 import { SunGoddess3DMap, renderStationEmblem } from '../components/threeD/SunGoddess3DMap';
 import { EpicCompassLab } from '../components/epics/EpicCompassLab';
+import { playCorrectSound, playWrongSound } from '../services/ambientAudioService';
 
 interface DamSanJourneyPageProps {
   completedMilestones: string[];
@@ -105,6 +106,11 @@ export const DamSanJourneyPage: React.FC<DamSanJourneyPageProps> = ({
     if (chosen === undefined) return;
     setSubmittedLayers((prev) => ({ ...prev, [activeLayer.id]: true }));
     const correct = chosen === activeLayer.correctIndex;
+    if (correct) {
+      playCorrectSound();
+    } else {
+      playWrongSound();
+    }
     onRecordLayerAttempt?.(activeStation.title, activeLayer.layerLabel, correct);
 
     if (correct) {

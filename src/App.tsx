@@ -16,7 +16,7 @@ import {
   resetDemoPassport,
   saveDemoPassport,
 } from './services/firebaseService';
-import { ambientAudio } from './services/ambientAudioService';
+import { ambientAudio, playCorrectSound, playWrongSound } from './services/ambientAudioService';
 import {
   ArenaAttemptRecord,
   AvatarPresetId,
@@ -200,6 +200,10 @@ export default function App() {
   }, [refreshStatus]);
 
   useEffect(() => {
+    ambientAudio.setRoute(activeRoute);
+  }, [activeRoute]);
+
+  useEffect(() => {
     return () => {
       ambientAudio.stop();
     };
@@ -254,6 +258,11 @@ export default function App() {
 
   const handleRecordConceptCheck = useCallback(
     async (card: EpicConceptCard, isCorrect: boolean) => {
+      if (isCorrect) {
+        playCorrectSound();
+      } else {
+        playWrongSound();
+      }
       try {
         let next = await recordQuizAttempt(passportRef.current, {
           moduleId: 'epic-gate',
@@ -335,6 +344,11 @@ export default function App() {
 
   const handleHotspotAttempt = useCallback(
     async (hotspot: Museum3DHotspot, isCorrect: boolean) => {
+      if (isCorrect) {
+        playCorrectSound();
+      } else {
+        playWrongSound();
+      }
       try {
         const next = await recordQuizAttempt(passportRef.current, {
           moduleId: 'museum-3d',
@@ -383,6 +397,11 @@ export default function App() {
 
   const handleRecordLayerAttempt = useCallback(
     async (stationTitle: string, layerLabel: string, isCorrect: boolean) => {
+      if (isCorrect) {
+        playCorrectSound();
+      } else {
+        playWrongSound();
+      }
       try {
         const next = await recordQuizAttempt(passportRef.current, {
           moduleId: 'dam-san-journey',
@@ -408,6 +427,11 @@ export default function App() {
     async (_claimStatement: string, stationTitle: string, result: CompassEvaluationResult) => {
       try {
         const passed = result.totalScore >= Math.ceil(result.maxTotalScore * 0.6);
+        if (passed) {
+          playCorrectSound();
+        } else {
+          playWrongSound();
+        }
         let next = await recordQuizAttempt(passportRef.current, {
           moduleId: 'dam-san-journey',
           activityType: 'compass_analysis',

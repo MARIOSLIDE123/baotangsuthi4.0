@@ -7,6 +7,7 @@ import {
 import { EpicConceptCard, MuseumRouteId } from '../types/museum';
 import { SafeImage } from '../components/common/SafeImage';
 import { EpicMindMap } from '../components/epics/EpicMindMap';
+import { playCorrectSound, playWrongSound } from '../services/ambientAudioService';
 
 interface EpicGatePageProps {
   onNavigate: (route: MuseumRouteId) => void;
@@ -229,8 +230,14 @@ export const EpicGatePage: React.FC<EpicGatePageProps> = ({
                 disabled={chosen === undefined}
                 onClick={() => {
                   setSubmittedIds((prev) => ({ ...prev, [activeCard.id]: true }));
+                  const isRight = chosen === activeCard.correctIndex;
+                  if (isRight) {
+                    playCorrectSound();
+                  } else {
+                    playWrongSound();
+                  }
                   if (chosen !== undefined && onRecordConceptCheck) {
-                    onRecordConceptCheck(activeCard, chosen === activeCard.correctIndex);
+                    onRecordConceptCheck(activeCard, isRight);
                   }
                 }}
                 className="px-4 py-2 text-xs sm:text-sm font-semibold bg-wood-900 text-cream rounded-lg hover:bg-wood-800 disabled:opacity-50 transition-colors cursor-pointer"

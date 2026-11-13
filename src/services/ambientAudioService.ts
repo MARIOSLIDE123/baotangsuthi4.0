@@ -1,103 +1,95 @@
 /**
- * Gentle procedural Web Audio soundscape inspired by Central Highlands morning wind
- * and warm bronze harmonic resonance. Requires explicit user toggle interaction.
+ * Audio controller for Bao Tang Su Thi 4.0:
+ * - File 1: /audio/bgm-app.m4a (Main App ambient BGM)
+ * - File 2: /audio/bgm-arena.m4a (Hero Arena battle BGM)
+ * - File 3: /audio/sfx-correct.mp3 (Correct answer sound effect)
+ * - File 4: /audio/sfx-wrong.mp3 (Wrong answer sound effect)
  */
+
+type BgmTrack = 'app' | 'arena';
+
 class AmbientAudioController {
-  private ctx: AudioContext | null = null;
-  private masterGain: GainNode | null = null;
-  private chimeTimer: number | null = null;
+  private currentTrack: BgmTrack = 'app';
+  private appAudio: HTMLAudioElement | null = null;
+  private arenaAudio: HTMLAudioElement | null = null;
   private playing = false;
+
+  private initAudios() {
+    if (typeof window === 'undefined') return;
+    if (this.appAudio && this.arenaAudio) return;
+
+    this.appAudio = new Audio('/audio/bgm-app.m4a');
+    this.appAudio.loop = true;
+    this.appAudio.volume = 0.35;
+
+    this.arenaAudio = new Audio('/audio/bgm-arena.m4a');
+    this.arenaAudio.loop = true;
+    this.arenaAudio.volume = 0.38;
+  }
 
   isPlaying(): boolean {
     return this.playing;
   }
 
-  start(): boolean {
-    if (this.playing) return true;
-    try {
-      const AudioCtx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!AudioCtx) return false;
+  getCurrentTrack(): BgmTrack {
+    return this.currentTrack;
+  }
 
-      if (!this.ctx) {
-        this.ctx = new AudioCtx();
-      }
-      if (this.ctx.state === 'suspended') {
-        void this.ctx.resume();
-      }
+  /**
+   * Automatically switches BGM based on the current museum route.
+   */
+  setRoute(route: string): void {
+    const targetTrack: BgmTrack = route === 'hero-arena' ? 'arena' : 'app';
+    if (this.currentTrack === targetTrack) return;
+    this.currentTrack = targetTrack;
 
-      const master = this.ctx.createGain();
-      master.gain.setValueAtTime(0.001, this.ctx.currentTime);
-      master.gain.exponentialRampToValueAtTime(0.08, this.ctx.currentTime + 1.2);
-      master.connect(this.ctx.destination);
-      this.masterGain = master;
-
-      // Warm low drone (D2 + A2 harmonic bed)
-      const osc1 = this.ctx.createOscillator();
-      osc1.type = 'sine';
-      osc1.frequency.value = 146.83; // D3
-      const g1 = this.ctx.createGain();
-      g1.gain.value = 0.28;
-      osc1.connect(g1).connect(master);
-      osc1.start();
-
-      const osc2 = this.ctx.createOscillator();
-      osc2.type = 'triangle';
-      osc2.frequency.value = 220.0; // A3
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = 420;
-      const g2 = this.ctx.createGain();
-      g2.gain.value = 0.14;
-      osc2.connect(filter).connect(g2).connect(master);
-      osc2.start();
-
-      // Gentle pentatonic bronze-like chime every ~4.5s
-      const pentatonic = [293.66, 329.63, 392.0, 440.0, 523.25];
-      let step = 0;
-      const triggerChime = () => {
-        if (!this.ctx || !this.masterGain || !this.playing) return;
-        const now = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const env = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(pentatonic[step % pentatonic.length], now);
-        step += 1;
-
-        env.gain.setValueAtTime(0.001, now);
-        env.gain.exponentialRampToValueAtTime(0.18, now + 0.12);
-        env.gain.exponentialRampToValueAtTime(0.0008, now + 3.2);
-
-        osc.connect(env).connect(this.masterGain);
-        osc.start(now);
-        osc.stop(now + 3.3);
-      };
-
-      this.playing = true;
-      triggerChime();
-      this.chimeTimer = window.setInterval(triggerChime, 4500);
-      return true;
-    } catch {
-      this.playing = false;
-      return false;
+    if (this.playing) {
+      this.switchToTrack(targetTrack);
     }
+  }
+
+  private switchToTrack(track: BgmTrack): void {
+    this.initAudios();
+    if (track === 'arena') {
+      if (this.appAudio) {
+        this.appAudio.pause();
+        this.appAudio.currentTime = 0;
+      }
+      if (this.arenaAudio) {
+        this.arenaAudio.currentTime = 0;
+        this.arenaAudio.play().catch(() => {});
+      }
+    } else {
+      if (this.arenaAudio) {
+        this.arenaAudio.pause();
+        this.arenaAudio.currentTime = 0;
+      }
+      if (this.appAudio) {
+        this.appAudio.currentTime = 0;
+        this.appAudio.play().catch(() => {});
+      }
+    }
+  }
+
+  start(): boolean {
+    this.initAudios();
+    this.playing = true;
+    const target = this.currentTrack === 'arena' ? this.arenaAudio : this.appAudio;
+    if (target) {
+      target.play().catch(() => {
+        // Autoplay may be restricted until user gesture
+      });
+    }
+    return true;
   }
 
   stop(): void {
     this.playing = false;
-    if (this.chimeTimer !== null) {
-      window.clearInterval(this.chimeTimer);
-      this.chimeTimer = null;
+    if (this.appAudio) {
+      this.appAudio.pause();
     }
-    if (this.ctx) {
-      try {
-        void this.ctx.close();
-      } catch {
-        // Ignore close errors
-      }
-      this.ctx = null;
-      this.masterGain = null;
+    if (this.arenaAudio) {
+      this.arenaAudio.pause();
     }
   }
 
@@ -105,9 +97,36 @@ class AmbientAudioController {
     if (this.playing) {
       this.stop();
       return false;
+    } else {
+      return this.start();
     }
-    return this.start();
   }
 }
 
 export const ambientAudio = new AmbientAudioController();
+
+/**
+ * Play File 3: Correct answer sound effect
+ */
+export function playCorrectSound(): void {
+  try {
+    const sfx = new Audio('/audio/sfx-correct.mp3');
+    sfx.volume = 0.8;
+    sfx.play().catch(() => {});
+  } catch {
+    // Audio playback optional
+  }
+}
+
+/**
+ * Play File 4: Wrong answer sound effect
+ */
+export function playWrongSound(): void {
+  try {
+    const sfx = new Audio('/audio/sfx-wrong.mp3');
+    sfx.volume = 0.8;
+    sfx.play().catch(() => {});
+  } catch {
+    // Audio playback optional
+  }
+}

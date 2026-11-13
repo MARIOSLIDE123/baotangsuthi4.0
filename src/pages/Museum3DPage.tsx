@@ -21,6 +21,7 @@ import {
   QualityPreset,
 } from '../components/threeD/EdeLonghouseScene';
 import { SafeImage } from '../components/common/SafeImage';
+import { playCorrectSound, playWrongSound } from '../services/ambientAudioService';
 
 interface Museum3DPageProps {
   completedHotspots: string[];
@@ -123,6 +124,11 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
     if (!activeHotspot || selectedAnswer === null) return;
     setAnswerSubmitted(true);
     const correct = selectedAnswer === activeHotspot.correctIndex;
+    if (correct) {
+      playCorrectSound();
+    } else {
+      playWrongSound();
+    }
     onHotspotAttempt?.(activeHotspot, correct);
     if (correct) {
       onCompleteHotspot(activeHotspot.id, activeHotspot.points);

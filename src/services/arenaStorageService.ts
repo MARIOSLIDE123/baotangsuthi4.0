@@ -1,4 +1,5 @@
 import { ArenaAttemptRecord, ArenaBadgeStatus } from '../types/museum';
+import { playCorrectSound, playWrongSound } from './ambientAudioService';
 
 const ARENA_ATTEMPTS_KEY = 'suthiso_arena_attempts_v1';
 
@@ -120,38 +121,9 @@ export function computeArenaBadges(attempts: ArenaAttemptRecord[]): ArenaBadgeSt
 }
 
 export function playArenaChime(kind: 'correct' | 'wrong' | 'victory') {
-  try {
-    const AudioCtx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const now = ctx.currentTime;
-
-    const notes =
-      kind === 'victory'
-        ? [523.25, 659.25, 783.99, 1046.5]
-        : kind === 'correct'
-          ? [587.33, 880]
-          : [293.66, 246.94];
-
-    notes.forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = kind === 'wrong' ? 'triangle' : 'sine';
-      osc.frequency.setValueAtTime(freq, now + idx * 0.08);
-      gain.gain.setValueAtTime(0.06, now + idx * 0.08);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.22);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now + idx * 0.08);
-      osc.stop(now + idx * 0.08 + 0.24);
-    });
-
-    setTimeout(() => {
-      ctx.close().catch(() => {});
-    }, 900);
-  } catch {
-    // Audio playback optional
+  if (kind === 'correct' || kind === 'victory') {
+    playCorrectSound();
+  } else {
+    playWrongSound();
   }
 }

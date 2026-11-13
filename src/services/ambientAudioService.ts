@@ -8,11 +8,16 @@
 
 type BgmTrack = 'app' | 'arena';
 
+type AudioListener = (volume: number, isPlaying: boolean) => void;
+
 class AmbientAudioController {
   private currentTrack: BgmTrack = 'app';
   private appAudio: HTMLAudioElement | null = null;
   private arenaAudio: HTMLAudioElement | null = null;
   private playing = false;
+  private volume = 0.3; // Default 30% volume as requested
+  private lastNonZeroVolume = 0.3;
+  private listeners = new Set<AudioListener>();
 
   private initAudios() {
     if (typeof window === 'undefined') return;
@@ -20,15 +25,57 @@ class AmbientAudioController {
 
     this.appAudio = new Audio('/audio/bgm-app.m4a');
     this.appAudio.loop = true;
-    this.appAudio.volume = 0.35;
+    this.appAudio.volume = this.volume;
 
     this.arenaAudio = new Audio('/audio/bgm-arena.m4a');
     this.arenaAudio.loop = true;
-    this.arenaAudio.volume = 0.38;
+    this.arenaAudio.volume = this.volume;
+  }
+
+  private notify() {
+    this.listeners.forEach((fn) => {
+      try {
+        fn(this.volume, this.playing);
+      } catch {
+        // Safe listener execution
+      }
+    });
+  }
+
+  subscribe(fn: AudioListener): () => void {
+    this.listeners.add(fn);
+    fn(this.volume, this.playing);
+    return () => {
+      this.listeners.delete(fn);
+    };
   }
 
   isPlaying(): boolean {
     return this.playing;
+  }
+
+  getVolume(): number {
+    return this.volume;
+  }
+
+  setVolume(vol: number): void {
+    const clamped = Math.max(0, Math.min(1, Number(vol.toFixed(2))));
+    this.volume = clamped;
+    if (clamped > 0) {
+      this.lastNonZeroVolume = clamped;
+    }
+
+    this.initAudios();
+    if (this.appAudio) this.appAudio.volume = this.volume;
+    if (this.arenaAudio) this.arenaAudio.volume = this.volume;
+
+    if (clamped === 0 && this.playing) {
+      this.stop();
+    } else if (clamped > 0 && !this.playing) {
+      this.start();
+    } else {
+      this.notify();
+    }
   }
 
   getCurrentTrack(): BgmTrack {
@@ -56,6 +103,7 @@ class AmbientAudioController {
         this.appAudio.currentTime = 0;
       }
       if (this.arenaAudio) {
+        this.arenaAudio.volume = this.volume;
         this.arenaAudio.currentTime = 0;
         this.arenaAudio.play().catch(() => {});
       }
@@ -65,6 +113,7 @@ class AmbientAudioController {
         this.arenaAudio.currentTime = 0;
       }
       if (this.appAudio) {
+        this.appAudio.volume = this.volume;
         this.appAudio.currentTime = 0;
         this.appAudio.play().catch(() => {});
       }
@@ -73,6 +122,12 @@ class AmbientAudioController {
 
   start(): boolean {
     this.initAudios();
+    if (this.volume === 0) {
+      this.volume = this.lastNonZeroVolume || 0.3;
+    }
+    if (this.appAudio) this.appAudio.volume = this.volume;
+    if (this.arenaAudio) this.arenaAudio.volume = this.volume;
+
     this.playing = true;
     const target = this.currentTrack === 'arena' ? this.arenaAudio : this.appAudio;
     if (target) {
@@ -80,6 +135,7 @@ class AmbientAudioController {
         // Autoplay may be restricted until user gesture
       });
     }
+    this.notify();
     return true;
   }
 
@@ -91,6 +147,7 @@ class AmbientAudioController {
     if (this.arenaAudio) {
       this.arenaAudio.pause();
     }
+    this.notify();
   }
 
   toggle(): boolean {

@@ -204,7 +204,11 @@ export default function App() {
   }, [activeRoute]);
 
   useEffect(() => {
+    const unsubAudio = ambientAudio.subscribe((vol, isPlaying) => {
+      setAudioEnabled(isPlaying && vol > 0);
+    });
     return () => {
+      unsubAudio();
       ambientAudio.stop();
     };
   }, []);
@@ -230,6 +234,7 @@ export default function App() {
     setShowIntro(false);
     setActiveRoute('home');
     syncUrlQuery('home');
+    ambientAudio.start();
   }, []);
 
   const handleNavigate = useCallback(
@@ -678,17 +683,20 @@ export default function App() {
 
       <div className="tay-nguyen-fret" aria-hidden="true" />
 
-      <MuseumHeader
-        activeRoute={activeRoute}
-        studentName={passport.studentName}
-        onNavigate={handleNavigate}
-      />
+      {/* Sticky Combined Navigation: Brand Header & 11-Zone Directory */}
+      <div className="sticky top-0 z-40 bg-cream/95 backdrop-blur-md shadow-xs">
+        <MuseumHeader
+          activeRoute={activeRoute}
+          studentName={passport.studentName}
+          onNavigate={handleNavigate}
+        />
 
-      <MuseumZoneDirectory
-        activeRoute={activeRoute}
-        visitedZones={passport.visitedZones}
-        onNavigate={handleNavigate}
-      />
+        <MuseumZoneDirectory
+          activeRoute={activeRoute}
+          visitedZones={passport.visitedZones}
+          onNavigate={handleNavigate}
+        />
+      </div>
 
       <main className="flex-1 w-full max-w-[1760px] 2xl:max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-6">
         <motion.div

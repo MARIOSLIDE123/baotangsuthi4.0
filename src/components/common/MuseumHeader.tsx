@@ -1,7 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Maximize2, Menu, Minimize2, X } from 'lucide-react';
+import {
+  Maximize2,
+  Menu,
+  Minimize2,
+  Volume1,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react';
 import { MUSEUM_ZONES, TOP_NAV_ITEMS } from '../../data/navigation';
 import { MuseumRouteId } from '../../types/museum';
+import { ambientAudio } from '../../services/ambientAudioService';
 
 interface MuseumHeaderProps {
   activeRoute: MuseumRouteId;
@@ -16,6 +25,15 @@ export const MuseumHeader: React.FC<MuseumHeaderProps> = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [bgmVolume, setBgmVolume] = useState<number>(() => ambientAudio.getVolume());
+  const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(() => ambientAudio.isPlaying());
+
+  useEffect(() => {
+    return ambientAudio.subscribe((vol, isPlaying) => {
+      setBgmVolume(vol);
+      setIsPlayingAudio(isPlaying);
+    });
+  }, []);
 
   useEffect(() => {
     const handleFsChange = () => {
@@ -37,6 +55,15 @@ export const MuseumHeader: React.FC<MuseumHeaderProps> = ({
     }
   };
 
+  const handleToggleAudio = () => {
+    ambientAudio.toggle();
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = Number(e.target.value) / 100;
+    ambientAudio.setVolume(val);
+  };
+
   const isNavActive = (itemId: MuseumRouteId) => {
     if (itemId === 'epic-gate') {
       return ['epic-gate', 'vietnam-epics', 'world-epics', 'dam-san-journey'].includes(activeRoute);
@@ -48,7 +75,7 @@ export const MuseumHeader: React.FC<MuseumHeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-cream/95 backdrop-blur-md border-b border-sandstone">
+    <header className="bg-cream/95 backdrop-blur-md border-b border-sandstone">
       <div className="max-w-[1760px] 2xl:max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 h-16 flex items-center justify-between gap-8">
         {/* Zone 1: Single-line Brand Logo */}
         <button
@@ -81,8 +108,42 @@ export const MuseumHeader: React.FC<MuseumHeaderProps> = ({
           })}
         </nav>
 
-        {/* Zone 3: Learner Profile / Passport Primary CTA + Fullscreen + mobile drawer button */}
+        {/* Zone 3: Learner Profile / Passport Primary CTA + Fullscreen + BGM Volume + mobile drawer button */}
         <div className="flex items-center gap-2.5 shrink-0">
+          {/* Bộ điều khiển âm lượng nhạc nền BGM (Mặc định 30%) */}
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-sandstone bg-cream hover:bg-parchment/60 text-wood-800 transition-colors shadow-sm"
+            title={`Âm lượng nhạc nền: ${isPlayingAudio ? Math.round(bgmVolume * 100) : 0}% (Mặc định 30%)`}
+          >
+            <button
+              type="button"
+              onClick={handleToggleAudio}
+              className="p-0.5 text-wood-700 hover:text-forest-800 transition-colors cursor-pointer"
+              title={isPlayingAudio && bgmVolume > 0 ? 'Tắt âm lượng nhạc nền' : 'Bật nhạc nền'}
+              aria-label={isPlayingAudio && bgmVolume > 0 ? 'Tắt âm lượng nhạc nền' : 'Bật nhạc nền'}
+            >
+              {!isPlayingAudio || bgmVolume === 0 ? (
+                <VolumeX className="w-4 h-4 text-wood-400" />
+              ) : bgmVolume < 0.5 ? (
+                <Volume1 className="w-4 h-4 text-forest-700" />
+              ) : (
+                <Volume2 className="w-4 h-4 text-forest-700" />
+              )}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={isPlayingAudio ? Math.round(bgmVolume * 100) : 0}
+              onChange={handleVolumeChange}
+              className="w-14 sm:w-20 lg:w-24 h-1.5 bg-sandstone rounded-lg appearance-none cursor-pointer accent-forest-700"
+              aria-label="Thanh điều chỉnh âm lượng nhạc nền"
+            />
+            <span className="font-mono text-[11px] tabular-nums font-semibold text-wood-700 min-w-[26px] text-right">
+              {isPlayingAudio ? `${Math.round(bgmVolume * 100)}%` : '0%'}
+            </span>
+          </div>
+
           <button
             type="button"
             onClick={handleToggleFullscreen}

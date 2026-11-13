@@ -1,0 +1,6 @@
+{
+  "name": "Sử Thi Số 4.0 – Bảo Tàng Sử Thi Xuyên Không",
+  "description": "Bảo tàng sử thi kỹ thuật số tích hợp không gian 3D Babylon.js và trợ lý AI phát triển năng lực đọc hiểu sử thi cho học sinh lớp 10.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

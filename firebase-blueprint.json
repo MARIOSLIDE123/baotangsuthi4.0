@@ -1,0 +1,643 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Hồ sơ người dùng (học sinh, giáo viên, quản trị viên). Không thu thập số điện thoại hay thông tin nhạy cảm thừa.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "school": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120
+        },
+        "className": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 40
+        },
+        "classId": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]*$"
+        },
+        "joinCode": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 24,
+          "pattern": "^[a-zA-Z0-9_\\-]*$"
+        },
+        "teacherUid": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]*$"
+        },
+        "avatarPreset": {
+          "type": "string",
+          "enum": ["dam-san", "hnhi", "gong", "sun", "google"]
+        },
+        "avatarUrl": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "role": {
+          "type": "string",
+          "enum": ["student", "teacher", "admin"]
+        },
+        "totalScore": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "school",
+        "className",
+        "classId",
+        "joinCode",
+        "teacherUid",
+        "avatarPreset",
+        "avatarUrl",
+        "role",
+        "totalScore",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Classroom": {
+      "title": "Classroom",
+      "description": "Lớp học do giáo viên tạo với mã tham gia riêng.",
+      "type": "object",
+      "properties": {
+        "classId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 24,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "school": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "academicYear": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 20
+        },
+        "joinCode": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 24,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "teacherUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "teacherName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "classId",
+        "name",
+        "school",
+        "academicYear",
+        "joinCode",
+        "teacherUid",
+        "teacherName",
+        "isActive",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LearningProgress": {
+      "title": "LearningProgress",
+      "description": "Tiến độ từng phân hệ theo 3 trạng thái dựa trên hành động và kết quả thực tế.",
+      "type": "object",
+      "properties": {
+        "progressId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 180,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "classId": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]*$"
+        },
+        "teacherUid": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]*$"
+        },
+        "moduleId": {
+          "type": "string",
+          "enum": [
+            "epic-gate",
+            "vietnam-epics",
+            "world-epics",
+            "museum-3d",
+            "dam-san-journey",
+            "hero-arena",
+            "stem-studio"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["not_started", "in_progress", "completed"]
+        },
+        "actionsCompleted": {
+          "type": "array"
+        },
+        "exploredWorks": {
+          "type": "array"
+        },
+        "requiredActionsCount": {
+          "type": "number"
+        },
+        "scoreEarned": {
+          "type": "number"
+        },
+        "lastActivityLabel": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 140
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "progressId",
+        "studentUid",
+        "classId",
+        "teacherUid",
+        "moduleId",
+        "status",
+        "actionsCompleted",
+        "exploredWorks",
+        "requiredActionsCount",
+        "scoreEarned",
+        "lastActivityLabel",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "QuizAttempt": {
+      "title": "QuizAttempt",
+      "description": "Lịch sử làm bài đọc hiểu, trắc nghiệm, Đấu trường và La bàn sử thi (bất biến với học sinh).",
+      "type": "object",
+      "properties": {
+        "attemptId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "classId": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]*$"
+        },
+        "teacherUid": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]*$"
+        },
+        "moduleId": {
+          "type": "string",
+          "enum": [
+            "epic-gate",
+            "vietnam-epics",
+            "world-epics",
+            "museum-3d",
+            "dam-san-journey",
+            "hero-arena",
+            "stem-studio"
+          ]
+        },
+        "activityType": {
+          "type": "string",
+          "enum": [
+            "arena_game",
+            "reading_comprehension",
+            "compass_analysis",
+            "concept_check",
+            "museum_3d"
+          ]
+        },
+        "activityTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "workTitle": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120
+        },
+        "difficultTopic": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120
+        },
+        "score": {
+          "type": "number"
+        },
+        "maxScore": {
+          "type": "number"
+        },
+        "correctCount": {
+          "type": "number"
+        },
+        "wrongCount": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "attemptId",
+        "studentUid",
+        "studentName",
+        "classId",
+        "teacherUid",
+        "moduleId",
+        "activityType",
+        "activityTitle",
+        "workTitle",
+        "difficultTopic",
+        "score",
+        "maxScore",
+        "correctCount",
+        "wrongCount",
+        "createdAt"
+      ]
+    },
+    "BadgeRecord": {
+      "title": "BadgeRecord",
+      "description": "Định nghĩa huy hiệu lớp học hoặc huy hiệu đã trao cho học sinh.",
+      "type": "object",
+      "properties": {
+        "badgeDocId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 180,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "recordType": {
+          "type": "string",
+          "enum": ["definition", "awarded"]
+        },
+        "badgeId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "badgeTitle": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "criteria": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 180
+        },
+        "studentUid": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]*$"
+        },
+        "classId": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]*$"
+        },
+        "teacherUid": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]*$"
+        },
+        "awardedBy": {
+          "type": "string",
+          "enum": ["system", "teacher"]
+        },
+        "pointsBonus": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "badgeDocId",
+        "recordType",
+        "badgeId",
+        "badgeTitle",
+        "criteria",
+        "studentUid",
+        "classId",
+        "teacherUid",
+        "awardedBy",
+        "pointsBonus",
+        "createdAt"
+      ]
+    },
+    "Assignment": {
+      "title": "Assignment",
+      "description": "Nhiệm vụ học tập do giáo viên giao theo lớp hoặc phân hệ.",
+      "type": "object",
+      "properties": {
+        "assignmentId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "classId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "teacherUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "moduleId": {
+          "type": "string",
+          "enum": [
+            "epic-gate",
+            "vietnam-epics",
+            "world-epics",
+            "museum-3d",
+            "dam-san-journey",
+            "hero-arena",
+            "stem-studio"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 600
+        },
+        "maxPoints": {
+          "type": "number"
+        },
+        "isPublished": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "assignmentId",
+        "classId",
+        "teacherUid",
+        "moduleId",
+        "title",
+        "description",
+        "maxPoints",
+        "isPublished",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AssignmentSubmission": {
+      "title": "AssignmentSubmission",
+      "description": "Bài hoàn thành nhiệm vụ của học sinh thuộc một nhiệm vụ lớp học.",
+      "type": "object",
+      "properties": {
+        "studentUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "classId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "teacherUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "responseSummary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1200
+        },
+        "status": {
+          "type": "string",
+          "enum": ["submitted", "graded"]
+        },
+        "score": {
+          "type": "number"
+        },
+        "teacherFeedback": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 400
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "studentUid",
+        "studentName",
+        "classId",
+        "teacherUid",
+        "responseSummary",
+        "status",
+        "score",
+        "teacherFeedback",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "TeacherSetting": {
+      "title": "TeacherSetting",
+      "description": "Cấu hình liên kết Padlet và thiết lập hiển thị của giáo viên.",
+      "type": "object",
+      "properties": {
+        "settingId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "teacherUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "houseEmbedUrl": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "journeyEmbedUrl": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "presentationMode": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "settingId",
+        "teacherUid",
+        "houseEmbedUrl",
+        "journeyEmbedUrl",
+        "presentationMode",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Hồ sơ cá nhân học sinh, giáo viên và quản trị viên."
+    },
+    "/classes/{classId}": {
+      "schema": { "$ref": "#/entities/Classroom" },
+      "description": "Danh sách lớp học và mã tham gia của giáo viên."
+    },
+    "/learningProgress/{progressId}": {
+      "schema": { "$ref": "#/entities/LearningProgress" },
+      "description": "Tiến độ học tập theo 3 trạng thái cho từng phân hệ."
+    },
+    "/quizAttempts/{attemptId}": {
+      "schema": { "$ref": "#/entities/QuizAttempt" },
+      "description": "Kết quả trò chơi, đọc hiểu, La bàn và 3D của học sinh."
+    },
+    "/badges/{badgeId}": {
+      "schema": { "$ref": "#/entities/BadgeRecord" },
+      "description": "Huy hiệu lớp học và lịch sử đạt huy hiệu."
+    },
+    "/assignments/{assignmentId}": {
+      "schema": { "$ref": "#/entities/Assignment" },
+      "description": "Nhiệm vụ học tập theo lớp."
+    },
+    "/assignments/{assignmentId}/submissions/{studentUid}": {
+      "schema": { "$ref": "#/entities/AssignmentSubmission" },
+      "description": "Bài nộp và điểm đánh giá nhiệm vụ của học sinh."
+    },
+    "/teacherSettings/{settingId}": {
+      "schema": { "$ref": "#/entities/TeacherSetting" },
+      "description": "Cấu hình Padlet và chế độ hội giảng của giáo viên."
+    }
+  }
+}

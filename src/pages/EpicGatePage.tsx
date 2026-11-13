@@ -108,7 +108,7 @@ export const EpicGatePage: React.FC<EpicGatePageProps> = ({
                   >
                     {card.index}
                   </span>
-                  <span className="font-serif text-lg font-bold truncate">{card.title}</span>
+                  <span className="font-serif text-lg font-bold text-left break-words">{card.title}</span>
                 </div>
                 {passed && (
                   <CheckCircle2

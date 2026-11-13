@@ -666,7 +666,7 @@ export default function App() {
         onNavigate={handleNavigate}
       />
 
-      <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-10 pt-8">
+      <main className="flex-1 w-full max-w-[1760px] 2xl:max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-6">
         <motion.div
           key={activeRoute}
           initial={reducedMotion ? false : { opacity: 0, y: 6 }}
@@ -688,7 +688,7 @@ export default function App() {
       )}
 
       <footer className="border-t border-sandstone bg-parchment/50 py-6 mt-auto">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-wood-600">
+        <div className="max-w-[1760px] 2xl:max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-wood-600">
           <p className="font-medium text-wood-800">
             Sử Thi Số 4.0 – Bảo Tàng Sử Thi Xuyên Không · Ngữ văn lớp 10
           </p>

@@ -191,7 +191,7 @@ export const TeacherAnalyticsCharts: React.FC<TeacherAnalyticsChartsProps> = ({
           {moduleStats.map((m) => (
             <div key={m.id} className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-wood-800 truncate">{m.label}</span>
+                <span className="font-medium text-wood-800 break-words mr-2">{m.label}</span>
                 <span className="font-mono tabular-nums text-wood-600 shrink-0">
                   Hoàn thành {m.completedPct}% · Đang học {m.inProgressPct}%
                 </span>
@@ -244,7 +244,7 @@ export const TeacherAnalyticsCharts: React.FC<TeacherAnalyticsChartsProps> = ({
           {taskScoreStats.map((t) => (
             <div key={t.type} className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-wood-800 truncate">{t.label}</span>
+                <span className="font-medium text-wood-800 break-words mr-2">{t.label}</span>
                 <span className="font-mono tabular-nums font-semibold text-wood-900 shrink-0">
                   {t.count > 0 ? `${t.avgPct}% (${t.count} lượt)` : 'Chưa có lượt'}
                 </span>
@@ -376,7 +376,7 @@ export const TeacherAnalyticsCharts: React.FC<TeacherAnalyticsChartsProps> = ({
               return (
                 <div key={item.topic} className="space-y-1">
                   <div className="flex items-center justify-between text-xs gap-2">
-                    <span className="font-medium text-wood-900 truncate">{item.topic}</span>
+                    <span className="font-medium text-wood-900 break-words">{item.topic}</span>
                     <span className="font-mono tabular-nums text-terracotta-700 shrink-0">
                       {item.wrongTotal} lượt sai · TB {item.avgPct}%
                     </span>

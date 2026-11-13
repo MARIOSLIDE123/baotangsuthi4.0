@@ -458,8 +458,8 @@ export const PassportPage: React.FC<PassportPageProps> = ({
           </div>
           <div className="min-w-0">
             <p className="text-xs text-gold-400 font-medium">Học sinh</p>
-            <p className="font-serif text-lg font-bold truncate">{passport.studentName}</p>
-            <p className="text-xs text-cream/75 truncate">
+            <p className="font-serif text-lg font-bold break-words">{passport.studentName}</p>
+            <p className="text-xs text-cream/75 break-words">
               {passport.className} {passport.school ? `· ${passport.school}` : ''}
             </p>
           </div>
@@ -830,7 +830,7 @@ export const PassportPage: React.FC<PassportPageProps> = ({
                 {activityHistory.map((item) => (
                   <div key={item.id} className="py-3 flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-wood-900 truncate">{item.title}</p>
+                      <p className="text-sm font-semibold text-wood-900 break-words">{item.title}</p>
                       <p className="text-xs text-wood-600">{item.subtitle}</p>
                     </div>
                     <div className="text-right shrink-0">

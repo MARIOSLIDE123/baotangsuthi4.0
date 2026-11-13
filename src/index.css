@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-serif: "Cormorant Garamond", Georgia, serif;
-  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-serif: "Lora", "Playfair Display", "Cormorant Garamond", Georgia, serif;
+  --font-sans: "Be Vietnam Pro", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   --color-cream: #F8F4EC;
@@ -28,11 +28,21 @@
     background-color: #F8F4EC;
     color: #231B13;
     scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, .font-display {
     font-family: var(--font-serif);
     text-wrap: balance;
+    overflow-wrap: break-word;
+  }
+
+  /* Widescreen 16:9 presentation mode */
+  .layout-16-9-wide {
+    width: 100%;
+    max-width: 1820px;
   }
 }
 

@@ -4,6 +4,8 @@ import {
   Compass,
   DoorOpen,
   Map as MapIcon,
+  Maximize2,
+  Minimize2,
   Pause,
   Play,
   Settings,
@@ -56,6 +58,7 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
     target: 'A' | 'B';
     nonce: number;
   } | null>(null);
+  const [is169Fullscreen, setIs169Fullscreen] = useState(false);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -158,8 +161,14 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
         </button>
       </div>
 
-      {/* Full-Height 3D First-Person Viewport */}
-      <div className="relative w-full h-[74vh] min-h-[540px] max-h-[820px]">
+      {/* Full-Height 3D First-Person Viewport with 16:9 Cinema Aspect */}
+      <div
+        className={`relative transition-all duration-300 ${
+          is169Fullscreen
+            ? 'fixed inset-0 z-50 w-screen h-screen bg-wood-950 flex flex-col'
+            : 'w-full aspect-[16/9] min-h-[520px] max-h-[860px] rounded-2xl overflow-hidden border border-sandstone shadow-xl'
+        }`}
+      >
         <EdeLonghouseScene
           quality={quality}
           completedHotspotIds={completedHotspots}
@@ -174,7 +183,7 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
         {/* HUD Top-Left: Current Area & Progress */}
         <div className="absolute top-3 left-3 z-20 max-w-[260px] sm:max-w-xs bg-wood-950/75 backdrop-blur-md border border-white/15 rounded-xl p-3.5 text-cream space-y-2 pointer-events-auto">
           <div className="flex items-center justify-between gap-3 text-xs">
-            <span className="font-semibold text-gold-400 truncate">
+            <span className="font-semibold text-gold-400">
               {telemetry.area === 'A'
                 ? 'Khu vực A · Bên ngoài nhà dài'
                 : 'Khu vực B · Bên trong nhà dài'}
@@ -196,7 +205,7 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
           </div>
         </div>
 
-        {/* HUD Top-Right: Minimap & Settings */}
+        {/* HUD Top-Right: Minimap & Settings & Fullscreen Toggle */}
         <div className="absolute top-3 right-3 z-20 flex items-start gap-2 pointer-events-auto">
           {/* Compact Live Radar Minimap (Desktop/Tablet) */}
           <button
@@ -253,6 +262,16 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
           <div className="flex flex-col gap-1.5">
             <button
               type="button"
+              onClick={() => setIs169Fullscreen((prev) => !prev)}
+              className="p-2.5 min-w-[42px] min-h-[42px] rounded-xl bg-wood-950/75 backdrop-blur-md border border-white/15 text-cream hover:border-gold-400 transition-colors cursor-pointer flex items-center justify-center shadow-md"
+              title={is169Fullscreen ? 'Thu nhỏ 3D' : 'Toàn màn hình 3D (16:9)'}
+              aria-label="Toàn màn hình 3D"
+            >
+              {is169Fullscreen ? <Minimize2 className="w-4 h-4 text-gold-400" /> : <Maximize2 className="w-4 h-4 text-gold-400" />}
+            </button>
+
+            <button
+              type="button"
               onClick={() => setMapModalOpen(true)}
               className="p-2.5 min-w-[42px] min-h-[42px] rounded-xl bg-wood-950/75 backdrop-blur-md border border-white/15 text-cream hover:border-gold-400 transition-colors cursor-pointer flex items-center justify-center"
               aria-label="Mở bản đồ khu vực"
@@ -286,7 +305,7 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
         )}
 
         {/* HUD Bottom Control Hint */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 rounded-lg bg-wood-950/75 backdrop-blur-sm border border-white/10 text-[11px] text-cream/85 whitespace-nowrap max-w-[92%] truncate pointer-events-none">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 rounded-lg bg-wood-950/80 backdrop-blur-sm border border-white/10 text-[11px] text-cream/85 text-center max-w-[95%] pointer-events-none">
           <span className="hidden lg:inline">
             WASD / Mũi tên: Di chuyển · Kéo chuột: Xoay góc nhìn · E: Khám phá điểm sáng · ESC: Tạm dừng
           </span>

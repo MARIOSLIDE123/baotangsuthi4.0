@@ -121,7 +121,7 @@ export const MuseumIntroScreen: React.FC<MuseumIntroScreenProps> = ({
       )}
 
       {/* Top Subtle Controls */}
-      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-5 sm:px-10 pt-5 flex items-center justify-between gap-4">
+      <div className="relative z-10 w-full max-w-[1760px] 2xl:max-w-[1920px] mx-auto px-5 sm:px-10 pt-5 flex items-center justify-between gap-4">
         <div className="font-serif text-lg sm:text-xl font-bold tracking-wider text-gold-400">
           SỬ THI SỐ 4.0
         </div>

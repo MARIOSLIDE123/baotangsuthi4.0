@@ -299,7 +299,7 @@ export const EpicCompassLab: React.FC<EpicCompassLabProps> = ({
               </span>
             </div>
 
-            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
               {STUDY_TEXT_DETAILS.map((detail) => {
                 const checked = selectedDetailIds.includes(detail.id);
                 return (

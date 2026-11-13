@@ -556,8 +556,8 @@ export const SunGoddess3DMap: React.FC<SunGoddess3DMapProps> = ({
       aria-label="Bản đồ phiêu lưu 3D Con đường đến Nữ thần Mặt Trời"
       className="rounded-2xl overflow-hidden border border-wood-800 bg-wood-950 text-cream shadow-lg"
     >
-      {/* Map Viewport */}
-      <div className="relative h-[400px] sm:h-[470px] w-full overflow-hidden">
+      {/* Map Viewport - 16:9 Cinema Aspect */}
+      <div className="relative h-[440px] sm:h-[520px] lg:h-[600px] aspect-[16/9] max-h-[720px] w-full overflow-hidden">
         {!show2DFallback ? (
           <canvas
             ref={canvasRef}

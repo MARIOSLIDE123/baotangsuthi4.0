@@ -15,7 +15,7 @@ export const MuseumZoneDirectory: React.FC<MuseumZoneDirectoryProps> = ({
 }) => {
   return (
     <section aria-label="Bản đồ phân khu bảo tàng" className="border-b border-sandstone bg-parchment/55">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-10 py-2.5 flex items-center gap-2 overflow-x-auto">
+      <div className="max-w-[1760px] 2xl:max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 py-2.5 flex items-center gap-2 overflow-x-auto">
         <span className="text-xs font-semibold text-wood-600 whitespace-nowrap shrink-0 pr-2 border-r border-sandstone">
           11 Phân khu
         </span>

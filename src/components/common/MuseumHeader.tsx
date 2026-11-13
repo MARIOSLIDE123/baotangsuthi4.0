@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Menu, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Maximize2, Menu, Minimize2, X } from 'lucide-react';
 import { MUSEUM_ZONES, TOP_NAV_ITEMS } from '../../data/navigation';
 import { MuseumRouteId } from '../../types/museum';
 
@@ -15,6 +15,27 @@ export const MuseumHeader: React.FC<MuseumHeaderProps> = ({
   onNavigate,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  const handleToggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+  };
 
   const isNavActive = (itemId: MuseumRouteId) => {
     if (itemId === 'epic-gate') {
@@ -28,7 +49,7 @@ export const MuseumHeader: React.FC<MuseumHeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-cream/95 backdrop-blur-md border-b border-sandstone">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-10 h-16 flex items-center justify-between gap-8">
+      <div className="max-w-[1760px] 2xl:max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 h-16 flex items-center justify-between gap-8">
         {/* Zone 1: Single-line Brand Logo */}
         <button
           type="button"
@@ -60,8 +81,27 @@ export const MuseumHeader: React.FC<MuseumHeaderProps> = ({
           })}
         </nav>
 
-        {/* Zone 3: Learner Profile / Passport Primary CTA + mobile drawer button */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Zone 3: Learner Profile / Passport Primary CTA + Fullscreen + mobile drawer button */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleToggleFullscreen}
+            title={isFullscreen ? 'Thu nhỏ cửa sổ' : 'Mở rộng toàn màn hình 16:9'}
+            className="px-3 py-2 text-xs font-semibold rounded-lg border border-sandstone bg-cream hover:bg-parchment text-wood-800 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+          >
+            {isFullscreen ? (
+              <>
+                <Minimize2 className="w-4 h-4 text-forest-700" />
+                <span className="hidden md:inline">Thu nhỏ</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-4 h-4 text-forest-700" />
+                <span className="hidden md:inline">Toàn màn hình 16:9</span>
+              </>
+            )}
+          </button>
+
           <button
             type="button"
             onClick={() => onNavigate('passport')}

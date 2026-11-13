@@ -429,7 +429,7 @@ export const AiAssistantPage: React.FC<AiAssistantPageProps> = ({
         </aside>
 
         {/* Right Workspace: Text Chat OR Evidence Checker */}
-        <section className="lg:col-span-8 bg-cream border border-sandstone rounded-2xl flex flex-col h-[600px] overflow-hidden">
+        <section className="lg:col-span-8 bg-cream border border-sandstone rounded-2xl flex flex-col h-[720px] lg:h-[calc(100vh-250px)] min-h-[600px] overflow-hidden">
           {/* Top Utility Toolbar */}
           <div className="px-5 py-3 bg-parchment/60 border-b border-sandstone flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-xs text-wood-700">

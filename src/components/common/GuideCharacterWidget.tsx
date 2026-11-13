@@ -30,10 +30,10 @@ export const GuideCharacterWidget: React.FC<GuideCharacterWidgetProps> = ({
               className="w-10 h-10 rounded-lg object-cover border border-gold-500/50 shrink-0"
             />
             <div className="min-w-0">
-              <p className="text-xs font-bold tracking-wide text-gold-400 truncate">
+              <p className="text-xs font-bold tracking-wide text-gold-400">
                 SỨ GIẢ ĐẠI NGÀN
               </p>
-              <p className="text-[11px] text-cream/75 truncate">
+              <p className="text-[11px] text-cream/75 leading-tight">
                 Trợ lý khám phá · {zone.shortTitle}
               </p>
             </div>

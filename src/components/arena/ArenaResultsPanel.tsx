@@ -154,7 +154,7 @@ export const ArenaSummaryView: React.FC<ArenaSummaryViewProps> = ({
             <span>Xuất sắc! Bạn không mắc lỗi sai nào ở lượt chơi này.</span>
           </div>
         ) : (
-          <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+          <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
             {attempt.reviewItems.map((item, idx) => (
               <div
                 key={`${item.prompt}-${idx}`}

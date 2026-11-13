@@ -110,10 +110,10 @@ export const MuseumHeader: React.FC<MuseumHeaderProps> = ({
 
         {/* Zone 3: Learner Profile / Passport Primary CTA + Fullscreen + BGM Volume + mobile drawer button */}
         <div className="flex items-center gap-2.5 shrink-0">
-          {/* Bộ điều khiển âm lượng nhạc nền BGM (Mặc định 30%) */}
+          {/* Bộ điều khiển âm lượng nhạc nền BGM (Mặc định 3%) */}
           <div
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-sandstone bg-cream hover:bg-parchment/60 text-wood-800 transition-colors shadow-sm"
-            title={`Âm lượng nhạc nền: ${isPlayingAudio ? Math.round(bgmVolume * 100) : 0}% (Mặc định 30%)`}
+            title={`Âm lượng nhạc nền: ${isPlayingAudio ? Math.round(bgmVolume * 100) : 0}% (Mặc định 3%)`}
           >
             <button
               type="button"

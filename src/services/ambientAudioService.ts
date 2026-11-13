@@ -15,8 +15,8 @@ class AmbientAudioController {
   private appAudio: HTMLAudioElement | null = null;
   private arenaAudio: HTMLAudioElement | null = null;
   private playing = false;
-  private volume = 0.3; // Default 30% volume as requested
-  private lastNonZeroVolume = 0.3;
+  private volume = 0.03; // Default 3% volume as requested
+  private lastNonZeroVolume = 0.03;
   private listeners = new Set<AudioListener>();
 
   private initAudios() {
@@ -123,7 +123,7 @@ class AmbientAudioController {
   start(): boolean {
     this.initAudios();
     if (this.volume === 0) {
-      this.volume = this.lastNonZeroVolume || 0.3;
+      this.volume = this.lastNonZeroVolume || 0.03;
     }
     if (this.appAudio) this.appAudio.volume = this.volume;
     if (this.arenaAudio) this.arenaAudio.volume = this.volume;

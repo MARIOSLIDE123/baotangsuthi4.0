@@ -51,7 +51,7 @@ export const TOUR_POINTS: TourPoint[] = [
   { id: 'tp-entrance',     label: 'Cửa vào Gian Gah',       area: 'A', camAlpha: -1.57, camBeta: 1.20, camRadius: 22, targetX:  0,    targetY: 2.0, targetZ: 16,   neighbors: { down: 'tp-porch' } },
   { id: 'tp-porch',        label: 'Hiên Dring đón khách',    area: 'A', camAlpha: -1.57, camBeta: 1.10, camRadius: 14, targetX:  0,    targetY: 2.0, targetZ: 12,   neighbors: { up: 'tp-entrance', down: 'tp-gah-overview' } },
   { id: 'tp-gah-overview', label: 'Toàn cảnh Gian Gah',      area: 'B', camAlpha: -1.57, camBeta: 1.00, camRadius: 10, targetX:  0,    targetY: 3.0, targetZ:  4,   neighbors: { up: 'tp-porch', down: 'tp-hearth', left: 'tp-kpan', right: 'tp-gong' } },
-  { id: 'tp-hearth',       label: 'Đêm huyền thoại · Bếp lửa & Kể Khan', area: 'B', camAlpha: -1.57, camBeta: 1.18, camRadius:  6.0, targetX: 0,  targetY: 2.75, targetZ:  5.0, neighbors: { up: 'tp-gah-overview', down: 'tp-ok-entry', left: 'tp-kpan', right: 'tp-jars' } },
+  { id: 'tp-hearth',       label: 'Đêm huyền thoại · Bếp lửa & Kể Khan', area: 'B', camAlpha: -1.57, camBeta: 1.15, camRadius:  6.6, targetX: 0,  targetY: 2.8, targetZ:  4.8, neighbors: { up: 'tp-gah-overview', down: 'tp-ok-entry', left: 'tp-kpan', right: 'tp-jars' } },
   { id: 'tp-kpan',         label: 'Ghế Kpan đại ngàn',       area: 'B', camAlpha: -2.50, camBeta: 1.00, camRadius:  5.5, targetX:-3.3, targetY: 2.5, targetZ:  5.8, neighbors: { right: 'tp-hearth', down: 'tp-ok-entry' } },
   { id: 'tp-gong',         label: 'Cồng Chiêng & Trống',     area: 'B', camAlpha: -0.60, camBeta: 1.00, camRadius:  5.5, targetX: 3.0, targetY: 2.8, targetZ:  6.8, neighbors: { left: 'tp-hearth', down: 'tp-jars' } },
   { id: 'tp-jars',         label: 'Ché cổ & Rượu cần',       area: 'B', camAlpha: -0.50, camBeta: 1.10, camRadius:  5.5, targetX: 3.4, targetY: 2.5, targetZ:  2.2, neighbors: { up: 'tp-gong', left: 'tp-hearth', down: 'tp-ok-entry' } },
@@ -1246,16 +1246,16 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       }
 
       // Ngọn lửa 3D nhiều tầng (ẢNH 01: 3-Tier Multi-Spire 3D Flame Geometry)
-      // Lớp ngoài (Outer Flame: đỏ cam rực rỡ uốn lượn)
+      // Lớp ngoài (Outer Flame: đỏ cam rực rỡ uốn lượn, chiều cao cân đối không che mặt nghệ nhân)
       const flameOuterNode = new TransformNode('flameOuterNode', scene);
       flameOuterNode.position = new Vector3(0, 0.35, 0);
       flameOuterNode.parent = campfireRoot;
 
       for (let f = 0; f < 7; f++) {
-        const h = 1.35 + (f % 3) * 0.18;
+        const h = 1.05 + (f % 3) * 0.12;
         const spire = MeshBuilder.CreateCylinder(
           `flameOuterSpire_${f}`,
-          { diameterTop: 0.02, diameterBottom: 0.38 - (f % 2) * 0.06, height: h, tessellation: 7 },
+          { diameterTop: 0.02, diameterBottom: 0.36 - (f % 2) * 0.05, height: h, tessellation: 7 },
           scene
         );
         const sAng = (f * Math.PI * 2) / 7;
@@ -1274,10 +1274,10 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       flameMidNode.parent = campfireRoot;
 
       for (let f = 0; f < 5; f++) {
-        const h = 1.05 + (f % 2) * 0.16;
+        const h = 0.82 + (f % 2) * 0.12;
         const spire = MeshBuilder.CreateCylinder(
           `flameMidSpire_${f}`,
-          { diameterTop: 0.02, diameterBottom: 0.28, height: h, tessellation: 6 },
+          { diameterTop: 0.02, diameterBottom: 0.26, height: h, tessellation: 6 },
           scene
         );
         const sAng = (f * Math.PI * 2) / 5 + 0.4;
@@ -1294,10 +1294,10 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       flameCoreNode.parent = campfireRoot;
 
       for (let f = 0; f < 4; f++) {
-        const h = 0.7 + (f % 2) * 0.12;
+        const h = 0.56 + (f % 2) * 0.08;
         const spire = MeshBuilder.CreateCylinder(
           `flameCoreSpire_${f}`,
-          { diameterTop: 0.02, diameterBottom: 0.22, height: h, tessellation: 6 },
+          { diameterTop: 0.02, diameterBottom: 0.2, height: h, tessellation: 6 },
           scene
         );
         const sAng = (f * Math.PI * 2) / 4;
@@ -1333,18 +1333,18 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       };
 
       // 5.3. NHÂN VẬT TRUNG TÂM – NGHỆ NHÂN KỂ KHAN (CỤ ÔNG PÔ KHAN) (ẢNH 02)
-      // Cụ ông 65-75 tuổi, ngồi xếp bằng trang nghiêm giữa nhà, áo đen có mảng đỏ ngực, viền thổ cẩm
+      // Cụ ông 65-75 tuổi, ngồi xếp bằng trang nghiêm trên bục cao giữa nhà, áo đen có mảng đỏ ngực, viền thổ cẩm
       const poKhanRoot = new TransformNode('PoKhan_Character_Root', scene);
-      poKhanRoot.position = new Vector3(0, arch.floor.elevationY + 0.04, 6.0);
+      poKhanRoot.position = new Vector3(0, arch.floor.elevationY + 0.12, 6.1);
       poKhanRoot.parent = khanSceneRoot;
 
-      // Chiếu gối ngồi riêng của cụ
+      // Bục đệm chiếu ngồi bề thế riêng của cụ
       const poKhanCushion = MeshBuilder.CreateBox(
         'poKhanCushion',
-        { width: 1.1, height: 0.1, depth: 1.1 },
+        { width: 1.25, height: 0.22, depth: 1.25 },
         scene
       );
-      poKhanCushion.position = new Vector3(0, 0.05, 0);
+      poKhanCushion.position = new Vector3(0, 0.11, 0);
       poKhanCushion.material = matBrocade;
       poKhanCushion.parent = poKhanRoot;
       registerInteractive(poKhanCushion, 'int-pokhan');
@@ -1571,17 +1571,17 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       }
 
       const listenerDefs: ListenerDef[] = [
-        // Phía Tây (Bên trái cụ ông, gần ghế Kpan và chiếu)
-        { id: 'lis-elder-female', x: -2.2, z: 5.8, isElder: true, isFemale: true, name: 'Cụ bà Ê-đê' },
-        { id: 'lis-mid-male-bench', x: -3.2, z: 5.2, onBench: true, name: 'Bác trung niên ngồi ghế Kpan' },
-        { id: 'lis-young-hunter', x: -1.7, z: 4.6, name: 'Chàng trai thanh niên' },
-        { id: 'lis-adult-mother', x: -1.4, z: 3.4, isFemale: true, name: 'Người mẹ làng' },
+        // Phía Tây (Bên trái cụ ông, gần ghế Kpan và chiếu, quay mặt vào trong đống lửa)
+        { id: 'lis-elder-female', x: -2.2, z: 5.6, isElder: true, isFemale: true, name: 'Cụ bà Ê-đê' },
+        { id: 'lis-mid-male-bench', x: -3.2, z: 4.8, onBench: true, name: 'Bác trung niên ngồi ghế Kpan' },
+        { id: 'lis-young-hunter', x: -1.8, z: 3.9, name: 'Chàng trai thanh niên' },
+        { id: 'lis-adult-mother', x: -1.3, z: 3.0, isFemale: true, name: 'Người mẹ làng' },
 
-        // Phía Đông (Bên phải cụ ông, gần ché và cồng chiêng)
-        { id: 'lis-elder-male', x: 2.0, z: 5.7, isElder: true, name: 'Cụ ông bô lão' },
-        { id: 'lis-adult-male', x: 2.4, z: 4.7, name: 'Tráng sĩ bên hàng ché' },
-        { id: 'lis-young-female', x: 1.5, z: 3.5, isFemale: true, name: 'Thiếu nữ dệt vải' },
-        { id: 'lis-child', x: 0.8, z: 2.9, isChild: true, name: 'Bé thơ say mê' },
+        // Phía Đông (Bên phải cụ ông, gần ché và cồng chiêng, quay mặt vào trong đống lửa)
+        { id: 'lis-elder-male', x: 2.1, z: 5.6, isElder: true, name: 'Cụ ông bô lão' },
+        { id: 'lis-adult-male', x: 2.5, z: 4.6, name: 'Tráng sĩ bên hàng ché' },
+        { id: 'lis-young-female', x: 1.8, z: 3.8, isFemale: true, name: 'Thiếu nữ dệt vải' },
+        { id: 'lis-child', x: 1.2, z: 2.9, isChild: true, name: 'Bé thơ say mê' },
       ];
 
       const listenersAnimList: { head: TransformNode; chest: TransformNode; eyes: Mesh[]; phase: number }[] = [];
@@ -1591,10 +1591,11 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         const yBase = ld.onBench ? arch.floor.elevationY + 0.46 : arch.floor.elevationY + 0.04;
         charRoot.position = new Vector3(ld.x, yBase, ld.z);
 
-        // Tất cả nhân vật tự động quay mặt về phía Cụ ông Pô Khan và bếp lửa
+        // Tất cả nhân vật người nghe quay mặt vào trong tâm đống lửa 3D (targetX = 0, targetZ = 4.0)
+        // Vì local front của mesh nhân vật là trục -Z, góc quay chính xác là Math.atan2(dx, dz)
         const targetX = 0;
-        const targetZ = 5.2;
-        const lookAngle = Math.atan2(targetX - ld.x, targetZ - ld.z);
+        const targetZ = 4.0;
+        const lookAngle = Math.atan2(ld.x - targetX, ld.z - targetZ);
         charRoot.rotation.y = lookAngle;
         charRoot.parent = khanSceneRoot;
 
@@ -1639,18 +1640,29 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         redChest.parent = chestNode;
         registerInteractive(redChest, 'int-listeners');
 
-        // Cánh tay hướng về lòng / đầu gối
+        // Cánh tay hướng ra phía trước đùi / đầu gối
         for (const side of [-1, 1]) {
           const arm = MeshBuilder.CreateCylinder(
             `lisArm_${ld.id}_${side}`,
             { diameter: 0.1 * scaleFac, height: 0.42 * scaleFac, tessellation: 6 },
             scene
           );
-          arm.rotation = new Vector3(0.5, 0, side * -0.4);
-          arm.position = new Vector3(side * 0.26 * scaleFac, 0.22 * scaleFac, 0.06 * scaleFac);
+          arm.rotation = new Vector3(-0.45, 0, side * -0.28);
+          arm.position = new Vector3(side * 0.24 * scaleFac, 0.2 * scaleFac, -0.08 * scaleFac);
           arm.material = matEdeBlackCoat;
           arm.parent = chestNode;
           registerInteractive(arm, 'int-listeners');
+
+          // Bàn tay đặt tì trên đầu gối
+          const hand = MeshBuilder.CreateSphere(
+            `lisHand_${ld.id}_${side}`,
+            { diameter: 0.09 * scaleFac, segments: 4 },
+            scene
+          );
+          hand.position = new Vector3(side * 0.22 * scaleFac, 0.08 * scaleFac, -0.22 * scaleFac);
+          hand.material = skinMat;
+          hand.parent = chestNode;
+          registerInteractive(hand, 'int-listeners');
         }
 
         // Đầu & Khuôn mặt

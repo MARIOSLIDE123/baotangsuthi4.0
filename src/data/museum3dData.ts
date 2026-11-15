@@ -10,7 +10,7 @@ export const MUSEUM_3D_HOTSPOTS: Museum3DHotspot[] = [
     shortLabel: 'Cổng vào & Môi trường',
     position: { x: -3.2, y: 1.15, z: 23.5 },
     triggerRadius: 4.2,
-    imagePath: '/src/assets/images/hero_tay_nguyen_museum_1794539117734.jpg',
+    imagePath: '/assets/images/hero_tay_nguyen_museum_1794539117734.jpg',
     description:
       'Chào mừng bạn bước vào không gian Bảo tàng Sử thi 3D. Khung cảnh ngoài trời tái hiện bối cảnh đại ngàn Tây Nguyên với đường đất đỏ bazan, những cây Kơ-nia cổ thụ tỏa bóng mát và dải núi Chư Yang Sin mờ ảo phía xa.',
     simulationNote:
@@ -38,7 +38,7 @@ export const MUSEUM_3D_HOTSPOTS: Museum3DHotspot[] = [
     shortLabel: 'Dáng nhà & Mái Khau Kut',
     position: { x: 6.8, y: 1.2, z: 16.5 },
     triggerRadius: 4.2,
-    imagePath: '/src/assets/images/zone_museum_3d_1794539494709.jpg',
+    imagePath: '/assets/images/zone_museum_3d_1794539494709.jpg',
     description:
       'Ngôi nhà dài truyền thống của người Ê-đê có mặt bằng hình chữ nhật kéo dài theo trục Bắc - Nam. Mái dốc thấp lợp tranh dày nhiều lớp với phần hiên Dring nhô ra phía trước. Hai đầu hồi có họa tiết sừng khau kut vươn lên kiêu hãnh.',
     simulationNote:
@@ -66,7 +66,7 @@ export const MUSEUM_3D_HOTSPOTS: Museum3DHotspot[] = [
     shortLabel: 'Cầu thang K\'Kha Drai',
     position: { x: 2.3, y: 1.1, z: 17.0 },
     triggerRadius: 3.8,
-    imagePath: '/src/assets/images/hero_tay_nguyen_museum_1794539117734.jpg',
+    imagePath: '/assets/images/hero_tay_nguyen_museum_1794539117734.jpg',
     description:
       'Cầu thang cái (K\'Kha Drai) là kiệt tác điêu khắc gỗ đặc trưng của người Ê-đê. Đỉnh cầu thang uốn cong hình vầng trăng khuyết, phía dưới chạm khắc nổi đôi bầu ngực người phụ nữ bằng hình học 3D thật — biểu tượng thiêng liêng của chế độ mẫu hệ, tôn vinh nguồn sữa mẹ và sự trù phú sinh sôi.',
     simulationNote:
@@ -96,7 +96,7 @@ export const MUSEUM_3D_HOTSPOTS: Museum3DHotspot[] = [
     shortLabel: 'Ghế Kpan nguyên khối',
     position: { x: -3.3, y: 3.0, z: 5.8 },
     triggerRadius: 3.8,
-    imagePath: '/src/assets/images/dam_san_epic_journey_1794539119260.jpg',
+    imagePath: '/assets/images/dam_san_epic_journey_1794539119260.jpg',
     description:
       'Ghế Kpan là chiếc ghế gỗ dài đẽo từ một thân cây cổ thụ nguyên khối duy nhất, chạy dọc vách phía Tây của Gian Gah. Ghế Kpan dành riêng cho những nghệ nhân tấu cồng chiêng và người uy quyền trong các dịp đại lễ của buôn làng.',
     simulationNote:
@@ -124,7 +124,7 @@ export const MUSEUM_3D_HOTSPOTS: Museum3DHotspot[] = [
     shortLabel: 'Chiêng Knah & Trống H\'gơr',
     position: { x: 3.0, y: 3.0, z: 6.8 },
     triggerRadius: 4.0,
-    imagePath: '/src/assets/images/heritage_gong_brocade_1794539119394.jpg',
+    imagePath: '/assets/images/heritage_gong_brocade_1794539119394.jpg',
     description:
       'Dàn chiêng Knah gồm các chiếc chiêng núm và chiêng bằng được treo trên giá gỗ chạm trổ hoa văn. Bên cạnh là chiếc trống đại H\'gơr bịt da trâu với âm vang trầm hùng, giữ nhịp cho tiếng chiêng ngân vang qua thung lũng.',
     simulationNote:
@@ -152,7 +152,7 @@ export const MUSEUM_3D_HOTSPOTS: Museum3DHotspot[] = [
     shortLabel: 'Ché cổ & Rượu cần',
     position: { x: 3.4, y: 3.0, z: 2.2 },
     triggerRadius: 3.8,
-    imagePath: '/src/assets/images/zone_epic_gate_1794539494154.jpg',
+    imagePath: '/assets/images/zone_epic_gate_1794539494154.jpg',
     description:
       'Hàng ché men gốm cổ Tuk, Tang quý giá được buộc cẩn thận vào các cọc thiêng dọc vách Gian Gah. Những chiếc cần trúc uốn cong cắm sâu vào ché rượu men lá rừng sẵn sàng cho khách quý và buôn làng sum họp.',
     simulationNote:
@@ -173,32 +173,95 @@ export const MUSEUM_3D_HOTSPOTS: Museum3DHotspot[] = [
     badgeReward: 'Men say đại ngàn',
   },
   {
-    id: 'int-hearth',
+    id: 'int-pokhan',
     area: 'B',
-    areaLabel: 'Khu vực B – Gian Gah (Tiếp khách & Cộng đồng)',
-    title: 'Bếp lửa Gian Gah & Không gian kể Khan',
-    shortLabel: 'Bếp Gah & Sử thi Khan',
-    position: { x: 0, y: 3.0, z: 4.2 },
-    triggerRadius: 4.0,
-    imagePath: '/src/assets/images/zone_epic_gate_1794539494154.jpg',
+    areaLabel: 'Khu vực B – Gian Gah (Tâm điểm diễn xướng)',
+    title: 'Nghệ nhân Pô Khan – Báu vật sống của sử thi Ê-đê',
+    shortLabel: 'Nghệ nhân Pô Khan',
+    position: { x: 0, y: 3.1, z: 6.0 },
+    triggerRadius: 4.2,
+    imagePath: '/assets/images/su_gia_dai_ngan_1794539491712.jpg',
+    categoryType: 'pokhan',
     description:
-      'Bếp lửa đặt giữa Gian Gah được xây trên khuôn gỗ đệm đất nện và đá cuội. Đây là nơi nghệ nhân hát kể Khan (sử thi) cất giọng trầm bổng suốt đêm thâu, đưa người nghe đắm chìm vào những chiến công kỳ vĩ của Đăm Săn.',
+      'Nghệ nhân kể Khan (Pô Khan) là người nắm giữ hàng vạn câu thơ sử thi trong trí nhớ truyền khẩu kỳ diệu. Với trang phục áo đen truyền thống mang mảng thổ cẩm đỏ trang trọng trước ngực, nghệ nhân ngồi xếp bằng đĩnh đạc giữa Gian Gah, dùng ngữ điệu trầm bổng, cử chỉ hào sảng và ánh mắt sâu thẳm để dẫn dắt cả buôn làng bước vào thế giới thần thoại của Đăm Săn.',
     simulationNote:
-      'Ánh lửa bập bùng với nguồn sáng động PointLight ấm áp, tạo bóng đổ tự nhiên của hệ vì kèo lên mặt sàn tre.',
+      'Tạo hình nhân vật cụ ông 70 tuổi với biểu cảm sống động, tóc hoa râm, chuyển động miệng ngâm ngợi, bàn tay diễn đạt uyển chuyển và thân mình đung đưa theo nhịp điệu Khan.',
     narrationText:
-      'Ánh lửa Gian Gah là trái tim của đêm sử thi. Bên đống lửa ấm áp, nghệ nhân già nhấp ngụm rượu cần rồi cất giọng ngân vang, tái hiện lại những trang sử thi hào hùng của dân tộc.',
+      'Ta kể chuyện chàng Đăm Săn thuở xưa... Rượu đã rót đầy ché, lửa đã đỏ hồng gian Gah, tiếng chiêng đã ngân qua mái tranh vút lên trời cao. Hỡi buôn làng, hãy lắng nghe lời ngợi ca người anh hùng đâm lao như tên bay, múa khiên như gió lốc!',
+    khanStoryText:
+      '“Bà con cô bác lắng tai nghe! Chàng Đăm Săn rung khiên múa. Một lần xốc tới, chàng vượt một đồi tranh. Một lần xốc tới nữa, chàng vượt một đồi nứa. Chàng chạy vun vút qua phía đông, vun vút qua phía tây. Khiên chàng chạm vào cây rừng vang lên như sấm rền đại ngàn... Bắp chân chàng to như cây xà ngang, bắp tay chàng cuồn cuộn như thân gỗ lim!”',
+    khanArtDetail:
+      'Nghệ thuật hát kể Khan (Klei Khan) của người Ê-đê đã được công nhận là Di sản văn hóa phi vật thể quốc gia. Điểm đặc sắc nhất là nghệ nhân không dùng bất kỳ văn bản chép tay nào, mà ngâm ngợi hoàn toàn từ trí nhớ hàng đêm liền, kết hợp giữa thơ ca, văn xuôi, âm nhạc và nghệ thuật biểu cảm khuôn mặt.',
     missionQuestion:
-      'Nghệ thuật hát kể Khan (sử thi Ê-đê) thường diễn ra trong bối cảnh không gian thời gian nào?',
+      'Phương thức lưu truyền và đặc trưng nghệ thuật cốt lõi của hát kể Khan Ê-đê là gì?',
     missionOptions: [
-      'Vào ban đêm bên bếp lửa bập bùng giữa Gian Gah, khi buôn làng đã xong việc nương rẫy.',
-      'Vào ban trưa nắng gắt giữa nương rẫy.',
-      'Trong các phòng họp kín không có ngọn lửa.',
+      'Truyền miệng qua trí nhớ phi thường của nghệ nhân Pô Khan, diễn xướng bằng giọng điệu trầm bổng giàu nhạc tính bên bếp lửa.',
+      'Đọc từ sách in có sẵn của buôn làng.',
+      'Trình diễn kịch câm không có lời thoại.',
     ],
     correctIndex: 0,
     missionExplanation:
-      'Tuyệt vời! Không gian đêm khuya bên bếp lửa ấm cúng giữa nhà dài chính là sân khấu lý tưởng nhất của hát kể Khan.',
+      'Chính xác! Kể Khan là nghệ thuật truyền khẩu độc đáo, sống động nhờ trí nhớ kỳ vĩ và tâm hồn người kể chuyện giữa đại ngàn.',
+    points: 25,
+    badgeReward: 'Báu vật sử thi',
+  },
+  {
+    id: 'int-listeners',
+    area: 'B',
+    areaLabel: 'Khu vực B – Gian Gah (Vòng cung cộng đồng)',
+    title: 'Cộng đồng buôn làng – Khán giả và Người đồng sáng tạo',
+    shortLabel: 'Dân làng nghe Khan',
+    position: { x: 1.6, y: 2.8, z: 4.8 },
+    triggerRadius: 4.0,
+    imagePath: '/assets/images/dam_san_epic_journey_1794539119260.jpg',
+    categoryType: 'listeners',
+    description:
+      'Từ các bô lão, tráng sĩ đến phụ nữ và trẻ nhỏ, mọi thế hệ người Ê-đê đều ngồi quây quần thành hình vòng cung hướng về phía cụ ông. Họ chăm chú lắng nghe, cùng hò reo khi Đăm Săn chiến thắng kẻ thù, cùng nín thở khi người anh hùng gặp hiểm nguy trong Rừng Sáp Đen. Không có sự đồng cảm và tiếp nối của cộng đồng, sử thi không thể sống qua hàng ngàn năm.',
+    simulationNote:
+      'Nhóm 8 nhân vật đa dạng độ tuổi mặc trang phục áo đen viền thổ cẩm đỏ vàng đặc trưng, có hoạt ảnh chớp mắt, hít thở và gật đầu chăm chú lắng nghe.',
+    narrationText:
+      'Người nghe sử thi không chỉ là khán giả thụ động, mà họ chính là nhịp đập của câu chuyện. Ánh mắt trẻ thơ háo hức và những cái gật đầu của bô lão chính là ngọn gió tiếp thêm sức sống cho lời kể của Pô Khan.',
+    missionQuestion:
+      'Vai trò của cộng đồng buôn làng trong đêm kể Khan có ý nghĩa như thế nào đối với sức sống của sử thi?',
+    missionOptions: [
+      'Là môi trường nuôi dưỡng, thẩm định, hưởng ứng và trao truyền sử thi qua nhiều thế hệ.',
+      'Chỉ đến ngồi cho đủ số lượng người theo quy định của buôn.',
+      'Không đóng vai trò gì vì nghệ nhân tự kể một mình.',
+    ],
+    correctIndex: 0,
+    missionExplanation:
+      'Rất chính xác! Sử thi chỉ tồn tại khi nó sống trong lòng cộng đồng và được các thế hệ tiếp nhận, gìn giữ như báu vật thiêng liêng.',
     points: 20,
-    badgeReward: 'Người giữ lửa Khan',
+    badgeReward: 'Hồn thiêng buôn làng',
+  },
+  {
+    id: 'int-hearth',
+    area: 'B',
+    areaLabel: 'Khu vực B – Gian Gah (Tiếp khách & Cộng đồng)',
+    title: 'Đống lửa 3D tỏa tròn & Ngọn lửa thiêng huyền thoại',
+    shortLabel: 'Bếp lửa kể Khan',
+    position: { x: 0, y: 2.8, z: 4.0 },
+    triggerRadius: 4.0,
+    imagePath: '/assets/images/zone_epic_gate_1794539494154.jpg',
+    categoryType: 'hearth',
+    description:
+      'Đống lửa trung tâm được nhóm từ những khúc củi lớn xếp tỏa tròn hướng tâm theo đúng tục lệ Ê-đê (ẢNH 01). Đầu củi cháy đỏ rực than hồng ở tâm, ngọn lửa vươn cao với nhiều tầng màu vàng - cam - đỏ bập bùng chiếu rọi khuôn mặt nghệ nhân và sàn gỗ. Bếp lửa xua tan giá lạnh sương đêm, sưởi ấm lòng người và thắp sáng không gian huyền tích.',
+    simulationNote:
+      'Mô hình 3D củi xếp tỏa tròn hình học, ngọn lửa 3 tầng chuyển động lượn sóng động học kết hợp đốm than hồng phát sáng và nguồn sáng PointLight nhấp nháy.',
+    narrationText:
+      'Ngọn lửa là linh hồn của nhà dài Ê-đê. Lửa đượm thì lòng người ấm, ngọn lửa bùng lên soi rõ từng cử chỉ hào hùng của Pô Khan, nối kết con người hôm nay với tiền nhân ngàn năm trước.',
+    missionQuestion:
+      'Tại sao củi trong bếp lửa nhà dài Ê-đê thường được xếp tỏa tròn hướng vào tâm?',
+    missionOptions: [
+      'Để ngọn lửa tập trung cháy đều ở tâm, giữ nhiệt lâu và củi tự dồn vào khi cháy mà không bị tàn lụi nhanh.',
+      'Để làm đẹp ngẫu nhiên không có chủ đích.',
+      'Để khói bay tỏa ra khắp xung quanh phòng.',
+    ],
+    correctIndex: 0,
+    missionExplanation:
+      'Chính xác! Cách xếp củi hướng tâm là kinh nghiệm dân gian lâu đời giúp ngọn lửa cháy đượm, dễ chụm thêm củi và duy trì than hồng suốt đêm dài.',
+    points: 20,
+    badgeReward: 'Ngọn lửa vĩnh cửu',
   },
   {
     id: 'int-loom',
@@ -208,7 +271,7 @@ export const MUSEUM_3D_HOTSPOTS: Museum3DHotspot[] = [
     shortLabel: 'Khung dệt thổ cẩm',
     position: { x: 2.4, y: 3.0, z: -4.5 },
     triggerRadius: 3.8,
-    imagePath: '/src/assets/images/heritage_gong_brocade_1794539119394.jpg',
+    imagePath: '/assets/images/heritage_gong_brocade_1794539119394.jpg',
     description:
       'Khung dệt bằng gỗ và tre mộc mạc nơi bàn tay khéo léo của người phụ nữ Ê-đê dệt nên những tấm thổ cẩm rực rỡ sắc màu (đen, chàm, đỏ, vàng) với hoa văn rồng đất, kỳ đà, rùa và chim muông.',
     simulationNote:
@@ -236,7 +299,7 @@ export const MUSEUM_3D_HOTSPOTS: Museum3DHotspot[] = [
     shortLabel: 'Cối chày giã gạo',
     position: { x: 2.5, y: 3.0, z: -8.8 },
     triggerRadius: 3.8,
-    imagePath: '/src/assets/images/zone_stem_studio_1794539494969.jpg',
+    imagePath: '/assets/images/zone_stem_studio_1794539494969.jpg',
     description:
       'Chiếc cối giã gạo đẽo từ gốc gỗ lim hoặc sến sắn nguyên khối, kèm theo những thanh chày gỗ thon dài hai đầu. Nhịp chày giã gạo nhịp nhàng vào mỗi sớm mai là hình ảnh quen thuộc nuôi dưỡng buôn làng.',
     simulationNote:
@@ -264,7 +327,7 @@ export const MUSEUM_3D_HOTSPOTS: Museum3DHotspot[] = [
     shortLabel: 'Gùi Đới & Đồ mây tre',
     position: { x: -2.8, y: 3.0, z: -4.2 },
     triggerRadius: 3.8,
-    imagePath: '/src/assets/images/heritage_gong_brocade_1794539119394.jpg',
+    imagePath: '/assets/images/heritage_gong_brocade_1794539119394.jpg',
     description:
       'Gùi Đới là vật dụng bất ly thân của cư dân Ê-đê khi lên rẫy hay xuống suối. Được đan bằng mây và cật tre già với kỹ thuật đan nan tinh xảo, gùi vừa chắc chắn vừa mang hoa văn nan đan trang nhã.',
     simulationNote:
@@ -292,7 +355,7 @@ export const MUSEUM_3D_HOTSPOTS: Museum3DHotspot[] = [
     shortLabel: 'Gian Ôk sinh hoạt',
     position: { x: -1.2, y: 3.0, z: -7.5 },
     triggerRadius: 4.0,
-    imagePath: '/src/assets/images/zone_museum_3d_1794539494709.jpg',
+    imagePath: '/assets/images/zone_museum_3d_1794539494709.jpg',
     description:
       'Phía sau vách ngăn là Gian Ôk — không gian sinh hoạt riêng tư của đại gia đình. Các buồng ngủ của từng cặp vợ chồng được ngăn cách kín đáo bằng phên nứa, kế bên là bếp nấu ăn chung (Bếp Ôk) với giàn sấy gác củi.',
     simulationNote:

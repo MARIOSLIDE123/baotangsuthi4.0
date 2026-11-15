@@ -51,7 +51,7 @@ export const TOUR_POINTS: TourPoint[] = [
   { id: 'tp-entrance',     label: 'Cửa vào Gian Gah',       area: 'A', camAlpha: -1.57, camBeta: 1.20, camRadius: 22, targetX:  0,    targetY: 2.0, targetZ: 16,   neighbors: { down: 'tp-porch' } },
   { id: 'tp-porch',        label: 'Hiên Dring đón khách',    area: 'A', camAlpha: -1.57, camBeta: 1.10, camRadius: 14, targetX:  0,    targetY: 2.0, targetZ: 12,   neighbors: { up: 'tp-entrance', down: 'tp-gah-overview' } },
   { id: 'tp-gah-overview', label: 'Toàn cảnh Gian Gah',      area: 'B', camAlpha: -1.57, camBeta: 1.00, camRadius: 10, targetX:  0,    targetY: 3.0, targetZ:  4,   neighbors: { up: 'tp-porch', down: 'tp-hearth', left: 'tp-kpan', right: 'tp-gong' } },
-  { id: 'tp-hearth',       label: 'Bếp lửa & Kể Khan',       area: 'B', camAlpha: -1.57, camBeta: 1.10, camRadius:  5.5, targetX: 0,  targetY: 2.8, targetZ:  4.2, neighbors: { up: 'tp-gah-overview', down: 'tp-ok-entry', left: 'tp-kpan', right: 'tp-jars' } },
+  { id: 'tp-hearth',       label: 'Đêm huyền thoại · Bếp lửa & Kể Khan', area: 'B', camAlpha: -1.57, camBeta: 1.18, camRadius:  6.0, targetX: 0,  targetY: 2.75, targetZ:  5.0, neighbors: { up: 'tp-gah-overview', down: 'tp-ok-entry', left: 'tp-kpan', right: 'tp-jars' } },
   { id: 'tp-kpan',         label: 'Ghế Kpan đại ngàn',       area: 'B', camAlpha: -2.50, camBeta: 1.00, camRadius:  5.5, targetX:-3.3, targetY: 2.5, targetZ:  5.8, neighbors: { right: 'tp-hearth', down: 'tp-ok-entry' } },
   { id: 'tp-gong',         label: 'Cồng Chiêng & Trống',     area: 'B', camAlpha: -0.60, camBeta: 1.00, camRadius:  5.5, targetX: 3.0, targetY: 2.8, targetZ:  6.8, neighbors: { left: 'tp-hearth', down: 'tp-jars' } },
   { id: 'tp-jars',         label: 'Ché cổ & Rượu cần',       area: 'B', camAlpha: -0.50, camBeta: 1.10, camRadius:  5.5, targetX: 3.4, targetY: 2.5, targetZ:  2.2, neighbors: { up: 'tp-gong', left: 'tp-hearth', down: 'tp-ok-entry' } },
@@ -98,6 +98,12 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
   const dailyMeshesRef = useRef<Mesh[]>([]);
   const hearthLightRef = useRef<PointLight | null>(null);
   const currentTourPointIdRef = useRef<string>('tp-entrance');
+
+  // Animation & Audio references for Po Khan storytelling & 3D campfire
+  const flameMeshesRef = useRef<{ outer: TransformNode; mid: TransformNode; core: TransformNode; sparks: Mesh[] } | null>(null);
+  const poKhanAnimRef = useRef<{ mouth: Mesh; head: TransformNode; rightArm: TransformNode; chest: TransformNode; eyes: Mesh[] } | null>(null);
+  const listenersAnimRef = useRef<{ head: TransformNode; chest: TransformNode; eyes: Mesh[]; phase: number }[]>([]);
+  const fireAudioCtxRef = useRef<AudioContext | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [webglError, setWebglError] = useState<string | null>(null);
@@ -282,7 +288,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
 
       const makeProceduralTexture = (
         name: string,
-        pattern: 'wood' | 'bamboo' | 'thatch' | 'soil' | 'brocade' | 'ceramic',
+        pattern: 'wood' | 'bamboo' | 'thatch' | 'soil' | 'brocade' | 'ceramic' | 'edeChest' | 'edeTrim' | 'charredWood' | 'woodEnd',
         baseRgb: [number, number, number]
       ) => {
         if (!preset.proceduralTextures) return null;
@@ -358,6 +364,71 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
           for (let i = 0; i < 200; i++) {
             ctx.fillRect(Math.random() * size, Math.random() * size, 3, 3);
           }
+        } else if (pattern === 'edeChest') {
+          // Traditional E-de chest pattern (ẢNH 02): Deep red rectangular panel with white/gold geometric motifs
+          ctx.fillStyle = '#9b141e';
+          ctx.fillRect(0, 0, size, size);
+          ctx.fillStyle = '#111111';
+          ctx.fillRect(size * 0.1, size * 0.35, size * 0.8, size * 0.3);
+          ctx.fillStyle = '#e8a82a';
+          for (let x = 0; x < size; x += 24) {
+            ctx.beginPath();
+            ctx.moveTo(x, size * 0.35);
+            ctx.lineTo(x + 12, size * 0.5);
+            ctx.lineTo(x + 24, size * 0.35);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(x, size * 0.65);
+            ctx.lineTo(x + 12, size * 0.5);
+            ctx.lineTo(x + 24, size * 0.65);
+            ctx.fill();
+          }
+          ctx.fillStyle = '#ffffff';
+          for (let x = 6; x < size; x += 24) {
+            ctx.fillRect(x, size * 0.47, 8, 8);
+          }
+        } else if (pattern === 'edeTrim') {
+          // Traditional brocade trim on cuffs, neck, borders
+          ctx.fillStyle = '#b81e28';
+          ctx.fillRect(0, 0, size, size);
+          ctx.strokeStyle = '#f5c53b';
+          ctx.lineWidth = 4;
+          for (let x = 0; x < size; x += 16) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x + 8, size / 2);
+            ctx.lineTo(x + 16, 0);
+            ctx.stroke();
+          }
+          ctx.fillStyle = '#ffffff';
+          for (let x = 4; x < size; x += 16) {
+            ctx.fillRect(x, size / 2, 6, size / 2);
+          }
+        } else if (pattern === 'charredWood') {
+          // Burnt log surface with glowing ember cracks
+          ctx.fillStyle = '#161311';
+          ctx.fillRect(0, 0, size, size);
+          ctx.strokeStyle = '#ff4d00';
+          ctx.lineWidth = 3;
+          for (let i = 0; i < 40; i++) {
+            const sx = Math.random() * size;
+            const sy = Math.random() * size;
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(sx + (Math.random() - 0.5) * 50, sy + Math.random() * 40);
+            ctx.stroke();
+          }
+        } else if (pattern === 'woodEnd') {
+          // Log cross-section tree rings
+          ctx.fillStyle = '#9c6f44';
+          ctx.fillRect(0, 0, size, size);
+          ctx.strokeStyle = '#4e331b';
+          ctx.lineWidth = 2;
+          for (let r = 10; r < size / 2; r += 12) {
+            ctx.beginPath();
+            ctx.arc(size / 2, size / 2, r, 0, Math.PI * 2);
+            ctx.stroke();
+          }
         }
 
         dt.update();
@@ -370,7 +441,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         albedoRgb: [number, number, number],
         roughness: number,
         metallic = 0.05,
-        pattern?: 'wood' | 'bamboo' | 'thatch' | 'soil' | 'brocade' | 'ceramic'
+        pattern?: 'wood' | 'bamboo' | 'thatch' | 'soil' | 'brocade' | 'ceramic' | 'edeChest' | 'edeTrim' | 'charredWood' | 'woodEnd'
       ) => {
         const mat = new PBRMaterial(name, scene!);
         mat.albedoColor = Color3.FromArray(albedoRgb);
@@ -382,7 +453,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
           const tex = makeProceduralTexture(`${name}_tex`, pattern, albedoRgb);
           if (tex) {
             mat.albedoTexture = tex;
-            if (pattern === 'wood' || pattern === 'bamboo') {
+            if (pattern === 'wood' || pattern === 'bamboo' || pattern === 'charredWood') {
               mat.bumpTexture = tex;
               mat.bumpTexture.level = 0.3;
             }
@@ -404,9 +475,41 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       const matCeramic = makePBRMat('matCeramic', pal.ceramicGlazeTuk, 0.16, 0.12, 'ceramic');
       const matBrocade = makePBRMat('matBrocade', pal.brocadeCrimson, 0.75, 0.04, 'brocade');
 
+      // Specialized PBR Materials for E-de Characters (ẢNH 02) & 3D Campfire (ẢNH 01)
+      const matEdeBlackCoat = makePBRMat('matEdeBlackCoat', [0.07, 0.07, 0.08], 0.82, 0.02);
+      const matEdeRedChest = makePBRMat('matEdeRedChest', [0.75, 0.12, 0.14], 0.72, 0.04, 'edeChest');
+      const matBrocadeTrim = makePBRMat('matBrocadeTrim', [0.85, 0.7, 0.2], 0.65, 0.05, 'edeTrim');
+      const matEdeBlackPants = makePBRMat('matEdeBlackPants', [0.05, 0.05, 0.06], 0.85, 0.01);
+      const matSkinElder = makePBRMat('matSkinElder', [0.65, 0.45, 0.32], 0.78, 0.02);
+      const matSkinAdult = makePBRMat('matSkinAdult', [0.70, 0.50, 0.37], 0.72, 0.02);
+      const matSkinChild = makePBRMat('matSkinChild', [0.76, 0.57, 0.43], 0.68, 0.02);
+      const matHairGrey = makePBRMat('matHairGrey', [0.78, 0.78, 0.80], 0.9, 0.0);
+      const matHairBlack = makePBRMat('matHairBlack', [0.08, 0.08, 0.09], 0.8, 0.02);
+      const matCharredLog = makePBRMat('matCharredLog', [0.12, 0.10, 0.09], 0.88, 0.05, 'charredWood');
+      const matWoodEnd = makePBRMat('matWoodEnd', [0.55, 0.38, 0.24], 0.75, 0.02, 'woodEnd');
+
       const matEmber = new StandardMaterial('matEmber', scene);
       matEmber.diffuseColor = Color3.FromArray(pal.emberGlow);
-      matEmber.emissiveColor = Color3.FromArray(pal.emberGlow).scale(0.9);
+      matEmber.emissiveColor = Color3.FromArray(pal.emberGlow).scale(0.95);
+
+      // 3-tier flame materials (ẢNH 01: Multi-tier red-orange-yellow flame)
+      const matFlameOuter = new StandardMaterial('matFlameOuter', scene);
+      matFlameOuter.diffuseColor = new Color3(0.95, 0.25, 0.02);
+      matFlameOuter.emissiveColor = new Color3(0.92, 0.22, 0.02);
+      matFlameOuter.alpha = 0.88;
+      matFlameOuter.backFaceCulling = false;
+
+      const matFlameMid = new StandardMaterial('matFlameMid', scene);
+      matFlameMid.diffuseColor = new Color3(1.0, 0.58, 0.08);
+      matFlameMid.emissiveColor = new Color3(1.0, 0.55, 0.06);
+      matFlameMid.alpha = 0.92;
+      matFlameMid.backFaceCulling = false;
+
+      const matFlameCore = new StandardMaterial('matFlameCore', scene);
+      matFlameCore.diffuseColor = new Color3(1.0, 0.96, 0.35);
+      matFlameCore.emissiveColor = new Color3(1.0, 0.94, 0.3);
+      matFlameCore.alpha = 0.98;
+      matFlameCore.backFaceCulling = false;
 
       // Helper to register interactive mesh for raycast clicking (Requirement 3)
       const registerInteractive = (mesh: Mesh, hotspotId: string) => {
@@ -1037,37 +1140,567 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         festiveMeshesRef.current.push(reed);
       }
 
-      // Artifact 5: Bếp lửa Gian Gah (Không gian kể sử thi Khan)
+      // =========================================================================
+      // ARTIFACT 5: ĐÊM HUYỀN THOẠI – NGHỆ NHÂN KỂ KHAN BÊN BẾP LỬA (ẢNH 01 & 02)
+      // =========================================================================
+      const khanSceneRoot = new TransformNode('PoKhan_LegendaryNight_Root', scene);
+      khanSceneRoot.parent = interiorNode;
+
+      // 5.1. Tấm chiếu dệt thổ cẩm đại ngàn (Grand Brocade Mat Carpet)
+      const gahCarpet = MeshBuilder.CreateBox(
+        'gahBrocadeCarpet',
+        { width: 5.6, height: 0.04, depth: 6.4 },
+        scene
+      );
+      gahCarpet.position = new Vector3(0, arch.floor.elevationY + 0.02, 4.8);
+      gahCarpet.material = matBrocade;
+      gahCarpet.receiveShadows = true;
+      gahCarpet.parent = khanSceneRoot;
+      registerInteractive(gahCarpet, 'int-hearth');
+
+      // 5.2. ĐỐNG LỬA 3D XẾP CỦI TỎA TRÒN THEO ẢNH 01 (Radial Logs Campfire)
+      const campfireRoot = new TransformNode('Campfire_3D_Root', scene);
+      campfireRoot.position = new Vector3(0, arch.floor.elevationY + 0.04, 4.0);
+      campfireRoot.parent = khanSceneRoot;
+
+      // Khung bếp vuông đệm đất đá nung
       const hearthGahBase = MeshBuilder.CreateBox(
         'hearthGahBase',
-        { width: 2.1, height: 0.28, depth: 2.1 },
+        { width: 2.3, height: 0.26, depth: 2.3 },
         scene
       );
-      hearthGahBase.position = new Vector3(0, arch.floor.elevationY + 0.2, 4.2);
+      hearthGahBase.position = new Vector3(0, 0.13, 0);
       hearthGahBase.material = matRiverStone;
       hearthGahBase.checkCollisions = true;
-      hearthGahBase.parent = interiorNode;
+      hearthGahBase.parent = campfireRoot;
       registerInteractive(hearthGahBase, 'int-hearth');
 
-      const hearthEmberGah = MeshBuilder.CreateSphere(
-        'hearthEmberGah',
-        { diameter: 0.85, segments: 8 },
+      const hearthSoilBed = MeshBuilder.CreateBox(
+        'hearthSoilBed',
+        { width: 2.05, height: 0.1, depth: 2.05 },
         scene
       );
-      hearthEmberGah.position = new Vector3(0, arch.floor.elevationY + 0.48, 4.2);
-      hearthEmberGah.material = matEmber;
-      hearthEmberGah.parent = interiorNode;
-      registerInteractive(hearthEmberGah, 'int-hearth');
+      hearthSoilBed.position = new Vector3(0, 0.22, 0);
+      hearthSoilBed.material = matCharredLog;
+      hearthSoilBed.parent = campfireRoot;
+      registerInteractive(hearthSoilBed, 'int-hearth');
 
-      const tripod = MeshBuilder.CreateTorus(
-        'hearthTripod',
-        { diameter: 0.72, thickness: 0.06, tessellation: 12 },
+      // 6 khúc củi lớn xếp tỏa tròn hướng tâm (ẢNH 01: Radial logs radiating from center)
+      const radialAngles = [0, Math.PI / 3, (2 * Math.PI) / 3, Math.PI, (4 * Math.PI) / 3, (5 * Math.PI) / 3];
+      radialAngles.forEach((ang, idx) => {
+        const logLen = 1.15 + (idx % 2) * 0.15;
+        const logDiam = 0.15 + (idx % 3) * 0.02;
+
+        const logNode = new TransformNode(`radialLogNode_${idx}`, scene);
+        logNode.position = new Vector3(0, 0.26, 0);
+        logNode.rotation.y = ang + (idx % 2 === 0 ? 0.08 : -0.08);
+        logNode.parent = campfireRoot;
+
+        // Thân khúc củi vỏ xù xì biến dạng
+        const logBark = MeshBuilder.CreateCylinder(
+          `logBark_${idx}`,
+          { diameter: logDiam, height: logLen, tessellation: 12 },
+          scene
+        );
+        logBark.rotation.x = Math.PI / 2;
+        logBark.position = new Vector3(0, 0.06, logLen / 2 + 0.12);
+        logBark.material = matCharredLog;
+        logBark.parent = logNode;
+        registerInteractive(logBark, 'int-hearth');
+
+        // Mặt cắt đầu củi hướng ra ngoài có vân gỗ tròn (ẢNH 01)
+        const logEndCap = MeshBuilder.CreateDisc(
+          `logEndCap_${idx}`,
+          { radius: logDiam / 2, tessellation: 16 },
+          scene
+        );
+        logEndCap.position = new Vector3(0, 0.06, logLen + 0.12);
+        logEndCap.material = matWoodEnd;
+        logEndCap.parent = logNode;
+
+        // Đầu trong gần tâm cháy đen xém than hồng rực sáng
+        const logInnerEmber = MeshBuilder.CreateSphere(
+          `logInnerEmber_${idx}`,
+          { diameter: logDiam * 1.15, segments: 6 },
+          scene
+        );
+        logInnerEmber.position = new Vector3(0, 0.06, 0.16);
+        logInnerEmber.material = matEmber;
+        logInnerEmber.parent = logNode;
+      });
+
+      // Cụm than hồng âm ỉ ở tâm đáy bếp
+      for (let e = 0; e < 10; e++) {
+        const coal = MeshBuilder.CreateBox(
+          `coalEmber_${e}`,
+          { width: 0.16 + (e % 3) * 0.06, height: 0.14, depth: 0.18 + (e % 2) * 0.06 },
+          scene
+        );
+        const rad = 0.12 + Math.random() * 0.22;
+        const eAng = (e * Math.PI * 2) / 10;
+        coal.position = new Vector3(Math.cos(eAng) * rad, 0.28 + (e % 2) * 0.05, Math.sin(eAng) * rad);
+        coal.rotation = new Vector3(Math.random(), Math.random(), Math.random());
+        coal.material = matEmber;
+        coal.parent = campfireRoot;
+        registerInteractive(coal, 'int-hearth');
+      }
+
+      // Ngọn lửa 3D nhiều tầng (ẢNH 01: 3-Tier Multi-Spire 3D Flame Geometry)
+      // Lớp ngoài (Outer Flame: đỏ cam rực rỡ uốn lượn)
+      const flameOuterNode = new TransformNode('flameOuterNode', scene);
+      flameOuterNode.position = new Vector3(0, 0.35, 0);
+      flameOuterNode.parent = campfireRoot;
+
+      for (let f = 0; f < 7; f++) {
+        const h = 1.35 + (f % 3) * 0.18;
+        const spire = MeshBuilder.CreateCylinder(
+          `flameOuterSpire_${f}`,
+          { diameterTop: 0.02, diameterBottom: 0.38 - (f % 2) * 0.06, height: h, tessellation: 7 },
+          scene
+        );
+        const sAng = (f * Math.PI * 2) / 7;
+        const dist = 0.22;
+        spire.position = new Vector3(Math.cos(sAng) * dist, h / 2, Math.sin(sAng) * dist);
+        spire.rotation.x = Math.sin(sAng) * 0.15;
+        spire.rotation.z = -Math.cos(sAng) * 0.15;
+        spire.material = matFlameOuter;
+        spire.parent = flameOuterNode;
+        registerInteractive(spire, 'int-hearth');
+      }
+
+      // Lớp giữa (Mid Flame: cam sáng rực rỡ)
+      const flameMidNode = new TransformNode('flameMidNode', scene);
+      flameMidNode.position = new Vector3(0, 0.36, 0);
+      flameMidNode.parent = campfireRoot;
+
+      for (let f = 0; f < 5; f++) {
+        const h = 1.05 + (f % 2) * 0.16;
+        const spire = MeshBuilder.CreateCylinder(
+          `flameMidSpire_${f}`,
+          { diameterTop: 0.02, diameterBottom: 0.28, height: h, tessellation: 6 },
+          scene
+        );
+        const sAng = (f * Math.PI * 2) / 5 + 0.4;
+        const dist = 0.14;
+        spire.position = new Vector3(Math.cos(sAng) * dist, h / 2, Math.sin(sAng) * dist);
+        spire.material = matFlameMid;
+        spire.parent = flameMidNode;
+        registerInteractive(spire, 'int-hearth');
+      }
+
+      // Lớp trong (Core Flame: vàng rực chói lóa ở trung tâm)
+      const flameCoreNode = new TransformNode('flameCoreNode', scene);
+      flameCoreNode.position = new Vector3(0, 0.37, 0);
+      flameCoreNode.parent = campfireRoot;
+
+      for (let f = 0; f < 4; f++) {
+        const h = 0.7 + (f % 2) * 0.12;
+        const spire = MeshBuilder.CreateCylinder(
+          `flameCoreSpire_${f}`,
+          { diameterTop: 0.02, diameterBottom: 0.22, height: h, tessellation: 6 },
+          scene
+        );
+        const sAng = (f * Math.PI * 2) / 4;
+        spire.position = new Vector3(Math.cos(sAng) * 0.07, h / 2, Math.sin(sAng) * 0.07);
+        spire.material = matFlameCore;
+        spire.parent = flameCoreNode;
+        registerInteractive(spire, 'int-hearth');
+      }
+
+      // Đốm tàn than nhỏ (Floating Sparks & Embers)
+      const sparkMeshes: Mesh[] = [];
+      for (let s = 0; s < 12; s++) {
+        const spark = MeshBuilder.CreateSphere(
+          `fireSpark_${s}`,
+          { diameter: 0.045 + (s % 3) * 0.02, segments: 4 },
+          scene
+        );
+        spark.position = new Vector3(
+          (Math.random() - 0.5) * 0.5,
+          0.6 + Math.random() * 1.5,
+          (Math.random() - 0.5) * 0.5
+        );
+        spark.material = matEmber;
+        spark.parent = campfireRoot;
+        sparkMeshes.push(spark);
+      }
+
+      flameMeshesRef.current = {
+        outer: flameOuterNode,
+        mid: flameMidNode,
+        core: flameCoreNode,
+        sparks: sparkMeshes,
+      };
+
+      // 5.3. NHÂN VẬT TRUNG TÂM – NGHỆ NHÂN KỂ KHAN (CỤ ÔNG PÔ KHAN) (ẢNH 02)
+      // Cụ ông 65-75 tuổi, ngồi xếp bằng trang nghiêm giữa nhà, áo đen có mảng đỏ ngực, viền thổ cẩm
+      const poKhanRoot = new TransformNode('PoKhan_Character_Root', scene);
+      poKhanRoot.position = new Vector3(0, arch.floor.elevationY + 0.04, 6.0);
+      poKhanRoot.parent = khanSceneRoot;
+
+      // Chiếu gối ngồi riêng của cụ
+      const poKhanCushion = MeshBuilder.CreateBox(
+        'poKhanCushion',
+        { width: 1.1, height: 0.1, depth: 1.1 },
         scene
       );
-      tripod.position = new Vector3(0, arch.floor.elevationY + 0.48, 4.2);
-      tripod.material = matBronze;
-      tripod.parent = interiorNode;
-      registerInteractive(tripod, 'int-hearth');
+      poKhanCushion.position = new Vector3(0, 0.05, 0);
+      poKhanCushion.material = matBrocade;
+      poKhanCushion.parent = poKhanRoot;
+      registerInteractive(poKhanCushion, 'int-pokhan');
+
+      // Chân ngồi xếp bằng (Crossed legs in black trousers)
+      const poKhanLegs = MeshBuilder.CreateBox(
+        'poKhanLegs',
+        { width: 0.96, height: 0.26, depth: 0.65 },
+        scene
+      );
+      poKhanLegs.position = new Vector3(0, 0.22, 0.08);
+      poKhanLegs.material = matEdeBlackPants;
+      poKhanLegs.parent = poKhanRoot;
+      registerInteractive(poKhanLegs, 'int-pokhan');
+
+      // Thân mình (Torso - Áo đen truyền thống)
+      const poKhanChestNode = new TransformNode('poKhanChestNode', scene);
+      poKhanChestNode.position = new Vector3(0, 0.38, 0);
+      poKhanChestNode.parent = poKhanRoot;
+
+      const poKhanTorso = MeshBuilder.CreateBox(
+        'poKhanTorso',
+        { width: 0.58, height: 0.68, depth: 0.36 },
+        scene
+      );
+      poKhanTorso.position = new Vector3(0, 0.34, 0);
+      poKhanTorso.material = matEdeBlackCoat;
+      poKhanTorso.parent = poKhanChestNode;
+      registerInteractive(poKhanTorso, 'int-pokhan');
+
+      // Mảng vải đỏ hình chữ nhật nổi bật trước ngực theo ẢNH 02 (Traditional Red Rectangular Chest Panel)
+      const poKhanRedChest = MeshBuilder.CreateBox(
+        'poKhanRedChest',
+        { width: 0.36, height: 0.42, depth: 0.04 },
+        scene
+      );
+      poKhanRedChest.position = new Vector3(0, 0.36, -0.19);
+      poKhanRedChest.material = matEdeRedChest;
+      poKhanRedChest.parent = poKhanChestNode;
+      registerInteractive(poKhanRedChest, 'int-pokhan');
+
+      // Viền thổ cẩm đỏ, vàng, trắng ở mép ngực áo & cổ áo (ẢNH 02)
+      const poKhanChestTrimTop = MeshBuilder.CreateBox(
+        'poKhanChestTrimTop',
+        { width: 0.4, height: 0.05, depth: 0.05 },
+        scene
+      );
+      poKhanChestTrimTop.position = new Vector3(0, 0.58, -0.19);
+      poKhanChestTrimTop.material = matBrocadeTrim;
+      poKhanChestTrimTop.parent = poKhanChestNode;
+
+      const poKhanChestTrimBottom = MeshBuilder.CreateBox(
+        'poKhanChestTrimBottom',
+        { width: 0.4, height: 0.05, depth: 0.05 },
+        scene
+      );
+      poKhanChestTrimBottom.position = new Vector3(0, 0.14, -0.19);
+      poKhanChestTrimBottom.material = matBrocadeTrim;
+      poKhanChestTrimBottom.parent = poKhanChestNode;
+
+      // Cánh tay trái: đặt tì nhẹ lên đầu gối thư thái
+      const poKhanLeftArm = MeshBuilder.CreateCylinder(
+        'poKhanLeftArm',
+        { diameter: 0.12, height: 0.52, tessellation: 8 },
+        scene
+      );
+      poKhanLeftArm.rotation = new Vector3(0.5, 0, -0.6);
+      poKhanLeftArm.position = new Vector3(-0.35, 0.32, 0.08);
+      poKhanLeftArm.material = matEdeBlackCoat;
+      poKhanLeftArm.parent = poKhanChestNode;
+      registerInteractive(poKhanLeftArm, 'int-pokhan');
+
+      // Viền tay áo trái
+      const poKhanLeftCuff = MeshBuilder.CreateTorus(
+        'poKhanLeftCuff',
+        { diameter: 0.14, thickness: 0.03, tessellation: 10 },
+        scene
+      );
+      poKhanLeftCuff.rotation = new Vector3(0.5, 0, -0.6);
+      poKhanLeftCuff.position = new Vector3(-0.48, 0.16, 0.22);
+      poKhanLeftCuff.material = matBrocadeTrim;
+      poKhanLeftCuff.parent = poKhanChestNode;
+
+      // Bàn tay trái cụ ông
+      const poKhanLeftHand = MeshBuilder.CreateSphere(
+        'poKhanLeftHand',
+        { diameter: 0.13, segments: 6 },
+        scene
+      );
+      poKhanLeftHand.position = new Vector3(-0.52, 0.11, 0.28);
+      poKhanLeftHand.material = matSkinElder;
+      poKhanLeftHand.parent = poKhanChestNode;
+      registerInteractive(poKhanLeftHand, 'int-pokhan');
+
+      // Cánh tay phải: giơ lên diễn cảm hào sảng theo nhịp kể Khan (Storytelling Gesturing Arm)
+      const poKhanRightArmNode = new TransformNode('poKhanRightArmNode', scene);
+      poKhanRightArmNode.position = new Vector3(0.32, 0.58, -0.06);
+      poKhanRightArmNode.parent = poKhanChestNode;
+
+      const poKhanRightArm = MeshBuilder.CreateCylinder(
+        'poKhanRightArm',
+        { diameter: 0.12, height: 0.44, tessellation: 8 },
+        scene
+      );
+      poKhanRightArm.rotation = new Vector3(-0.7, 0, 0.45);
+      poKhanRightArm.position = new Vector3(0.12, -0.15, -0.12);
+      poKhanRightArm.material = matEdeBlackCoat;
+      poKhanRightArm.parent = poKhanRightArmNode;
+      registerInteractive(poKhanRightArm, 'int-pokhan');
+
+      // Viền tay áo phải
+      const poKhanRightCuff = MeshBuilder.CreateTorus(
+        'poKhanRightCuff',
+        { diameter: 0.14, thickness: 0.03, tessellation: 10 },
+        scene
+      );
+      poKhanRightCuff.rotation = new Vector3(-0.7, 0, 0.45);
+      poKhanRightCuff.position = new Vector3(0.24, -0.02, -0.25);
+      poKhanRightCuff.material = matBrocadeTrim;
+      poKhanRightCuff.parent = poKhanRightArmNode;
+
+      // Bàn tay phải diễn đạt (các ngón tay hướng ra truyền cảm)
+      const poKhanRightHand = MeshBuilder.CreateSphere(
+        'poKhanRightHand',
+        { diameter: 0.14, segments: 6 },
+        scene
+      );
+      poKhanRightHand.scaling = new Vector3(0.8, 1.2, 1.3);
+      poKhanRightHand.position = new Vector3(0.28, 0.06, -0.32);
+      poKhanRightHand.material = matSkinElder;
+      poKhanRightHand.parent = poKhanRightArmNode;
+      registerInteractive(poKhanRightHand, 'int-pokhan');
+
+      // Đầu & Khuôn mặt Cụ ông Pô Khan (65-75 tuổi)
+      const poKhanHeadNode = new TransformNode('poKhanHeadNode', scene);
+      poKhanHeadNode.position = new Vector3(0, 0.72, -0.04);
+      poKhanHeadNode.parent = poKhanChestNode;
+
+      const poKhanHead = MeshBuilder.CreateSphere(
+        'poKhanHeadMesh',
+        { diameterX: 0.32, diameterY: 0.38, diameterZ: 0.34, segments: 10 },
+        scene
+      );
+      poKhanHead.position = new Vector3(0, 0.18, 0);
+      poKhanHead.material = matSkinElder;
+      poKhanHead.parent = poKhanHeadNode;
+      registerInteractive(poKhanHead, 'int-pokhan');
+
+      // Tóc bạc hoa râm truyền thống
+      const poKhanHair = MeshBuilder.CreateSphere(
+        'poKhanHairMesh',
+        { diameterX: 0.34, diameterY: 0.28, diameterZ: 0.36, segments: 8 },
+        scene
+      );
+      poKhanHair.position = new Vector3(0, 0.26, 0.04);
+      poKhanHair.material = matHairGrey;
+      poKhanHair.parent = poKhanHeadNode;
+      registerInteractive(poKhanHair, 'int-pokhan');
+
+      // Búi tóc người cao tuổi phía sau gáy
+      const poKhanBun = MeshBuilder.CreateSphere(
+        'poKhanHairBun',
+        { diameter: 0.15, segments: 6 },
+        scene
+      );
+      poKhanBun.position = new Vector3(0, 0.22, 0.21);
+      poKhanBun.material = matHairGrey;
+      poKhanBun.parent = poKhanHeadNode;
+
+      // Mắt có mí mắt chớp (Blinking Eyes)
+      const poKhanEyes: Mesh[] = [];
+      for (const side of [-1, 1]) {
+        const eye = MeshBuilder.CreateSphere(
+          `poKhanEye_${side}`,
+          { diameterX: 0.05, diameterY: 0.035, diameterZ: 0.03, segments: 6 },
+          scene
+        );
+        eye.position = new Vector3(side * 0.08, 0.19, -0.16);
+        eye.material = matHairBlack;
+        eye.parent = poKhanHeadNode;
+        poKhanEyes.push(eye);
+      }
+
+      // Mũi có sống mũi rõ
+      const poKhanNose = MeshBuilder.CreateBox(
+        'poKhanNose',
+        { width: 0.04, height: 0.08, depth: 0.06 },
+        scene
+      );
+      poKhanNose.position = new Vector3(0, 0.15, -0.185);
+      poKhanNose.material = matSkinElder;
+      poKhanNose.parent = poKhanHeadNode;
+
+      // Miệng chuyển động theo nhịp kể Khan (Animated Mouth Mesh)
+      const poKhanMouth = MeshBuilder.CreateBox(
+        'poKhanMouth',
+        { width: 0.1, height: 0.035, depth: 0.04 },
+        scene
+      );
+      poKhanMouth.position = new Vector3(0, 0.08, -0.17);
+      poKhanMouth.material = matHairBlack;
+      poKhanMouth.parent = poKhanHeadNode;
+      registerInteractive(poKhanMouth, 'int-pokhan');
+
+      poKhanAnimRef.current = {
+        mouth: poKhanMouth,
+        head: poKhanHeadNode,
+        rightArm: poKhanRightArmNode,
+        chest: poKhanChestNode,
+        eyes: poKhanEyes,
+      };
+
+      // 5.4. NHÓM 8 NGƯỜI NGHE KỂ KHAN QUÂY QUẦN HÌNH VÒNG CUNG (ẢNH 02)
+      // Cơ cấu: 2 người già, 3 người lớn, 2 thanh niên, 1 trẻ nhỏ. Tất cả mặc áo đen mảng đỏ ngực.
+      interface ListenerDef {
+        id: string;
+        x: number;
+        z: number;
+        isElder?: boolean;
+        isChild?: boolean;
+        isFemale?: boolean;
+        onBench?: boolean;
+        name: string;
+      }
+
+      const listenerDefs: ListenerDef[] = [
+        // Phía Tây (Bên trái cụ ông, gần ghế Kpan và chiếu)
+        { id: 'lis-elder-female', x: -2.2, z: 5.8, isElder: true, isFemale: true, name: 'Cụ bà Ê-đê' },
+        { id: 'lis-mid-male-bench', x: -3.2, z: 5.2, onBench: true, name: 'Bác trung niên ngồi ghế Kpan' },
+        { id: 'lis-young-hunter', x: -1.7, z: 4.6, name: 'Chàng trai thanh niên' },
+        { id: 'lis-adult-mother', x: -1.4, z: 3.4, isFemale: true, name: 'Người mẹ làng' },
+
+        // Phía Đông (Bên phải cụ ông, gần ché và cồng chiêng)
+        { id: 'lis-elder-male', x: 2.0, z: 5.7, isElder: true, name: 'Cụ ông bô lão' },
+        { id: 'lis-adult-male', x: 2.4, z: 4.7, name: 'Tráng sĩ bên hàng ché' },
+        { id: 'lis-young-female', x: 1.5, z: 3.5, isFemale: true, name: 'Thiếu nữ dệt vải' },
+        { id: 'lis-child', x: 0.8, z: 2.9, isChild: true, name: 'Bé thơ say mê' },
+      ];
+
+      const listenersAnimList: { head: TransformNode; chest: TransformNode; eyes: Mesh[]; phase: number }[] = [];
+
+      listenerDefs.forEach((ld, idx) => {
+        const charRoot = new TransformNode(`listenerRoot_${ld.id}`, scene);
+        const yBase = ld.onBench ? arch.floor.elevationY + 0.46 : arch.floor.elevationY + 0.04;
+        charRoot.position = new Vector3(ld.x, yBase, ld.z);
+
+        // Tất cả nhân vật tự động quay mặt về phía Cụ ông Pô Khan và bếp lửa
+        const targetX = 0;
+        const targetZ = 5.2;
+        const lookAngle = Math.atan2(targetX - ld.x, targetZ - ld.z);
+        charRoot.rotation.y = lookAngle;
+        charRoot.parent = khanSceneRoot;
+
+        const scaleFac = ld.isChild ? 0.62 : ld.isElder ? 0.92 : 1.0;
+        const skinMat = ld.isChild ? matSkinChild : ld.isElder ? matSkinElder : matSkinAdult;
+        const hairMat = ld.isElder ? matHairGrey : matHairBlack;
+
+        // Chân / hông ngồi
+        const hips = MeshBuilder.CreateBox(
+          `lisHips_${ld.id}`,
+          { width: 0.65 * scaleFac, height: 0.22 * scaleFac, depth: 0.5 * scaleFac },
+          scene
+        );
+        hips.position = new Vector3(0, 0.11 * scaleFac, 0.04);
+        hips.material = matEdeBlackPants;
+        hips.parent = charRoot;
+        registerInteractive(hips, 'int-listeners');
+
+        // Thân trên mặc áo đen có mảng đỏ ngực (ẢNH 02)
+        const chestNode = new TransformNode(`lisChestNode_${ld.id}`, scene);
+        chestNode.position = new Vector3(0, 0.24 * scaleFac, 0);
+        chestNode.parent = charRoot;
+
+        const torso = MeshBuilder.CreateBox(
+          `lisTorso_${ld.id}`,
+          { width: 0.48 * scaleFac, height: 0.55 * scaleFac, depth: 0.3 * scaleFac },
+          scene
+        );
+        torso.position = new Vector3(0, 0.28 * scaleFac, 0);
+        torso.material = matEdeBlackCoat;
+        torso.parent = chestNode;
+        registerInteractive(torso, 'int-listeners');
+
+        // Mảng vải đỏ trước ngực đặc trưng Ê-đê (ẢNH 02)
+        const redChest = MeshBuilder.CreateBox(
+          `lisRedChest_${ld.id}`,
+          { width: 0.3 * scaleFac, height: 0.32 * scaleFac, depth: 0.03 },
+          scene
+        );
+        redChest.position = new Vector3(0, 0.3 * scaleFac, -0.16 * scaleFac);
+        redChest.material = matEdeRedChest;
+        redChest.parent = chestNode;
+        registerInteractive(redChest, 'int-listeners');
+
+        // Cánh tay hướng về lòng / đầu gối
+        for (const side of [-1, 1]) {
+          const arm = MeshBuilder.CreateCylinder(
+            `lisArm_${ld.id}_${side}`,
+            { diameter: 0.1 * scaleFac, height: 0.42 * scaleFac, tessellation: 6 },
+            scene
+          );
+          arm.rotation = new Vector3(0.5, 0, side * -0.4);
+          arm.position = new Vector3(side * 0.26 * scaleFac, 0.22 * scaleFac, 0.06 * scaleFac);
+          arm.material = matEdeBlackCoat;
+          arm.parent = chestNode;
+          registerInteractive(arm, 'int-listeners');
+        }
+
+        // Đầu & Khuôn mặt
+        const headNode = new TransformNode(`lisHeadNode_${ld.id}`, scene);
+        headNode.position = new Vector3(0, 0.58 * scaleFac, -0.02 * scaleFac);
+        headNode.parent = chestNode;
+
+        const head = MeshBuilder.CreateSphere(
+          `lisHeadMesh_${ld.id}`,
+          { diameter: 0.28 * scaleFac, segments: 8 },
+          scene
+        );
+        head.position = new Vector3(0, 0.14 * scaleFac, 0);
+        head.material = skinMat;
+        head.parent = headNode;
+        registerInteractive(head, 'int-listeners');
+
+        const hair = MeshBuilder.CreateSphere(
+          `lisHairMesh_${ld.id}`,
+          { diameterX: 0.3 * scaleFac, diameterY: 0.22 * scaleFac, diameterZ: 0.3 * scaleFac, segments: 6 },
+          scene
+        );
+        hair.position = new Vector3(0, 0.22 * scaleFac, 0.02 * scaleFac);
+        hair.material = hairMat;
+        hair.parent = headNode;
+        registerInteractive(hair, 'int-listeners');
+
+        // Mắt
+        const lisEyes: Mesh[] = [];
+        for (const side of [-1, 1]) {
+          const eye = MeshBuilder.CreateSphere(
+            `lisEye_${ld.id}_${side}`,
+            { diameter: 0.035 * scaleFac, segments: 4 },
+            scene
+          );
+          eye.position = new Vector3(side * 0.07 * scaleFac, 0.14 * scaleFac, -0.13 * scaleFac);
+          eye.material = matHairBlack;
+          eye.parent = headNode;
+          lisEyes.push(eye);
+        }
+
+        listenersAnimList.push({
+          head: headNode,
+          chest: chestNode,
+          eyes: lisEyes,
+          phase: idx * 0.8,
+        });
+      });
+
+      listenersAnimRef.current = listenersAnimList;
 
       // --- GIAN ÔK: KHÔNG GIAN SINH HOẠT GIA ĐÌNH ---
       // Artifact 6: Khung dệt thổ cẩm Ê-đê (Weaving Loom)
@@ -1279,6 +1912,65 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         tourCam.attachControl(canvas, true);
       }
 
+      // Web Audio API Synthesizer: Procedural Wood Fire Crackle Sound
+      let audioCtx: AudioContext | null = null;
+      let crackleTimer: number | null = null;
+
+      try {
+        const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioCtxClass) {
+          audioCtx = new AudioCtxClass();
+          fireAudioCtxRef.current = audioCtx;
+
+          // Tạo tiếng củi nổ lách tách tự nhiên (pops & crackles)
+          const playCracklePop = () => {
+            if (!audioCtx || audioCtx.state === 'closed') return;
+            if (audioCtx.state === 'suspended') {
+              audioCtx.resume().catch(() => {});
+            }
+
+            const now = audioCtx.currentTime;
+            const bufferSize = audioCtx.sampleRate * 0.04;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+              data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.18));
+            }
+
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(800 + Math.random() * 1400, now);
+            filter.Q.setValueAtTime(3.0 + Math.random() * 4.0, now);
+
+            const gain = audioCtx.createGain();
+            // Âm lượng nhẹ nhàng nền 0.02 - 0.04 để không lấn át thuyết minh
+            const popVol = 0.015 + Math.random() * 0.025;
+            gain.gain.setValueAtTime(popVol, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.038);
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            noise.start(now);
+            noise.stop(now + 0.04);
+          };
+
+          // Lên lịch các tiếng nổ củi ngẫu nhiên 120ms - 380ms
+          const scheduleNextPop = () => {
+            playCracklePop();
+            const nextDelay = 120 + Math.random() * 320;
+            crackleTimer = window.setTimeout(scheduleNextPop, nextDelay);
+          };
+          crackleTimer = window.setTimeout(scheduleNextPop, 300);
+        }
+      } catch {
+        // Fallback im lặng nếu trình duyệt chặn audio policy
+      }
+
       // Render Loop
       let animTime = 0;
 
@@ -1286,11 +1978,83 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         if (!scene || scene.isDisposed) return;
         animTime += 0.035;
 
-        // Hearth firelight flicker
+        // 1. Hearth Firelight Flicker & Dynamic Position Drift
         if (hearthGahLight) {
-          const flicker = Math.sin(animTime * 6.5) * 0.18 + Math.cos(animTime * 11) * 0.12;
-          hearthGahLight.intensity = (exhibitionModeRef.current === 'festive' ? 3.0 : 2.2) + flicker;
+          const flicker = Math.sin(animTime * 7.5) * 0.28 + Math.cos(animTime * 14) * 0.18;
+          hearthGahLight.intensity = (exhibitionModeRef.current === 'festive' ? 3.2 : 2.4) + flicker;
+          hearthGahLight.position.x = Math.sin(animTime * 4.5) * 0.04;
+          hearthGahLight.position.z = 4.0 + Math.cos(animTime * 5.5) * 0.04;
         }
+
+        // 2. 3D Campfire Flame Animations (ẢNH 01: 3-tier wave motion & sparks)
+        const flames = flameMeshesRef.current;
+        if (flames) {
+          // Lớp ngoài: uốn lượn nhấp nhô & xoay nhẹ
+          flames.outer.scaling.y = 1 + Math.sin(animTime * 8.5) * 0.16 + Math.cos(animTime * 13) * 0.1;
+          flames.outer.rotation.y = animTime * 0.6;
+
+          // Lớp giữa: co giãn nhịp nhàng
+          flames.mid.scaling.y = 1 + Math.cos(animTime * 9.2) * 0.18;
+          flames.mid.rotation.y = -animTime * 0.8;
+
+          // Lớp trong: vàng rực sáng chói ở trung tâm
+          flames.core.scaling.y = 1 + Math.sin(animTime * 11) * 0.12;
+
+          // Đốm tàn than bay lên (Sparks)
+          flames.sparks.forEach((sp, sIdx) => {
+            sp.position.y += 0.018 + (sIdx % 3) * 0.008;
+            sp.position.x += Math.sin(animTime * 4 + sIdx) * 0.004;
+            sp.position.z += Math.cos(animTime * 4.5 + sIdx) * 0.004;
+            if (sp.position.y > 2.8) {
+              sp.position.y = 0.5 + Math.random() * 0.3;
+              sp.position.x = (Math.random() - 0.5) * 0.4;
+              sp.position.z = (Math.random() - 0.5) * 0.4;
+            }
+          });
+        }
+
+        // 3. Nghệ nhân Cụ ông Pô Khan Animations (ẢNH 02: Kể chuyện sinh động)
+        const poKhan = poKhanAnimRef.current;
+        if (poKhan) {
+          // Miệng mở đóng tự nhiên theo nhịp kể Khan (Mouth articulation)
+          const mouthOpen = Math.max(0, Math.sin(animTime * 7.2)) * 0.85 + Math.max(0, Math.cos(animTime * 11.5)) * 0.4;
+          poKhan.mouth.scaling.y = 1 + mouthOpen;
+
+          // Đầu lắc lư, gật theo nhịp ngâm ngợi hào sảng (Expressive head nod)
+          poKhan.head.rotation.y = Math.sin(animTime * 1.3) * 0.12;
+          poKhan.head.rotation.x = 0.06 + Math.sin(animTime * 2.1) * 0.06;
+
+          // Cánh tay phải kể chuyện diễn cảm: vung lên hạ xuống nhịp nhàng (Storytelling arm gesture)
+          poKhan.rightArm.rotation.x = -0.55 + Math.sin(animTime * 3.0) * 0.26;
+          poKhan.rightArm.rotation.z = 0.32 + Math.cos(animTime * 2.3) * 0.14;
+          poKhan.rightArm.rotation.y = Math.sin(animTime * 1.7) * 0.1;
+
+          // Lồng ngực thở nhấp nhô (Breathing)
+          poKhan.chest.scaling.y = 1 + Math.sin(animTime * 1.8) * 0.035;
+
+          // Mí mắt chớp định kỳ (Blink)
+          const isBlinking = Math.sin(animTime * 1.1) > 0.96;
+          poKhan.eyes.forEach((eye) => {
+            eye.scaling.y = isBlinking ? 0.15 : 1.0;
+          });
+        }
+
+        // 4. Nhóm 8 người nghe Animations (Lắng nghe chăm chú, thở, chớp mắt)
+        const listeners = listenersAnimRef.current;
+        listeners.forEach((lis) => {
+          // Thở nhẹ nhàng
+          lis.chest.scaling.y = 1 + Math.sin(animTime * 1.6 + lis.phase) * 0.025;
+
+          // Đầu hơi gật hoặc nghiêng lắng nghe
+          lis.head.rotation.x = Math.sin(animTime * 0.8 + lis.phase) * 0.045;
+          lis.head.rotation.z = Math.cos(animTime * 0.7 + lis.phase) * 0.03;
+
+          // Chớp mắt
+          const lisBlink = Math.sin(animTime * 1.4 + lis.phase * 3) > 0.97;
+          lis.eyes.forEach((eye) => {
+            eye.scaling.y = lisBlink ? 0.15 : 1.0;
+          });
+        });
 
         scene.render();
       });
@@ -1305,6 +2069,10 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       setLoading(false);
 
       return () => {
+        if (crackleTimer) window.clearTimeout(crackleTimer);
+        if (audioCtx && audioCtx.state !== 'closed') {
+          audioCtx.close().catch(() => {});
+        }
         window.removeEventListener('resize', handleResize);
         canvas.removeEventListener('webglcontextlost', handleContextLost);
         canvas.removeEventListener('webglcontextrestored', handleContextRestored);

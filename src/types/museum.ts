@@ -424,6 +424,9 @@ export interface Museum3DHotspot {
   missionExplanation: string;
   points: number;
   badgeReward: string;
+  categoryType?: 'pokhan' | 'listeners' | 'hearth' | 'kpan' | 'gong' | 'general';
+  khanStoryText?: string;
+  khanArtDetail?: string;
 }
 
 export type UserRole = 'student' | 'teacher' | 'admin';

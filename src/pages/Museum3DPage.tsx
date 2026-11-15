@@ -54,10 +54,11 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
   const navigateTourRef = useRef<((id: string) => void) | null>(null);
 
   const [activeHotspot, setActiveHotspot] = useState<Museum3DHotspot | null>(null);
-  const [modalTab, setModalTab] = useState<'info' | 'mission'>('info');
+  const [modalTab, setModalTab] = useState<'info' | 'mission' | 'khanStory' | 'khanArt'>('info');
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [answerSubmitted, setAnswerSubmitted] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isChantingKhan, setIsChantingKhan] = useState(false);
   const [pauseMenuOpen, setPauseMenuOpen] = useState(false);
   const [mapModalOpen, setMapModalOpen] = useState(false);
   const [is169Fullscreen, setIs169Fullscreen] = useState(false);
@@ -70,7 +71,27 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
       window.speechSynthesis.cancel();
     }
     setIsSpeaking(false);
+    setIsChantingKhan(false);
   }, []);
+
+  const handleToggleChantKhan = () => {
+    if (!activeHotspot?.khanStoryText || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return;
+    }
+    if (isChantingKhan) {
+      stopSpeech();
+      return;
+    }
+    stopSpeech();
+    const utter = new SpeechSynthesisUtterance(activeHotspot.khanStoryText);
+    utter.lang = 'vi-VN';
+    utter.rate = 0.88; // Giọng ngâm trầm bổng, khoan thai của nghệ nhân
+    utter.pitch = 0.92;
+    utter.onend = () => setIsChantingKhan(false);
+    utter.onerror = () => setIsChantingKhan(false);
+    setIsChantingKhan(true);
+    window.speechSynthesis.speak(utter);
+  };
 
   useEffect(() => {
     return () => {
@@ -388,7 +409,7 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
                 </button>
               </div>
 
-              {/* Action Buttons: ĐỌC THÔNG TIN · NGHE THUYẾT MINH · LÀM NHIỆM VỤ */}
+              {/* Action Buttons: ĐỌC THÔNG TIN · NGHE KỂ KHAN · TÌM HIỂU NGHỆ THUẬT · NGHE THUYẾT MINH · LÀM NHIỆM VỤ */}
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -401,6 +422,38 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
                 >
                   ĐỌC THÔNG TIN
                 </button>
+
+                {activeHotspot.khanStoryText && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalTab('khanStory');
+                      handleToggleChantKhan();
+                    }}
+                    className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer ${
+                      modalTab === 'khanStory'
+                        ? 'bg-gold-500 text-wood-950 shadow-md font-bold'
+                        : 'bg-amber-100/80 text-wood-900 border border-gold-500 hover:bg-gold-400'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                    <span>{isChantingKhan ? 'DỪNG DIỄN XƯỚNG KHAN' : 'NGHE KỂ KHAN'}</span>
+                  </button>
+                )}
+
+                {activeHotspot.khanArtDetail && (
+                  <button
+                    type="button"
+                    onClick={() => setModalTab('khanArt')}
+                    className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                      modalTab === 'khanArt'
+                        ? 'bg-wood-900 text-cream'
+                        : 'bg-parchment text-wood-800 border border-sandstone'
+                    }`}
+                  >
+                    TÌM HIỂU NGHỆ THUẬT KỂ KHAN
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -443,6 +496,49 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
                   <p className="text-xs text-wood-700 bg-parchment/80 border border-sandstone p-3.5 rounded-xl leading-relaxed">
                     {activeHotspot.simulationNote}
                   </p>
+                </div>
+              ) : modalTab === 'khanStory' ? (
+                <div className="space-y-4 bg-amber-50/70 border border-gold-400 p-5 rounded-2xl">
+                  <div className="flex items-center justify-between border-b border-gold-300 pb-2">
+                    <span className="text-xs font-bold text-amber-800 uppercase tracking-widest flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-600" />
+                      Trích đoạn diễn xướng sử thi Đăm Săn
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleToggleChantKhan}
+                      className="px-3 py-1 text-xs font-semibold bg-gold-500 text-wood-950 rounded-lg hover:bg-gold-400 cursor-pointer"
+                    >
+                      {isChantingKhan ? 'Dừng đọc' : 'Phát giọng nghệ nhân'}
+                    </button>
+                  </div>
+                  <p className="font-serif italic text-base sm:text-lg text-wood-950 leading-relaxed pl-4 border-l-3 border-gold-500">
+                    {activeHotspot.khanStoryText}
+                  </p>
+                  <p className="text-xs text-wood-700 leading-relaxed bg-white/70 p-3 rounded-xl border border-gold-200">
+                    💡 <em>Gợi ý đọc hiểu:</em> Chú ý nghệ thuật so sánh, phóng đại đặc trưng của sử thi Tây Nguyên: "vượt một đồi tranh", "vượt một đồi nứa", "bắp chân to như cây xà ngang", "khiên chạm cây rừng vang như sấm rền".
+                  </p>
+                </div>
+              ) : modalTab === 'khanArt' ? (
+                <div className="space-y-4">
+                  <div className="p-5 rounded-2xl bg-wood-950 text-cream space-y-3 border border-gold-500/40">
+                    <h3 className="font-serif text-lg font-bold text-gold-400">
+                      Nghệ thuật hát kể Khan – Di sản văn hóa phi vật thể Quốc gia
+                    </h3>
+                    <p className="text-sm text-cream/90 leading-relaxed">
+                      {activeHotspot.khanArtDetail}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-wood-800">
+                    <div className="p-3.5 rounded-xl border border-sandstone bg-parchment">
+                      <p className="font-bold text-wood-900 mb-1">🔥 Không gian diễn xướng</p>
+                      <p>Bên bếp lửa bập bùng giữa Gian Gah, khi buôn làng đã gác lại việc nương rẫy, quây quần nghe kể từ chập tối tới rạng sáng.</p>
+                    </div>
+                    <div className="p-3.5 rounded-xl border border-sandstone bg-parchment">
+                      <p className="font-bold text-wood-900 mb-1">👥 Môi trường cộng đồng</p>
+                      <p>Người nghe không chỉ thưởng thức mà còn tiếp sức cho nghệ nhân bằng tiếng trầm trồ, hò reo theo từng chiến công của Đăm Săn.</p>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">

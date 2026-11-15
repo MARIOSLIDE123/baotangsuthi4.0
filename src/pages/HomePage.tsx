@@ -191,8 +191,8 @@ export const HomePage: React.FC<HomePageProps> = ({
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         <div className="lg:col-span-8 relative rounded-2xl overflow-hidden bg-wood-950 text-cream border border-wood-800 min-h-[380px] sm:min-h-[430px] flex items-end shadow-md">
           <SafeImage
-            src="/src/assets/images/hero_tay_nguyen_museum_1794539117734.jpg"
-            alt="Đại sảnh Bảo tàng Sử thi Xuyên Không với Nhà dài Ê-đê giữa đại ngàn"
+            src="/assets/images/hero_tay_nguyen_museum_1794539117734.jpg"
+            alt="Đại sảnh Bảo tàng Sử thi Xuyên Không"
             className="absolute inset-0 w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-wood-950 via-wood-950/60 to-wood-950/15" />
@@ -232,7 +232,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         <aside className="lg:col-span-4 bg-wood-900 text-cream border border-wood-800 rounded-2xl overflow-hidden flex flex-col justify-between">
           <div className="relative h-56 sm:h-64 overflow-hidden bg-wood-950">
             <SafeImage
-              src="/src/assets/images/su_gia_dai_ngan_1794539491712.jpg"
+              src="/assets/images/su_gia_dai_ngan_1794539491712.jpg"
               alt="Sứ Giả Đại Ngàn – Người kể chuyện sử thi đồng hành"
               className="w-full h-full object-cover object-top"
             />

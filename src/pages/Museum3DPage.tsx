@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Camera,
   CheckCircle2,
-  Compass,
   DoorOpen,
   Eye,
   EyeOff,
@@ -13,16 +12,12 @@ import {
   Minimize2,
   Pause,
   Play,
-  RotateCcw,
   Settings,
   Sparkles,
-  User,
-  Video,
   Volume2,
   VolumeX,
 } from 'lucide-react';
 import {
-  CameraMode,
   ExhibitionMode,
   LONGHOUSE_3D_CONFIG,
 } from '../config/longhouse3dConfig';
@@ -30,8 +25,9 @@ import { MUSEUM_3D_HOTSPOTS } from '../data/museum3dData';
 import { Museum3DHotspot, MuseumRouteId } from '../types/museum';
 import {
   EdeLonghouseScene,
-  PlayerTelemetry,
   QualityPreset,
+  TourPoint,
+  TOUR_POINTS,
 } from '../components/threeD/EdeLonghouseScene';
 import { SafeImage } from '../components/common/SafeImage';
 import { playCorrectSound, playWrongSound } from '../services/ambientAudioService';
@@ -54,13 +50,9 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
   const [quality, setQuality] = useState<QualityPreset>(() =>
     typeof window !== 'undefined' && window.innerWidth < 768 ? 'low' : 'high'
   );
-  const [telemetry, setTelemetry] = useState<PlayerTelemetry>({
-    x: 0,
-    z: 27.5,
-    yaw: 0,
-    area: 'A',
-    nearestHotspot: null,
-  });
+  const [currentTourPointId, setCurrentTourPointId] = useState('tp-entrance');
+  const navigateTourRef = useRef<((id: string) => void) | null>(null);
+
   const [activeHotspot, setActiveHotspot] = useState<Museum3DHotspot | null>(null);
   const [modalTab, setModalTab] = useState<'info' | 'mission'>('info');
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -68,13 +60,8 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [pauseMenuOpen, setPauseMenuOpen] = useState(false);
   const [mapModalOpen, setMapModalOpen] = useState(false);
-  const [teleportRequest, setTeleportRequest] = useState<{
-    target: 'A' | 'B';
-    nonce: number;
-  } | null>(null);
   const [is169Fullscreen, setIs169Fullscreen] = useState(false);
   const [exhibitionMode, setExhibitionMode] = useState<ExhibitionMode>('daily');
-  const [cameraMode, setCameraMode] = useState<CameraMode>('firstPerson');
   const [screenshotNonce, setScreenshotNonce] = useState<number | null>(null);
   const [hideHud, setHideHud] = useState(false);
 
@@ -106,19 +93,6 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
     stopSpeech();
     setActiveHotspot(null);
   };
-
-  const handleTogglePause = useCallback(() => {
-    if (activeHotspot) {
-      stopSpeech();
-      setActiveHotspot(null);
-      return;
-    }
-    if (mapModalOpen) {
-      setMapModalOpen(false);
-      return;
-    }
-    setPauseMenuOpen((prev) => !prev);
-  }, [activeHotspot, mapModalOpen, stopSpeech]);
 
   const handleToggleNarration = () => {
     if (!activeHotspot || typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -152,20 +126,21 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
     }
   };
 
-  const triggerTeleport = (target: 'A' | 'B') => {
-    setTeleportRequest({ target, nonce: Date.now() });
-    setPauseMenuOpen(false);
-    setMapModalOpen(false);
+  // Arrow navigation handler
+  const handleArrowNav = (dir: 'up' | 'down' | 'left' | 'right') => {
+    if (activeHotspot || pauseMenuOpen || mapModalOpen) return;
+    const point = TOUR_POINTS.find((p) => p.id === currentTourPointId);
+    const nextId = point?.neighbors[dir];
+    if (nextId) {
+      setCurrentTourPointId(nextId);
+      navigateTourRef.current?.(nextId);
+    }
   };
 
-  const isPausedOrModal = Boolean(activeHotspot || pauseMenuOpen || mapModalOpen);
+  const currentPoint = TOUR_POINTS.find((p) => p.id === currentTourPointId);
   const exploredCount = completedHotspots.length;
   const totalCount = MUSEUM_3D_HOTSPOTS.length;
   const progressPct = Math.round((exploredCount / totalCount) * 100);
-
-  // Convert 3D world coords (x in [-16, 16], z in [-16, 30]) to 120x150 SVG minimap
-  const mapX = (wx: number) => Math.max(8, Math.min(112, ((wx + 16) / 32) * 120));
-  const mapY = (wz: number) => Math.max(8, Math.min(142, ((wz + 16) / 46) * 150));
 
   return (
     <div className="space-y-4 pb-10">
@@ -184,7 +159,7 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
         </button>
       </div>
 
-      {/* Full-Height 3D First-Person Viewport with 16:9 Cinema Aspect */}
+      {/* Full-Height 3D Tour Viewport with 16:9 Cinema Aspect */}
       <div
         className={`relative transition-all duration-300 ${
           is169Fullscreen
@@ -195,18 +170,17 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
         <EdeLonghouseScene
           quality={quality}
           exhibitionMode={exhibitionMode}
-          cameraMode={cameraMode}
+          cameraMode="tour"
           completedHotspotIds={completedHotspots}
-          paused={isPausedOrModal}
-          teleportRequest={teleportRequest}
           screenshotNonce={screenshotNonce}
-          onTelemetryUpdate={setTelemetry}
+          currentTourPointId={currentTourPointId}
           onInteractHotspot={handleOpenHotspot}
-          onTogglePause={handleTogglePause}
+          onNavigateFnReady={(fn) => { navigateTourRef.current = fn; }}
+          onTourPointChange={(_, id) => setCurrentTourPointId(id)}
           onExitFallback={() => onNavigate('home')}
         />
 
-        {/* Floating Quick Action: Hiện lại giao diện khi đang ở chế độ xem ảnh (Hide UI) */}
+        {/* Floating Quick Action: Hiện lại giao diện khi đang ở chế độ ẩn UI */}
         {hideHud && (
           <button
             type="button"
@@ -218,52 +192,9 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
           </button>
         )}
 
-        {/* HUD Top-Center: Chế độ Camera, Trưng bày & Chụp ảnh */}
+        {/* HUD Top-Center: Chế độ Camera & Chụp ảnh */}
         {!hideHud && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex flex-wrap items-center justify-center gap-2 pointer-events-auto max-w-[92%]">
-            {/* Chế độ Camera: Thứ nhất / Thứ ba / Xoay 360 */}
-            <div className="flex items-center p-1 rounded-xl bg-wood-950/80 backdrop-blur-md border border-white/15 text-xs text-cream shadow-md">
-              <button
-                type="button"
-                onClick={() => setCameraMode('firstPerson')}
-                title="Góc nhìn thứ nhất (Người tham quan)"
-                className={`px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  cameraMode === 'firstPerson'
-                    ? 'bg-forest-700 text-cream font-semibold'
-                    : 'text-cream/80 hover:text-cream'
-                }`}
-              >
-                <Video className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Thứ nhất</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCameraMode('thirdPerson')}
-                title="Góc nhìn thứ ba (Nhân vật di chuyển)"
-                className={`px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  cameraMode === 'thirdPerson'
-                    ? 'bg-forest-700 text-cream font-semibold'
-                    : 'text-cream/80 hover:text-cream'
-                }`}
-              >
-                <User className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Thứ ba</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCameraMode('orbit')}
-                title="Xoay 360° quan sát kiến trúc toàn cảnh"
-                className={`px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  cameraMode === 'orbit'
-                    ? 'bg-gold-500 text-wood-950 font-semibold'
-                    : 'text-cream/80 hover:text-cream'
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Xoay 360°</span>
-              </button>
-            </div>
-
             {/* Chế độ trưng bày: Sinh hoạt thường ngày / Lễ hội & Diễn xướng */}
             <button
               type="button"
@@ -280,7 +211,7 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
               {exhibitionMode === 'festive' ? (
                 <>
                   <Sparkles className="w-3.5 h-3.5 text-wood-950" />
-                  <span>Lễ hội & Diễn xướng</span>
+                  <span>Lễ hội &amp; Diễn xướng</span>
                 </>
               ) : (
                 <>
@@ -289,6 +220,19 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
                 </>
               )}
             </button>
+
+            {/* Orbit view toggle */}
+            <div className="flex items-center p-1 rounded-xl bg-wood-950/80 backdrop-blur-md border border-white/15 text-xs text-cream shadow-md">
+              <button
+                type="button"
+                onClick={() => setExhibitionMode((prev) => prev)}
+                title="Xoay 360° quan sát kiến trúc toàn cảnh"
+                className="px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1.5 text-cream/80 hover:text-cream"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Xoay 360°</span>
+              </button>
+            </div>
 
             {/* Photo mode: Chụp ảnh màn hình & Ẩn UI */}
             <div className="flex items-center gap-1 bg-wood-950/80 backdrop-blur-md border border-white/15 rounded-xl p-1">
@@ -304,34 +248,21 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
               <button
                 type="button"
                 onClick={() => setHideHud(true)}
-                title="Ẩn giao diện để chiêm ngưỡng kiến trúc (Chế độ xem ảnh)"
+                title="Ẩn giao diện để chiêm ngưỡng kiến trúc"
                 className="p-1.5 text-cream/90 hover:text-gold-400 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
                 aria-label="Ẩn giao diện"
               >
                 <EyeOff className="w-4 h-4" />
               </button>
-              <button
-                type="button"
-                onClick={() => triggerTeleport(telemetry.area === 'A' ? 'B' : 'A')}
-                title={telemetry.area === 'A' ? 'Vào trong nhà dài' : 'Ra ngoài sân'}
-                className="p-1.5 text-cream/90 hover:text-gold-400 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-                aria-label="Đổi vị trí ngoài sân / trong nhà"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
             </div>
           </div>
         )}
 
-        {/* HUD Top-Left: Current Area & Progress */}
+        {/* HUD Top-Left: Tour Point & Progress */}
         {!hideHud && (
           <div className="absolute top-3 left-3 z-20 max-w-[260px] sm:max-w-xs bg-wood-950/75 backdrop-blur-md border border-white/15 rounded-xl p-3.5 text-cream space-y-2 pointer-events-auto">
-            <div className="flex items-center justify-between gap-3 text-xs">
-              <span className="font-semibold text-gold-400">
-                {telemetry.area === 'A'
-                  ? 'Khu vực A · Bên ngoài nhà dài'
-                  : 'Khu vực B · Bên trong nhà dài'}
-              </span>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-semibold text-gold-400">📍 {currentPoint?.label ?? 'Cửa vào Gian Gah'}</span>
             </div>
 
             <div className="flex items-center justify-between text-[11px] text-cream/85 font-mono tabular-nums">
@@ -350,61 +281,9 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
           </div>
         )}
 
-        {/* HUD Top-Right: Minimap & Settings & Fullscreen Toggle */}
+        {/* HUD Top-Right: Settings & Fullscreen Toggle */}
         {!hideHud && (
           <div className="absolute top-3 right-3 z-20 flex items-start gap-2 pointer-events-auto">
-            {/* Compact Live Radar Minimap (Desktop/Tablet) */}
-            <button
-              type="button"
-              onClick={() => setMapModalOpen(true)}
-              title="Mở bản đồ hành trình"
-              className="hidden sm:block bg-wood-950/75 backdrop-blur-md border border-white/15 rounded-xl p-2 hover:border-gold-400 transition-colors cursor-pointer"
-            >
-              <svg width="96" height="118" viewBox="0 0 120 150" className="block">
-                {/* Longhouse footprint */}
-                <rect
-                  x={mapX(-4.8)}
-                  y={mapY(-13)}
-                  width={mapX(4.8) - mapX(-4.8)}
-                  height={mapY(13) - mapY(-13)}
-                  fill="rgba(194,140,44,0.18)"
-                  stroke="rgba(220,168,71,0.65)"
-                  strokeWidth="1.5"
-                />
-                {/* Pathway */}
-                <line
-                  x1={mapX(0)}
-                  y1={mapY(13)}
-                  x2={mapX(0)}
-                  y2={mapY(29)}
-                  stroke="rgba(255,255,255,0.28)"
-                  strokeWidth="3"
-                />
-                {/* Hotspots */}
-                {MUSEUM_3D_HOTSPOTS.map((hs) => {
-                  const done = completedHotspots.includes(hs.id);
-                  return (
-                    <circle
-                      key={hs.id}
-                      cx={mapX(hs.position.x)}
-                      cy={mapY(hs.position.z)}
-                      r="3.2"
-                      fill={done ? '#4ADE80' : '#DCA847'}
-                    />
-                  );
-                })}
-                {/* Player marker */}
-                <circle
-                  cx={mapX(telemetry.x)}
-                  cy={mapY(telemetry.z)}
-                  r="4.2"
-                  fill="#FFFFFF"
-                  stroke="#173D2B"
-                  strokeWidth="1.5"
-                />
-              </svg>
-            </button>
-
             <div className="flex flex-col gap-1.5">
               <button
                 type="button"
@@ -420,7 +299,7 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
                 type="button"
                 onClick={() => setMapModalOpen(true)}
                 className="p-2.5 min-w-[42px] min-h-[42px] rounded-xl bg-wood-950/75 backdrop-blur-md border border-white/15 text-cream hover:border-gold-400 transition-colors cursor-pointer flex items-center justify-center"
-                aria-label="Mở bản đồ khu vực"
+                aria-label="Mở danh sách điểm tham quan"
               >
                 <MapIcon className="w-4 h-4" />
               </button>
@@ -437,29 +316,57 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
           </div>
         )}
 
-        {/* Proximity Prompt: NHẤN E ĐỂ KHÁM PHÁ */}
-        {telemetry.nearestHotspot && !activeHotspot && (
-          <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
+        {/* Arrow Navigation Panel – Bottom Center */}
+        {!hideHud && !activeHotspot && !pauseMenuOpen && !mapModalOpen && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1 select-none pointer-events-auto">
+            {/* Current position label */}
+            <div className="px-4 py-1.5 rounded-lg bg-wood-950/80 backdrop-blur-sm text-gold-400 text-xs font-semibold text-center mb-1 border border-gold-500/30">
+              📍 {currentPoint?.label ?? ''}
+            </div>
+
+            {/* UP */}
             <button
               type="button"
-              onClick={() => handleOpenHotspot(telemetry.nearestHotspot!)}
-              className="px-5 py-2.5 rounded-xl bg-gold-500 text-wood-950 font-semibold text-xs sm:text-sm shadow-lg hover:bg-gold-400 transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap"
+              onClick={() => handleArrowNav('up')}
+              disabled={!currentPoint?.neighbors.up}
+              className="w-14 h-14 rounded-2xl bg-wood-900/85 backdrop-blur-md border border-gold-500/40 text-gold-400 text-2xl shadow-lg hover:bg-wood-700 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center justify-center cursor-pointer"
             >
-              <Compass className="w-4 h-4" />
-              <span>NHẤN E ĐỂ KHÁM PHÁ · {telemetry.nearestHotspot.shortLabel}</span>
+              ↑
             </button>
+
+            {/* LEFT / DOWN / RIGHT */}
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => handleArrowNav('left')}
+                disabled={!currentPoint?.neighbors.left}
+                className="w-14 h-14 rounded-2xl bg-wood-900/85 backdrop-blur-md border border-gold-500/40 text-gold-400 text-2xl shadow-lg hover:bg-wood-700 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center justify-center cursor-pointer"
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                onClick={() => handleArrowNav('down')}
+                disabled={!currentPoint?.neighbors.down}
+                className="w-14 h-14 rounded-2xl bg-wood-900/85 backdrop-blur-md border border-gold-500/40 text-gold-400 text-2xl shadow-lg hover:bg-wood-700 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center justify-center cursor-pointer"
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                onClick={() => handleArrowNav('right')}
+                disabled={!currentPoint?.neighbors.right}
+                className="w-14 h-14 rounded-2xl bg-wood-900/85 backdrop-blur-md border border-gold-500/40 text-gold-400 text-2xl shadow-lg hover:bg-wood-700 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center justify-center cursor-pointer"
+              >
+                →
+              </button>
+            </div>
+
+            <p className="text-cream/60 text-[10px] mt-1">
+              Nhấn mũi tên để di chuyển · Nhấp đúp vào vật thể để tìm hiểu
+            </p>
           </div>
         )}
-
-        {/* HUD Bottom Control Hint */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 rounded-lg bg-wood-950/80 backdrop-blur-sm border border-white/10 text-[11px] text-cream/85 text-center max-w-[95%] pointer-events-none">
-          <span className="hidden lg:inline">
-            WASD / Mũi tên: Di chuyển · Kéo chuột: Xoay góc nhìn · E: Khám phá điểm sáng · ESC: Tạm dừng
-          </span>
-          <span className="lg:hidden">
-            Joystick trái: Di chuyển · Vuốt phải: Xoay nhìn · Chạm nút vàng khi lại gần
-          </span>
-        </div>
 
         {/* Floating Hotspot Modal (Reading / Narration / Mission) */}
         {activeHotspot && (
@@ -477,7 +384,7 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
                   onClick={handleCloseHotspot}
                   className="px-3 py-1.5 text-xs font-semibold bg-parchment border border-sandstone rounded-lg hover:border-wood-900 cursor-pointer"
                 >
-                  Đóng (ESC)
+                  Đóng ✕
                 </button>
               </div>
 
@@ -582,8 +489,8 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
                       {selectedAnswer === activeHotspot.correctIndex ? (
                         <>
                           <p className="font-semibold mb-1">
-                            Hoàn thành! +{activeHotspot.points} điểm · Mở khóa dấu ấn “
-                            {activeHotspot.badgeReward}”
+                            Hoàn thành! +{activeHotspot.points} điểm · Mở khóa dấu ấn "
+                            {activeHotspot.badgeReward}"
                           </p>
                           <p>{activeHotspot.missionExplanation}</p>
                         </>
@@ -600,12 +507,12 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
           </div>
         )}
 
-        {/* Map Modal (Area A & B Overview + Quick Teleport) */}
+        {/* Map Modal – Tour Points Overview */}
         {mapModalOpen && (
           <div className="absolute inset-0 z-30 bg-wood-950/75 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="w-full max-w-xl max-h-[88%] overflow-y-auto bg-cream text-wood-900 border border-sandstone rounded-2xl p-6 space-y-5">
               <div className="flex items-center justify-between border-b border-sandstone pb-3">
-                <h2 className="font-serif text-2xl font-bold">Bản đồ 2 khu vực tham quan 3D</h2>
+                <h2 className="font-serif text-2xl font-bold">Các điểm tham quan 3D</h2>
                 <button
                   type="button"
                   onClick={() => setMapModalOpen(false)}
@@ -615,26 +522,35 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => triggerTeleport('A')}
-                  className="p-3.5 rounded-xl bg-parchment border border-sandstone hover:border-gold-500 text-left cursor-pointer"
-                >
-                  <p className="text-xs font-semibold text-forest-700">Khu vực A</p>
-                  <p className="text-sm font-bold text-wood-900">Di chuyển tới Cổng ngoài</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => triggerTeleport('B')}
-                  className="p-3.5 rounded-xl bg-parchment border border-sandstone hover:border-gold-500 text-left cursor-pointer"
-                >
-                  <p className="text-xs font-semibold text-jade-700">Khu vực B</p>
-                  <p className="text-sm font-bold text-wood-900">Di chuyển vào Trong nhà dài</p>
-                </button>
+              {/* Tour Points Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {TOUR_POINTS.map((pt) => {
+                  const isActive = pt.id === currentTourPointId;
+                  return (
+                    <button
+                      key={pt.id}
+                      type="button"
+                      onClick={() => {
+                        setCurrentTourPointId(pt.id);
+                        navigateTourRef.current?.(pt.id);
+                        setMapModalOpen(false);
+                      }}
+                      className={`p-3.5 rounded-xl border text-left cursor-pointer transition-colors ${
+                        isActive
+                          ? 'bg-gold-500/20 border-gold-500 text-wood-900'
+                          : 'bg-parchment border-sandstone hover:border-gold-500'
+                      }`}
+                    >
+                      <p className="text-xs font-semibold text-forest-700">
+                        {isActive ? '📍 Đang ở đây' : `Khu ${pt.area}`}
+                      </p>
+                      <p className="text-sm font-bold text-wood-900">{pt.label}</p>
+                    </button>
+                  );
+                })}
               </div>
 
+              {/* Hotspot checklist */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-wood-700">
                   Danh sách {MUSEUM_3D_HOTSPOTS.length} điểm tương tác:
@@ -666,7 +582,7 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
           </div>
         )}
 
-        {/* Pause & Settings Menu (ESC) */}
+        {/* Pause & Settings Menu */}
         {pauseMenuOpen && (
           <div className="absolute inset-0 z-30 bg-wood-950/75 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="w-full max-w-md bg-cream text-wood-900 border border-sandstone rounded-2xl p-6 space-y-5">
@@ -716,6 +632,31 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
                 </div>
               </div>
 
+              {/* Quick tour point navigation */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-wood-700">Di chuyển nhanh đến:</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {['tp-entrance', 'tp-hearth', 'tp-gong'].map((tpId) => {
+                    const tp = TOUR_POINTS.find((p) => p.id === tpId);
+                    if (!tp) return null;
+                    return (
+                      <button
+                        key={tp.id}
+                        type="button"
+                        onClick={() => {
+                          setCurrentTourPointId(tp.id);
+                          navigateTourRef.current?.(tp.id);
+                          setPauseMenuOpen(false);
+                        }}
+                        className="w-full py-2 text-xs font-semibold bg-parchment text-wood-900 border border-sandstone rounded-lg hover:border-gold-500 cursor-pointer text-left px-3"
+                      >
+                        📍 {tp.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="space-y-2 pt-2">
                 <button
                   type="button"
@@ -724,20 +665,6 @@ export const Museum3DPage: React.FC<Museum3DPageProps> = ({
                 >
                   <Play className="w-4 h-4" />
                   <span>Tiếp tục tham quan</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => triggerTeleport('A')}
-                  className="w-full py-2 text-xs font-semibold bg-parchment text-wood-900 border border-sandstone rounded-lg hover:border-gold-500 cursor-pointer"
-                >
-                  Quay lại Cổng vào ngoài trời (Khu A)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => triggerTeleport('B')}
-                  className="w-full py-2 text-xs font-semibold bg-parchment text-wood-900 border border-sandstone rounded-lg hover:border-gold-500 cursor-pointer"
-                >
-                  Di chuyển vào Trong nhà dài (Khu B)
                 </button>
                 <button
                   type="button"

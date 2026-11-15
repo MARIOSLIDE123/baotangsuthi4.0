@@ -219,7 +219,7 @@ export const HeroArenaPage: React.FC<HeroArenaPageProps> = ({
       {/* Arena Header Banner */}
       <section className="relative rounded-2xl overflow-hidden border border-wood-800 bg-wood-950 text-cream">
         <SafeImage
-          src="/src/assets/images/zone_hero_arena_1794539494779.jpg"
+          src="/assets/images/zone_hero_arena_1794539494779.jpg"
           alt="Đấu trường Anh hùng ca với khiên đồng và ánh sáng vàng sử thi"
           className="absolute inset-0 w-full h-full object-cover opacity-35"
         />

@@ -25,9 +25,9 @@ export const GuideCharacterWidget: React.FC<GuideCharacterWidgetProps> = ({
         <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 bg-wood-950/65">
           <div className="flex items-center gap-2.5 min-w-0">
             <SafeImage
-              src="/src/assets/images/su_gia_dai_ngan_1794539491712.jpg"
-              alt="Nhân vật hướng dẫn Sứ Giả Đại Ngàn"
-              className="w-10 h-10 rounded-lg object-cover border border-gold-500/50 shrink-0"
+              src="/assets/images/su_gia_dai_ngan_1794539491712.jpg"
+              alt="Sứ Giả Đại Ngàn"
+              className="w-10 h-10 rounded-lg object-cover border border-gold-500/50 shrink-0 overflow-hidden"
             />
             <div className="min-w-0">
               <p className="text-xs font-bold tracking-wide text-gold-400">

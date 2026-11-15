@@ -16,15 +16,20 @@ export const SafeImage: React.FC<SafeImageProps> = ({
 }) => {
   const [hasError, setHasError] = useState(false);
 
-  if (!src || hasError) {
-    const isBackground = className.includes('absolute') || className.includes('inset-0');
-    const isSmall =
-      className.includes('w-8') ||
-      className.includes('w-10') ||
-      className.includes('w-12') ||
-      className.includes('w-14') ||
-      className.includes('w-16');
+  // Normalize path if necessary: ensure /assets/images/... works universally
+  const cleanSrc = src?.startsWith('/src/assets/images/')
+    ? src.replace('/src/assets/images/', '/assets/images/')
+    : src;
 
+  const isBackground = className.includes('absolute') || className.includes('inset-0');
+  const isSmall =
+    className.includes('w-8') ||
+    className.includes('w-10') ||
+    className.includes('w-12') ||
+    className.includes('w-14') ||
+    className.includes('w-16');
+
+  if (!cleanSrc || hasError) {
     // For background covers: pure decorative atmospheric backdrop, absolutely no text to prevent overlay collisions
     if (isBackground) {
       return (
@@ -69,12 +74,24 @@ export const SafeImage: React.FC<SafeImageProps> = ({
 
   return (
     <img
-      src={src}
-      alt={alt}
+      src={cleanSrc}
+      alt={isBackground ? '' : alt}
       loading="lazy"
       referrerPolicy="no-referrer"
-      onError={() => setHasError(true)}
-      className={className}
+      onError={() => {
+        // If /assets/images/ failed, try original src before giving up
+        if (cleanSrc !== src && src) {
+          // Retry with original
+          const img = new Image();
+          img.src = src;
+          img.onload = () => {};
+          img.onerror = () => setHasError(true);
+        } else {
+          setHasError(true);
+        }
+      }}
+      className={`${className} ${isBackground ? 'text-transparent overflow-hidden' : ''}`}
+      style={isBackground ? { color: 'transparent' } : undefined}
     />
   );
 };

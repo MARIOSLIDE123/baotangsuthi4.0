@@ -92,7 +92,7 @@ export const MuseumIntroScreen: React.FC<MuseumIntroScreenProps> = ({
     >
       {/* Full-bleed Tay Nguyen Dawn Backdrop with Ede Longhouse & Distant Hero */}
       <SafeImage
-        src="/src/assets/images/intro_tay_nguyen_dawn_1794539492873.jpg"
+        src="/assets/images/intro_tay_nguyen_dawn_1794539492873.jpg"
         alt="Bình minh đại ngàn Tây Nguyên với nhà dài Ê-đê ở trung tâm và bóng người anh hùng từ xa"
         className="absolute inset-0 w-full h-full object-cover"
       />

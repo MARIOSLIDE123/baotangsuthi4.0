@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animation,
   ArcRotateCamera,
   Color3,
   Color4,
@@ -12,12 +13,13 @@ import {
   PBRMaterial,
   PointLight,
   PointerEventTypes,
+  QuadraticEase,
+  EasingFunction,
   Scene,
   ShadowGenerator,
   StandardMaterial,
   Tools,
   TransformNode,
-  UniversalCamera,
   Vector3,
   VertexData,
 } from '@babylonjs/core';
@@ -31,25 +33,44 @@ import { Museum3DHotspot } from '../../types/museum';
 
 export type QualityPreset = 'high' | 'medium' | 'low';
 
-export interface PlayerTelemetry {
-  x: number;
-  z: number;
-  yaw: number;
+// --- Tour Point System ---
+export interface TourPoint {
+  id: string;
+  label: string;
   area: 'A' | 'B';
-  nearestHotspot: Museum3DHotspot | null;
+  camAlpha: number;
+  camBeta: number;
+  camRadius: number;
+  targetX: number;
+  targetY: number;
+  targetZ: number;
+  neighbors: { up?: string; down?: string; left?: string; right?: string };
 }
+
+export const TOUR_POINTS: TourPoint[] = [
+  { id: 'tp-entrance',     label: 'Cửa vào Gian Gah',       area: 'A', camAlpha: -1.57, camBeta: 1.20, camRadius: 22, targetX:  0,    targetY: 2.0, targetZ: 16,   neighbors: { down: 'tp-porch' } },
+  { id: 'tp-porch',        label: 'Hiên Dring đón khách',    area: 'A', camAlpha: -1.57, camBeta: 1.10, camRadius: 14, targetX:  0,    targetY: 2.0, targetZ: 12,   neighbors: { up: 'tp-entrance', down: 'tp-gah-overview' } },
+  { id: 'tp-gah-overview', label: 'Toàn cảnh Gian Gah',      area: 'B', camAlpha: -1.57, camBeta: 1.00, camRadius: 10, targetX:  0,    targetY: 3.0, targetZ:  4,   neighbors: { up: 'tp-porch', down: 'tp-hearth', left: 'tp-kpan', right: 'tp-gong' } },
+  { id: 'tp-hearth',       label: 'Bếp lửa & Kể Khan',       area: 'B', camAlpha: -1.57, camBeta: 1.10, camRadius:  5.5, targetX: 0,  targetY: 2.8, targetZ:  4.2, neighbors: { up: 'tp-gah-overview', down: 'tp-ok-entry', left: 'tp-kpan', right: 'tp-jars' } },
+  { id: 'tp-kpan',         label: 'Ghế Kpan đại ngàn',       area: 'B', camAlpha: -2.50, camBeta: 1.00, camRadius:  5.5, targetX:-3.3, targetY: 2.5, targetZ:  5.8, neighbors: { right: 'tp-hearth', down: 'tp-ok-entry' } },
+  { id: 'tp-gong',         label: 'Cồng Chiêng & Trống',     area: 'B', camAlpha: -0.60, camBeta: 1.00, camRadius:  5.5, targetX: 3.0, targetY: 2.8, targetZ:  6.8, neighbors: { left: 'tp-hearth', down: 'tp-jars' } },
+  { id: 'tp-jars',         label: 'Ché cổ & Rượu cần',       area: 'B', camAlpha: -0.50, camBeta: 1.10, camRadius:  5.5, targetX: 3.4, targetY: 2.5, targetZ:  2.2, neighbors: { up: 'tp-gong', left: 'tp-hearth', down: 'tp-ok-entry' } },
+  { id: 'tp-ok-entry',     label: 'Vào Gian Ôk',             area: 'B', camAlpha: -1.57, camBeta: 1.00, camRadius:  8,   targetX: 0,   targetY: 3.0, targetZ: -2,   neighbors: { up: 'tp-hearth', down: 'tp-loom', left: 'tp-baskets' } },
+  { id: 'tp-loom',         label: 'Khung dệt thổ cẩm',       area: 'B', camAlpha: -0.80, camBeta: 1.10, camRadius:  5.5, targetX: 2.4, targetY: 2.5, targetZ: -4.5, neighbors: { up: 'tp-ok-entry', right: 'tp-baskets', down: 'tp-mortar' } },
+  { id: 'tp-baskets',      label: 'Gùi Đới & Đồ mây tre',    area: 'B', camAlpha: -2.30, camBeta: 1.10, camRadius:  5.5, targetX:-2.8, targetY: 2.5, targetZ: -4.2, neighbors: { up: 'tp-ok-entry', left: 'tp-loom' } },
+  { id: 'tp-mortar',       label: 'Cối chày giã gạo',         area: 'B', camAlpha: -0.80, camBeta: 1.10, camRadius:  5.5, targetX: 2.5, targetY: 2.5, targetZ: -8.8, neighbors: { up: 'tp-loom' } },
+];
 
 interface EdeLonghouseSceneProps {
   quality: QualityPreset;
   exhibitionMode: ExhibitionMode;
   cameraMode: CameraMode;
   completedHotspotIds: string[];
-  paused: boolean;
-  teleportRequest: { target: 'A' | 'B'; nonce: number } | null;
   screenshotNonce?: number | null;
-  onTelemetryUpdate: (telemetry: PlayerTelemetry) => void;
+  currentTourPointId?: string;
   onInteractHotspot: (hotspot: Museum3DHotspot) => void;
-  onTogglePause: () => void;
+  onNavigateFnReady?: (fn: (id: string) => void) => void;
+  onTourPointChange?: (point: TourPoint, id: string) => void;
   onExitFallback: () => void;
 }
 
@@ -58,49 +79,33 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
   exhibitionMode,
   cameraMode,
   completedHotspotIds,
-  paused,
-  teleportRequest,
   screenshotNonce,
-  onTelemetryUpdate,
+  currentTourPointId,
   onInteractHotspot,
-  onTogglePause,
+  onNavigateFnReady,
+  onTourPointChange,
   onExitFallback,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<Engine | null>(null);
   const sceneRef = useRef<Scene | null>(null);
-  const fpCameraRef = useRef<UniversalCamera | null>(null);
+  const tourCameraRef = useRef<ArcRotateCamera | null>(null);
   const orbitCameraRef = useRef<ArcRotateCamera | null>(null);
-  const avatarMeshRef = useRef<Mesh | null>(null);
 
   const completedRef = useRef<string[]>(completedHotspotIds);
-  const pausedRef = useRef<boolean>(paused);
   const exhibitionModeRef = useRef<ExhibitionMode>(exhibitionMode);
   const festiveMeshesRef = useRef<Mesh[]>([]);
   const dailyMeshesRef = useRef<Mesh[]>([]);
   const hearthLightRef = useRef<PointLight | null>(null);
+  const currentTourPointIdRef = useRef<string>('tp-entrance');
 
   const [loading, setLoading] = useState(true);
   const [webglError, setWebglError] = useState<string | null>(null);
-  const [joystickThumb, setJoystickThumb] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [hoveredHotspot, setHoveredHotspot] = useState<Museum3DHotspot | null>(null);
-
-  const joystickVecRef = useRef<{ vx: number; vz: number }>({ vx: 0, vz: 0 });
-  const joyActiveRef = useRef(false);
-  const joyOriginRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const lookTouchRef = useRef<{ active: boolean; lastX: number; lastY: number }>({
-    active: false,
-    lastX: 0,
-    lastY: 0,
-  });
 
   useEffect(() => {
     completedRef.current = completedHotspotIds;
   }, [completedHotspotIds]);
-
-  useEffect(() => {
-    pausedRef.current = paused;
-  }, [paused]);
 
   // Update exhibition mode visibility (daily vs festive)
   useEffect(() => {
@@ -129,15 +134,11 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       if (orbitCameraRef.current) {
         scene.activeCamera = orbitCameraRef.current;
         orbitCameraRef.current.attachControl(canvasRef.current, true);
-        if (avatarMeshRef.current) avatarMeshRef.current.isVisible = true;
       }
     } else {
-      if (fpCameraRef.current) {
-        scene.activeCamera = fpCameraRef.current;
-        fpCameraRef.current.attachControl(canvasRef.current, true);
-        if (avatarMeshRef.current) {
-          avatarMeshRef.current.isVisible = cameraMode === 'thirdPerson';
-        }
+      if (tourCameraRef.current) {
+        scene.activeCamera = tourCameraRef.current;
+        tourCameraRef.current.attachControl(canvasRef.current, true);
       }
     }
   }, [cameraMode]);
@@ -148,7 +149,7 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
     try {
       Tools.CreateScreenshotUsingRenderTarget(
         sceneRef.current.getEngine(),
-        sceneRef.current.activeCamera || fpCameraRef.current!,
+        sceneRef.current.activeCamera || tourCameraRef.current!,
         { precision: 1.5 },
         (data) => {
           const a = document.createElement('a');
@@ -167,22 +168,6 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       a.click();
     }
   }, [screenshotNonce]);
-
-  // Handle teleport between Area A (Yard) and Area B (Interior)
-  useEffect(() => {
-    if (!teleportRequest || !fpCameraRef.current) return;
-    const cam = fpCameraRef.current;
-    const sp =
-      teleportRequest.target === 'A'
-        ? LONGHOUSE_3D_CONFIG.player.spawnExterior
-        : LONGHOUSE_3D_CONFIG.player.spawnInterior;
-    cam.position = new Vector3(sp.x, sp.y, sp.z);
-    cam.setTarget(
-      teleportRequest.target === 'A'
-        ? new Vector3(-1.5, 2.5, 14)
-        : new Vector3(0, 3.6, -4)
-    );
-  }, [teleportRequest]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1165,7 +1150,8 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         registerInteractive(gui, 'int-baskets');
       }
 
-      // 7. Raycast Pointer Down (Click on 3D object opens its info modal!)
+      // 7. Raycast Pointer Down (Double-click opens info modal; single-click = gold highlight)
+      const lastClickMap: Record<string, number> = {};
       scene.onPointerObservable.add((pointerInfo) => {
         if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
           const pick = pointerInfo.pickInfo;
@@ -1174,11 +1160,24 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
             while (m) {
               const hsId = m.metadata?.hotspotId;
               if (hsId) {
-                const hotspot = MUSEUM_3D_HOTSPOTS.find((h) => h.id === hsId);
-                if (hotspot && !pausedRef.current) {
-                  onInteractHotspot(hotspot);
-                  break;
+                const now = Date.now();
+                const last = lastClickMap[hsId] ?? 0;
+                if (now - last < 400) {
+                  // Double-click → open modal
+                  const hotspot = MUSEUM_3D_HOTSPOTS.find((h) => h.id === hsId);
+                  if (hotspot) onInteractHotspot(hotspot);
+                  delete lastClickMap[hsId];
+                } else {
+                  // Single click → gold glow highlight for 800ms
+                  lastClickMap[hsId] = now;
+                  const mat = (pick.pickedMesh as Mesh).material as PBRMaterial;
+                  if (mat && !mat.isDisposed()) {
+                    const orig = mat.emissiveColor?.clone() ?? new Color3(0, 0, 0);
+                    mat.emissiveColor = new Color3(1, 0.85, 0.2);
+                    setTimeout(() => { if (!mat.isDisposed()) mat.emissiveColor = orig; }, 800);
+                  }
                 }
+                break;
               }
               m = m.parent as Mesh;
             }
@@ -1204,38 +1203,57 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         }
       });
 
-      // 8. Player Cameras: First Person, Third Person & Orbit Camera
-      const fpCam = new UniversalCamera(
-        'fpCamera',
-        new Vector3(
-          LONGHOUSE_3D_CONFIG.player.spawnExterior.x,
-          LONGHOUSE_3D_CONFIG.player.spawnExterior.y,
-          LONGHOUSE_3D_CONFIG.player.spawnExterior.z
-        ),
+      // 8. Tour Camera (ArcRotateCamera at tp-entrance) + Orbit Camera
+      const initPt = TOUR_POINTS[0]; // tp-entrance
+      const tourCam = new ArcRotateCamera(
+        'tourCamera',
+        initPt.camAlpha,
+        initPt.camBeta,
+        initPt.camRadius,
+        new Vector3(initPt.targetX, initPt.targetY, initPt.targetZ),
         scene
       );
-      fpCam.setTarget(new Vector3(-1.5, 2.5, 14.0));
-      fpCam.checkCollisions = true;
-      fpCam.applyGravity = true;
-      fpCam.ellipsoid = new Vector3(
-        LONGHOUSE_3D_CONFIG.player.ellipsoid.x,
-        LONGHOUSE_3D_CONFIG.player.ellipsoid.y,
-        LONGHOUSE_3D_CONFIG.player.ellipsoid.z
-      );
-      fpCam.speed = LONGHOUSE_3D_CONFIG.player.moveSpeedDesktop;
-      fpCam.angularSensibility = 2800;
-      fpCam.keysUp = [87, 38]; // W, Up
-      fpCam.keysDown = [83, 40]; // S, Down
-      fpCam.keysLeft = [65, 37]; // A, Left
-      fpCam.keysRight = [68, 39]; // D, Right
-      fpCam.attachControl(canvas, true);
-      fpCameraRef.current = fpCam;
+      tourCam.lowerRadiusLimit = 3;
+      tourCam.upperRadiusLimit = 30;
+      tourCam.lowerBetaLimit = 0.2;
+      tourCam.upperBetaLimit = Math.PI / 2.1;
+      tourCameraRef.current = tourCam;
 
-      // Explorer Avatar Mesh for Third Person View
-      const avatar = MeshBuilder.CreateCylinder('explorerAvatar', { diameter: 0.6, height: 1.7 }, scene);
-      avatar.material = matBrocade;
-      avatar.isVisible = cameraMode === 'thirdPerson';
-      avatarMeshRef.current = avatar;
+      // navigateToTourPoint: smooth animated camera transition between tour points
+      const navigateToTourPoint = (pointId: string) => {
+        const pt = TOUR_POINTS.find((p) => p.id === pointId);
+        if (!pt || !sceneRef.current) return;
+        currentTourPointIdRef.current = pointId;
+        const cam = tourCameraRef.current!;
+        const ease = new QuadraticEase();
+        ease.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+        const fps = 60;
+        const frames = 45;
+        const makeAnim = (name: string, prop: string, from: number, to: number) => {
+          const a = new Animation(
+            name, prop, fps,
+            Animation.ANIMATIONTYPE_FLOAT,
+            Animation.ANIMATIONLOOPMODE_CONSTANT
+          );
+          a.setKeys([{ frame: 0, value: from }, { frame: frames, value: to }]);
+          a.setEasingFunction(ease);
+          return a;
+        };
+        cam.animations = [
+          makeAnim('aAlpha',  'alpha',    cam.alpha,    pt.camAlpha),
+          makeAnim('aBeta',   'beta',     cam.beta,     pt.camBeta),
+          makeAnim('aRad',    'radius',   cam.radius,   pt.camRadius),
+          makeAnim('tX',      'target.x', cam.target.x, pt.targetX),
+          makeAnim('tY',      'target.y', cam.target.y, pt.targetY),
+          makeAnim('tZ',      'target.z', cam.target.z, pt.targetZ),
+        ];
+        sceneRef.current.beginAnimation(cam, 0, frames, false, 1, () => {
+          onTourPointChange?.(pt, pointId);
+        });
+      };
+
+      // Expose navigateToTourPoint to parent (Museum3DPage)
+      onNavigateFnReady?.(navigateToTourPoint);
 
       // Orbit Camera for 360-degree Architectural Inspection
       const orbSp = LONGHOUSE_3D_CONFIG.player.spawnOrbit;
@@ -1257,16 +1275,9 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         scene.activeCamera = orbitCam;
         orbitCam.attachControl(canvas, true);
       } else {
-        scene.activeCamera = fpCam;
+        scene.activeCamera = tourCam;
+        tourCam.attachControl(canvas, true);
       }
-
-      // Keyboard Listener for ESC pause
-      const onKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-          onTogglePause();
-        }
-      };
-      window.addEventListener('keydown', onKeyDown);
 
       // Render Loop
       let animTime = 0;
@@ -1279,46 +1290,6 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         if (hearthGahLight) {
           const flicker = Math.sin(animTime * 6.5) * 0.18 + Math.cos(animTime * 11) * 0.12;
           hearthGahLight.intensity = (exhibitionModeRef.current === 'festive' ? 3.0 : 2.2) + flicker;
-        }
-
-        // Virtual mobile joystick velocity
-        const jVec = joystickVecRef.current;
-        if ((jVec.vx !== 0 || jVec.vz !== 0) && fpCameraRef.current) {
-          const cam = fpCameraRef.current;
-          const forward = cam.getDirection(Vector3.Forward());
-          const right = cam.getDirection(Vector3.Right());
-          forward.y = 0;
-          forward.normalize();
-          right.y = 0;
-          right.normalize();
-
-          const moveVec = forward.scale(jVec.vz).add(right.scale(jVec.vx));
-          cam.cameraDirection.addInPlace(moveVec.scale(LONGHOUSE_3D_CONFIG.player.moveSpeedMobile));
-        }
-
-        // Avatar position in Third Person
-        if (avatarMeshRef.current && fpCameraRef.current) {
-          avatarMeshRef.current.position = new Vector3(
-            fpCameraRef.current.position.x,
-            fpCameraRef.current.position.y - 0.85,
-            fpCameraRef.current.position.z
-          );
-        }
-
-        // Telemetry update
-        const camPos = fpCameraRef.current ? fpCameraRef.current.position : Vector3.Zero();
-        if (Math.round(animTime * 10) % 4 === 0) {
-          const area: 'A' | 'B' =
-            camPos.z > LONGHOUSE_3D_CONFIG.player.areaZThreshold && camPos.y < 2.5
-              ? 'A'
-              : 'B';
-          onTelemetryUpdate({
-            x: Math.round(camPos.x * 10) / 10,
-            z: Math.round(camPos.z * 10) / 10,
-            yaw: Math.round(((fpCameraRef.current?.rotation.y || 0) * 180) / Math.PI),
-            area,
-            nearestHotspot: hoveredHotspot,
-          });
         }
 
         scene.render();
@@ -1335,7 +1306,6 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
 
       return () => {
         window.removeEventListener('resize', handleResize);
-        window.removeEventListener('keydown', onKeyDown);
         canvas.removeEventListener('webglcontextlost', handleContextLost);
         canvas.removeEventListener('webglcontextrestored', handleContextRestored);
         scene?.dispose();
@@ -1347,68 +1317,6 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
       setLoading(false);
     }
   }, [quality]);
-
-  // Mobile virtual joystick handlers
-  const handleJoyStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    joyActiveRef.current = true;
-    joyOriginRef.current = { x: touch.clientX, y: touch.clientY };
-    setJoystickThumb({ x: 0, y: 0 });
-  };
-
-  const handleJoyMove = (e: React.TouchEvent) => {
-    if (!joyActiveRef.current) return;
-    const touch = e.touches[0];
-    const dx = touch.clientX - joyOriginRef.current.x;
-    const dy = touch.clientY - joyOriginRef.current.y;
-    const dist = Math.hypot(dx, dy);
-    const maxRadius = 40;
-    const clampedDist = Math.min(dist, maxRadius);
-    const angle = Math.atan2(dy, dx);
-    const nx = Math.cos(angle) * clampedDist;
-    const ny = Math.sin(angle) * clampedDist;
-
-    setJoystickThumb({ x: nx, y: ny });
-    joystickVecRef.current = {
-      vx: nx / maxRadius,
-      vz: -ny / maxRadius,
-    };
-  };
-
-  const handleJoyEnd = () => {
-    joyActiveRef.current = false;
-    setJoystickThumb({ x: 0, y: 0 });
-    joystickVecRef.current = { vx: 0, vz: 0 };
-  };
-
-  const handleLookTouchStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    lookTouchRef.current = {
-      active: true,
-      lastX: touch.clientX,
-      lastY: touch.clientY,
-    };
-  };
-
-  const handleLookTouchMove = (e: React.TouchEvent) => {
-    if (!lookTouchRef.current.active || !fpCameraRef.current) return;
-    const touch = e.touches[0];
-    const dx = touch.clientX - lookTouchRef.current.lastX;
-    const dy = touch.clientY - lookTouchRef.current.lastY;
-    lookTouchRef.current.lastX = touch.clientX;
-    lookTouchRef.current.lastY = touch.clientY;
-
-    const sens = 0.005;
-    fpCameraRef.current.rotation.y += dx * sens;
-    fpCameraRef.current.rotation.x = Math.max(
-      -Math.PI / 3,
-      Math.min(Math.PI / 3, fpCameraRef.current.rotation.x + dy * sens)
-    );
-  };
-
-  const handleLookTouchEnd = () => {
-    lookTouchRef.current.active = false;
-  };
 
   if (webglError) {
     return (
@@ -1439,38 +1347,14 @@ export const EdeLonghouseScene: React.FC<EdeLonghouseSceneProps> = ({
         </div>
       )}
 
-      {/* Floating Interactive Hover Tooltip Pill (Requirement 3: Click directly on object!) */}
+      {/* Floating Interactive Hover Tooltip Pill */}
       {hoveredHotspot && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 pointer-events-none animate-bounce">
           <div className="px-4 py-2 rounded-xl bg-gold-500 text-wood-950 font-semibold text-xs sm:text-sm shadow-xl flex items-center gap-2 border border-gold-300">
-            <span>🔍 Nhấp chuột để tìm hiểu: {hoveredHotspot.title}</span>
+            <span>🖱️ Nhấp đúp để tìm hiểu: {hoveredHotspot.title}</span>
           </div>
         </div>
       )}
-
-      {/* Mobile Virtual Joystick & Touch Look Overlay */}
-      <div className="lg:hidden absolute inset-0 z-20 pointer-events-none flex justify-between p-4">
-        {/* Left joystick pad */}
-        <div
-          className="w-28 h-28 rounded-full border-2 border-white/20 bg-wood-950/40 backdrop-blur-xs relative pointer-events-auto self-end mb-2 flex items-center justify-center"
-          onTouchStart={handleJoyStart}
-          onTouchMove={handleJoyMove}
-          onTouchEnd={handleJoyEnd}
-        >
-          <div
-            className="w-12 h-12 rounded-full bg-gold-500/80 shadow-md transform transition-transform duration-75"
-            style={{ transform: `translate(${joystickThumb.x}px, ${joystickThumb.y}px)` }}
-          />
-        </div>
-
-        {/* Right look touchpad */}
-        <div
-          className="w-1/2 h-48 pointer-events-auto self-end mb-2"
-          onTouchStart={handleLookTouchStart}
-          onTouchMove={handleLookTouchMove}
-          onTouchEnd={handleLookTouchEnd}
-        />
-      </div>
     </div>
   );
 };

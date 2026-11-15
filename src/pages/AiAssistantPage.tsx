@@ -321,7 +321,7 @@ export const AiAssistantPage: React.FC<AiAssistantPageProps> = ({
         <aside className="lg:col-span-4 bg-cream border border-sandstone rounded-2xl p-5 space-y-5">
           <div className="flex items-center gap-3">
             <SafeImage
-              src="/src/assets/images/su_gia_dai_ngan_1794539491712.jpg"
+              src="/assets/images/su_gia_dai_ngan_1794539491712.jpg"
               alt="Sứ Giả Đại Ngàn – Trợ lý Khám phá Sử thi"
               className="w-14 h-14 rounded-xl object-cover border border-sandstone shrink-0"
             />

@@ -566,7 +566,7 @@ export const SunGoddess3DMap: React.FC<SunGoddess3DMapProps> = ({
         ) : (
           <div className="relative w-full h-full">
             <SafeImage
-              src="/src/assets/images/sun_goddess_palace_epic_1794540838277.jpg"
+              src="/assets/images/sun_goddess_palace_epic_1794540838277.jpg"
               alt="Bản đồ minh họa Con đường đến Nữ thần Mặt Trời"
               className="w-full h-full object-cover"
             />

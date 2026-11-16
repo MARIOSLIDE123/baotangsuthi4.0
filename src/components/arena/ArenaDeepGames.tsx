@@ -392,7 +392,7 @@ export const EpicDialogueGame: React.FC<DeepGameProps> = ({ onProgress, onFinish
           {item.title} · {item.workTitle}
         </span>
         <span className="font-mono tabular-nums text-xs font-semibold text-wood-600">
-          Tình huống {idx + 1}/{scenarios.length}
+          Câu hỏi {idx + 1}/{scenarios.length}
         </span>
       </div>
 

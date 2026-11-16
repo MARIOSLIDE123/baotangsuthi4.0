@@ -507,30 +507,30 @@ export const EVIDENCE_CHALLENGES: EvidenceChallengeItem[] = [
 export const DIALOGUE_SCENARIOS: DialogueScenarioItem[] = [
   {
     id: 'dlg-1',
-    title: 'Tình huống 1 · Khi khát vọng chạm giới hạn & Lời can ngăn',
+    title: 'Câu hỏi 1 · Giá trị biểu tượng của sự dấn thân',
     workTitle: 'Đăm Săn đi bắt Nữ thần Mặt Trời',
     situation:
-      'Trước khi Đăm Săn lên đường, bạn bè và Đăm Par Kvây đã tha thiết can ngăn, cảnh báo về Rừng Sáp Đen đầy hiểm nguy không ai vượt nổi: “Nước này ai cũng nghe lời ta, chỉ riêng chàng là không nghe”. Một bạn học sinh nêu ý kiến: “Đăm Săn cố chấp không nghe lời can ngăn là sự liều lĩnh mù quáng, không phải là anh hùng chân chính.”',
+      'Có ý kiến cho rằng: Đăm Săn cố chấp không nghe lời khuyên của Đăm Par Kvây và Nữ Thần Mặt Trời để rồi lún sâu trong rừng Sáp Đen. Đó là một sự thất bại vô nghĩa.',
     openQuestion:
-      'Em có đồng tình với nhận định trên không? Hãy viết quan điểm phản biện của em (khoảng 3–5 câu), lí giải giá trị biểu tượng và vẻ đẹp của sự dấn thân ở người anh hùng Đăm Săn.',
+      'Em có đồng tình với ý kiến đó không? Hãy viết quan điểm của em (khoảng 3 - 5 câu) lí giải giá trị biểu tượng của lựa chọn ấy.',
     coreDimensions: [
-      'Phân biệt giữa sự “liều lĩnh mù quáng” và “khát vọng vượt ngưỡng / ý chí dấn thân cao cả” của người anh hùng sử thi Tây Nguyên.',
-      'Đặt hành động của Đăm Săn trong khát vọng vươn tới cái đẹp tuyệt đối, ánh sáng và vinh quang chung cho toàn buôn làng.',
-      'Bài học liên hệ cho thế hệ trẻ ngày nay: tinh thần dám nghĩ, dám làm, dám bước ra khỏi vùng an toàn để theo đuổi ước mơ lớn.',
+      'Phân biệt giữa thất bại về mặt thể xác và chiến thắng về mặt tinh thần, ý chí của người anh hùng sử thi.',
+      'Hành động của Đăm Săn đại diện cho khát vọng vươn tới ánh sáng, tự do và đỉnh cao cái đẹp của cộng đồng Ê-đê.',
+      'Vẻ đẹp bi tráng: người anh hùng ngã xuống trên hành trình hành động dấn thân cao cả, không phải là sự thất bại vô nghĩa.',
     ],
   },
   {
     id: 'dlg-2',
-    title: 'Tình huống 2 · Sự chìm đắm trong Rừng Sáp Đen & Ngọn lửa tiếp nối',
+    title: 'Câu hỏi 2 · Giới hạn bản thân và đỉnh cao mới',
     workTitle: 'Đăm Săn đi bắt Nữ thần Mặt Trời',
     situation:
-      'Khi Đăm Săn quay về, mặt trời mọc làm Rừng Sáp Đen tan chảy, ngựa lún dần rồi cả người và ngựa đều bị chìm ngập. Tuy nhiên, sử thi không khép lại trong bi lụy mà tiếp nối bằng hình ảnh Đăm Săn cháu lớn lên, lại cầm gươm khiên tiếp tục lên đường theo chí hướng của người đi trước.',
+      'Hành trình Đăm Săn vượt qua muôn vàn trắc trở để chạm tới nhà Nữ thần Mặt Trời và cái chết bi tráng nơi Rừng Sáp Đen gợi mở nhiều suy ngẫm sâu sắc về khát vọng và giới hạn của con người trong cuộc sống.',
     openQuestion:
-      'Chi tiết sự ra đi của Đăm Săn và sự ra đời của Đăm Săn cháu gợi cho em suy nghĩ gì về vẻ đẹp bi tráng và sức sống bất diệt của người anh hùng sử thi? (Viết khoảng 3–5 câu).',
+      'Từ câu chuyện Đăm Săn đi bắt nữ thần Mặt Trời, em sẽ lựa chọn: dám vượt qua giới hạn để chinh phục những đỉnh cao mới hay nhận thức đúng giới hạn của bản thân để lựa chọn những mục tiêu phù hợp?',
     coreDimensions: [
-      'Quy luật tự nhiên và giới hạn con người: thiên nhiên vũ trụ kỳ vĩ, con người không thể tùy tiện tư hữu hóa mặt trời nhưng tinh thần chinh phục là bất diệt.',
-      'Vẻ đẹp bi tráng: người anh hùng ngã xuống trên hành trình dấn thân hành động cao quý, không phải là sự thất bại nhu nhược hay tuyệt vọng.',
-      'Sự tiếp nối của thế hệ “Đăm Săn cháu” khẳng định sức sống trường tồn, mãnh liệt của cộng đồng buôn làng và ngọn lửa lý tưởng ngàn đời.',
+      'Góc nhìn 1: Bản lĩnh dám dấn thân, vượt qua vùng an toàn để khám phá tiềm năng và chinh phục những đỉnh cao mới.',
+      'Góc nhìn 2: Trí tuệ nhận thức giới hạn tự nhiên và năng lực thực tế để đưa ra mục tiêu sáng suốt, bền vững.',
+      'Góc nhìn tổng hòa: Kết hợp khát vọng lớn với sự tỉnh táo, nhận thức quy luật để hành động hiệu quả trong thời đại mới.',
     ],
   },
 ];

@@ -41,6 +41,7 @@ import {
   EpicDialogueGame,
   EvidenceChallengeGame,
 } from '../components/arena/ArenaDeepGames';
+import { SunGoddessWheelGame } from '../components/arena/SunGoddessWheelGame';
 import {
   ArenaBadgesAndResults,
   ArenaSummaryView,
@@ -70,6 +71,8 @@ function renderGameIcon(gameId: ArenaGameId, className = 'w-5 h-5') {
       return <Compass className={className} />;
     case 'epic-dialogue':
       return <MessageSquareQuote className={className} />;
+    case 'sun-goddess-wheel':
+      return <Sparkles className={className} />;
   }
 }
 
@@ -503,6 +506,13 @@ export const HeroArenaPage: React.FC<HeroArenaPageProps> = ({
             {activeGameId === 'epic-dialogue' && (
               <EpicDialogueGame
                 key={`dialogue-${gameInstanceKey}`}
+                onProgress={setLiveProgress}
+                onFinish={handleFinishGame}
+              />
+            )}
+            {activeGameId === 'sun-goddess-wheel' && (
+              <SunGoddessWheelGame
+                key={`wheel-${gameInstanceKey}`}
                 onProgress={setLiveProgress}
                 onFinish={handleFinishGame}
               />

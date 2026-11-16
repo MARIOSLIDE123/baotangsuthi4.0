@@ -88,6 +88,14 @@ export const ARENA_GAMES_META: ArenaGameMeta[] = [
     durationSeconds: 240,
     scoringFocus: 'Điểm phân tích phản biện & góc nhìn nhân văn',
   },
+  {
+    id: 'sun-goddess-wheel',
+    orderNumber: '07',
+    title: 'VÒNG QUAY SỬ THI',
+    subtitle: 'Chinh phục Nữ thần Mặt Trời qua vòng quay thử thách và câu hỏi tương tác.',
+    durationSeconds: 300,
+    scoringFocus: 'Vòng quay may mắn & giải mã thử thách sử thi',
+  },
 ];
 
 // Game 1: GIẢI MÃ SỬ THI (4 options each, balanced correctIndex, also shuffled dynamically on start)
@@ -495,48 +503,34 @@ export const EVIDENCE_CHALLENGES: EvidenceChallengeItem[] = [
   },
 ];
 
-// Game 6: ĐỐI THOẠI SỬ THI
+// Game 6: ĐỐI THOẠI SỬ THI - 2 câu hỏi cố định về trích đoạn "Đăm Săn đi bắt Nữ Thần Mặt Trời"
 export const DIALOGUE_SCENARIOS: DialogueScenarioItem[] = [
   {
     id: 'dlg-1',
-    title: 'Tình huống 1 · Khi khát vọng chạm giới hạn',
+    title: 'Tình huống 1 · Khi khát vọng chạm giới hạn & Lời can ngăn',
     workTitle: 'Đăm Săn đi bắt Nữ thần Mặt Trời',
     situation:
-      'Một bạn học sinh cho rằng: “Đăm Săn cố chấp không nghe lời khuyên của Đăm Par Kvây và Nữ thần Mặt Trời để rồi lún sâu trong rừng sáp đen là một sự thất bại vô nghĩa.”',
+      'Trước khi Đăm Săn lên đường, bạn bè và Đăm Par Kvây đã tha thiết can ngăn, cảnh báo về Rừng Sáp Đen đầy hiểm nguy không ai vượt nổi: “Nước này ai cũng nghe lời ta, chỉ riêng chàng là không nghe”. Một bạn học sinh nêu ý kiến: “Đăm Săn cố chấp không nghe lời can ngăn là sự liều lĩnh mù quáng, không phải là anh hùng chân chính.”',
     openQuestion:
-      'Em có đồng tình với ý kiến đó không? Hãy viết quan điểm phản biện của em (khoảng 3–5 câu), lí giải giá trị biểu tượng của lựa chọn ấy.',
+      'Em có đồng tình với nhận định trên không? Hãy viết quan điểm phản biện của em (khoảng 3–5 câu), lí giải giá trị biểu tượng và vẻ đẹp của sự dấn thân ở người anh hùng Đăm Săn.',
     coreDimensions: [
-      'Phân biệt giữa “thất bại thể xác” và “chiến thắng tinh thần / vẻ đẹp bi tráng” của anh hùng sử thi.',
-      'Đặt hành động của Đăm Săn trong khát vọng vươn tới ánh sáng, tầm vóc của cộng đồng Ê-đê.',
-      'Bài học hai chiều cho người trẻ hôm nay: dám mơ lớn nhưng vẫn biết nhận thức giới hạn tự nhiên.',
+      'Phân biệt giữa sự “liều lĩnh mù quáng” và “khát vọng vượt ngưỡng / ý chí dấn thân cao cả” của người anh hùng sử thi Tây Nguyên.',
+      'Đặt hành động của Đăm Săn trong khát vọng vươn tới cái đẹp tuyệt đối, ánh sáng và vinh quang chung cho toàn buôn làng.',
+      'Bài học liên hệ cho thế hệ trẻ ngày nay: tinh thần dám nghĩ, dám làm, dám bước ra khỏi vùng an toàn để theo đuổi ước mơ lớn.',
     ],
   },
   {
     id: 'dlg-2',
-    title: 'Tình huống 2 · Chiến thắng để thống nhất hay hủy diệt?',
-    workTitle: 'Chiến thắng Mtao Mxây',
+    title: 'Tình huống 2 · Sự chìm đắm trong Rừng Sáp Đen & Ngọn lửa tiếp nối',
+    workTitle: 'Đăm Săn đi bắt Nữ thần Mặt Trời',
     situation:
-      'Sau khi hạ gục kẻ thù đã cướp vợ mình là Mtao Mxây, Đăm Săn không cướp phá hay tàn sát dân làng bên kia mà kiên nhẫn gõ cửa hỏi họ ba lần cùng về chung một buôn.',
+      'Khi Đăm Săn quay về, mặt trời mọc làm Rừng Sáp Đen tan chảy, ngựa lún dần rồi cả người và ngựa đều bị chìm ngập. Tuy nhiên, sử thi không khép lại trong bi lụy mà tiếp nối bằng hình ảnh Đăm Săn cháu lớn lên, lại cầm gươm khiên tiếp tục lên đường theo chí hướng của người đi trước.',
     openQuestion:
-      'Chi tiết này cho em suy nghĩ gì về quan niệm “sức mạnh đích thực” của người lãnh đạo cộng đồng trong sử thi và trong đời sống hôm nay?',
+      'Chi tiết sự ra đi của Đăm Săn và sự ra đời của Đăm Săn cháu gợi cho em suy nghĩ gì về vẻ đẹp bi tráng và sức sống bất diệt của người anh hùng sử thi? (Viết khoảng 3–5 câu).',
     coreDimensions: [
-      'Sức mạnh thu phục lòng người (nhân nghĩa, bao dung) lớn hơn sức mạnh vũ lực áp đặt.',
-      'Lí tưởng hòa hợp cộng đồng, xây dựng sự giàu mạnh chung trong sử thi Tây Nguyên.',
-      'Liên hệ cách ứng xử văn minh, tôn trọng tập thể trong môi trường học đường lớp 10.',
-    ],
-  },
-  {
-    id: 'dlg-3',
-    title: 'Tình huống 3 · Bản lĩnh người giữ lửa trí tuệ',
-    workTitle: 'Sử thi Ô-đi-xê',
-    situation:
-      'Trong thời đại bùng nổ tin giả và thông tin nhanh, nhiều người dễ tin vội chỉ qua một lời đồn, còn nàng Pê-nê-lốp lại giữ sự điềm tĩnh kiểm chứng cho tới tận phép thử chiếc giường cây ô-liu.',
-    openQuestion:
-      'Từ thái độ của Pê-nê-lốp, em rút ra bài học nào về sự tỉnh táo khi tiếp nhận thông tin và giữ gìn niềm tin trong cuộc sống hiện đại?',
-    coreDimensions: [
-      'Tư duy phản biện và kiểm chứng bằng căn cứ đáng tin cậy trước khi kết luận.',
-      'Sự cân bằng giữa tình cảm chân thành và lí trí tỉnh táo.',
-      'Giá trị vượt thời gian của trí tuệ nhân văn từ sử thi cổ đại đến công dân số.',
+      'Quy luật tự nhiên và giới hạn con người: thiên nhiên vũ trụ kỳ vĩ, con người không thể tùy tiện tư hữu hóa mặt trời nhưng tinh thần chinh phục là bất diệt.',
+      'Vẻ đẹp bi tráng: người anh hùng ngã xuống trên hành trình dấn thân hành động cao quý, không phải là sự thất bại nhu nhược hay tuyệt vọng.',
+      'Sự tiếp nối của thế hệ “Đăm Săn cháu” khẳng định sức sống trường tồn, mãnh liệt của cộng đồng buôn làng và ngọn lửa lý tưởng ngàn đời.',
     ],
   },
 ];

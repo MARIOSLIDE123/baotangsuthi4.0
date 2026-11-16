@@ -201,7 +201,8 @@ export type ArenaGameId =
   | 'timeline'
   | 'mystery-tiles'
   | 'evidence-challenge'
-  | 'epic-dialogue';
+  | 'epic-dialogue'
+  | 'sun-goddess-wheel';
 
 export interface ArenaGameMeta {
   id: ArenaGameId;

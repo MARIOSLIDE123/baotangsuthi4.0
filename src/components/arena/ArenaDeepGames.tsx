@@ -264,7 +264,8 @@ export const EvidenceChallengeGame: React.FC<DeepGameProps> = ({ onProgress, onF
 /* GAME 6: ĐỐI THOẠI SỬ THI (Tình huống + Câu hỏi mở + AI gợi ý khía cạnh)   */
 /* -------------------------------------------------------------------------- */
 export const EpicDialogueGame: React.FC<DeepGameProps> = ({ onProgress, onFinish }) => {
-  const scenarios = useMemo(() => shuffleArray(DIALOGUE_SCENARIOS), []);
+  // Cố định 2 câu hỏi tình huống Đăm Săn đi bắt Nữ Thần Mặt Trời theo đúng trình tự
+  const scenarios = DIALOGUE_SCENARIOS;
   const [idx, setIdx] = useState(0);
   const [answer, setAnswer] = useState('');
   const [hintAngles, setHintAngles] = useState<string[] | null>(null);

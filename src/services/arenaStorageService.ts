@@ -113,7 +113,7 @@ export function computeArenaBadges(attempts: ArenaAttemptRecord[]): ArenaBadgeSt
     {
       id: 'badge-messenger',
       title: 'Sứ giả di sản',
-      criteria: 'Chinh phục ít nhất 4/6 trò chơi khác nhau và có lượt phân tích đạt tại Đối thoại sử thi.',
+      criteria: 'Chinh phục ít nhất 4/7 trò chơi khác nhau và có lượt phân tích đạt tại Đối thoại sử thi.',
       earned: distinctGamesCompleted.size >= 4 && hasDialogue,
       progressLabel: `${distinctGamesCompleted.size}/4 trò chơi`,
     },

@@ -16,6 +16,7 @@ import {
 } from '../../data/arenaAndStemData';
 import { MuseumRouteId, StemStudioTabId } from '../../types/museum';
 import { StemRealPhotoGallery } from './StemRealPhotoGallery';
+import { StemLonghouseVideoPlayer } from './StemLonghouseVideoPlayer';
 
 const HOUSE_STEPS_KEY = 'suthiso_stem_house_steps_v1';
 const JOURNEY_STEPS_KEY = 'suthiso_stem_journey_steps_v1';
@@ -234,8 +235,9 @@ export const StemHouseMissionPanel: React.FC<StemHouseMissionPanelProps> = ({
           })}
         </div>
 
-        {/* Hình ảnh thực tế học sinh lắp mô hình nhà dài Ê-đê (Sản phẩm STEM) */}
-        <div className="mt-8 pt-6 border-t border-sandstone">
+        {/* Video & Hình ảnh thực tế học sinh lắp mô hình nhà dài Ê-đê (Sản phẩm STEM) */}
+        <div className="mt-8 pt-6 border-t border-sandstone space-y-6">
+          <StemLonghouseVideoPlayer />
           <StemRealPhotoGallery />
         </div>
       </section>

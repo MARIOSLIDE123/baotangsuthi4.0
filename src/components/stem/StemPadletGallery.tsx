@@ -18,6 +18,7 @@ import {
 import { sanitizeHttpUrl } from '../../services/configService';
 import { MuseumRouteId, ServiceConnectionStatus } from '../../types/museum';
 import { StemRealPhotoGallery } from './StemRealPhotoGallery';
+import { StemLonghouseVideoPlayer } from './StemLonghouseVideoPlayer';
 
 type PadletBoardKey = 'infographic-mindmap' | 'house' | 'journey';
 
@@ -264,6 +265,9 @@ export const StemPadletGallery: React.FC<StemPadletGalleryProps> = ({
       {/* TAB 2: Sản phẩm mô hình nhà dài Ê-đê (Ảnh thực hành của học sinh + Padlet) */}
       {activeBoard === 'house' && (
         <div className="space-y-6 animate-fade-in">
+          {/* Video thực tế học sinh lắp ráp mô hình xem trực tiếp */}
+          <StemLonghouseVideoPlayer />
+
           {/* Gallery 4 ảnh thực tế học sinh lắp ráp mô hình */}
           <div className="bg-cream border border-sandstone rounded-3xl p-6 sm:p-8 shadow-sm">
             <StemRealPhotoGallery />

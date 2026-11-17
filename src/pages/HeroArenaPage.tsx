@@ -27,6 +27,10 @@ import {
   computeArenaBadges,
   loadArenaAttempts,
   saveArenaAttempt,
+  checkStudentGameAttemptQuota,
+  getGameAttemptRecordCount,
+  incrementGameAttemptCount,
+  MAX_ATTEMPTS_PER_GAME,
 } from '../services/arenaStorageService';
 import { SafeImage } from '../components/common/SafeImage';
 import {
@@ -51,7 +55,7 @@ interface HeroArenaPageProps {
   bestScore: number;
   studentName?: string;
   className?: string;
-  onFinishAttempt: (score: number, record?: ArenaAttemptRecord) => void;
+  onFinishAttempt: (score: number, record?: ArenaAttemptRecord, attemptNumber?: number) => void;
 }
 
 type ArenaViewTab = 'arena' | 'badges-and-results';
@@ -95,6 +99,7 @@ export const HeroArenaPage: React.FC<HeroArenaPageProps> = ({
 
   const [attempts, setAttempts] = useState<ArenaAttemptRecord[]>(() => loadArenaAttempts());
   const [lastAttempt, setLastAttempt] = useState<ArenaAttemptRecord | null>(null);
+  const [quotaNotice, setQuotaNotice] = useState<string | null>(null);
 
   const [startedAtIso, setStartedAtIso] = useState<string>(() => new Date().toISOString());
   const [timeLeft, setTimeLeft] = useState<number>(180);
@@ -134,11 +139,12 @@ export const HeroArenaPage: React.FC<HeroArenaPageProps> = ({
         reviewItems: payload.reviewItems,
       };
 
+      const attemptNum = incrementGameAttemptCount(studentName, activeGameMeta.id);
       const nextAttempts = saveArenaAttempt(record);
       setAttempts(nextAttempts);
       setLastAttempt(record);
       setSessionState('SUMMARY');
-      onFinishAttempt(record.score, record);
+      onFinishAttempt(record.score, record, attemptNum);
     },
     [studentName, className, activeGameMeta, startedAtIso, onFinishAttempt]
   );
@@ -176,6 +182,12 @@ export const HeroArenaPage: React.FC<HeroArenaPageProps> = ({
   }, [sessionState, handleFinishGame]);
 
   const startGame = (gameId: ArenaGameId) => {
+    const quota = checkStudentGameAttemptQuota(studentName, gameId);
+    if (!quota.canPlay) {
+      setQuotaNotice(quota.message || 'Mỗi học sinh chỉ được làm 1 lần và thử lại 1 lần.');
+      setTimeout(() => setQuotaNotice(null), 5000);
+      return;
+    }
     const meta = ARENA_GAMES_META.find((g) => g.id === gameId) || ARENA_GAMES_META[0];
     setActiveGameId(gameId);
     setGameInstanceKey((k) => k + 1);
@@ -303,15 +315,22 @@ export const HeroArenaPage: React.FC<HeroArenaPageProps> = ({
       ) : sessionState === 'LOBBY' ? (
         /* 6-Game Selection Grid */
         <section aria-label="Danh sách 6 trò chơi Đấu trường" className="space-y-6">
+          {quotaNotice && (
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm font-medium flex items-center gap-2">
+              <span className="font-bold">⚠️ Thông báo:</span>
+              <span>{quotaNotice}</span>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-sandstone pb-3">
             <div>
-              <p className="text-xs font-medium text-wood-600">Chọn thử thách muốn tham gia</p>
+              <p className="text-xs font-medium text-wood-600">Chọn thử thách muốn tham gia (Quy định: 1 lần làm chính thức + 1 lần thử lại)</p>
               <h2 className="font-serif text-2xl sm:text-3xl font-bold text-wood-900">
                 Sáu Môn Thi Đấu Trường Anh Hùng Ca
               </h2>
             </div>
             <span className="text-xs text-wood-600">
-              Câu hỏi &amp; đáp án tự động xáo trộn mỗi lượt chơi
+              Hệ thống tự động lưu kết quả mới nhất
             </span>
           </div>
 
@@ -352,19 +371,58 @@ export const HeroArenaPage: React.FC<HeroArenaPageProps> = ({
                   </div>
 
                   <div className="pt-4 border-t border-sandstone/70 flex items-center justify-between gap-3">
-                    <span className="text-xs font-mono tabular-nums text-wood-600">
-                      {gameAttempts.length > 0
-                        ? `Kỷ lục: ${topForGame}đ (${gameAttempts.length} lượt)`
-                        : 'Chưa thi đấu'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => startGame(game.id)}
-                      className="px-4 py-2 text-xs sm:text-sm font-semibold bg-wood-900 text-cream rounded-lg hover:bg-forest-700 transition-colors inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-                    >
-                      <Play className="w-3.5 h-3.5 text-gold-400" />
-                      <span>Vào thi đấu</span>
-                    </button>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-mono tabular-nums text-wood-600">
+                        {gameAttempts.length > 0
+                          ? `Kỷ lục: ${topForGame}đ`
+                          : 'Chưa thi đấu'}
+                      </span>
+                      {(() => {
+                        const q = checkStudentGameAttemptQuota(studentName, game.id);
+                        return (
+                          <span
+                            className={`text-[11px] font-semibold ${
+                              q.attemptsCount === 0
+                                ? 'text-forest-700'
+                                : q.attemptsCount === 1
+                                ? 'text-amber-700 font-bold'
+                                : 'text-terracotta-700'
+                            }`}
+                          >
+                            {q.attemptsCount === 0
+                              ? 'Lượt 1/2: Thi đấu chính thức'
+                              : q.attemptsCount === 1
+                              ? 'Lượt 2/2: Thử lại lần cuối'
+                              : 'Đã hoàn thành 2/2 lượt (Đã lưu)'}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                    {(() => {
+                      const q = checkStudentGameAttemptQuota(studentName, game.id);
+                      if (!q.canPlay) {
+                        return (
+                          <button
+                            type="button"
+                            disabled
+                            className="px-3.5 py-2 text-xs font-semibold bg-sandstone/50 text-wood-500 rounded-lg cursor-not-allowed whitespace-nowrap opacity-75"
+                            title="Mỗi học sinh chỉ được làm 1 lần và thử lại 1 lần"
+                          >
+                            Đã làm 2/2 lượt
+                          </button>
+                        );
+                      }
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => startGame(game.id)}
+                          className="px-4 py-2 text-xs sm:text-sm font-semibold bg-wood-900 text-cream rounded-lg hover:bg-forest-700 transition-colors inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                        >
+                          <Play className="w-3.5 h-3.5 text-gold-400" />
+                          <span>{q.isRetry ? 'Thử lại (Lượt 2/2)' : 'Vào thi đấu'}</span>
+                        </button>
+                      );
+                    })()}
                   </div>
                 </article>
               );
@@ -375,6 +433,7 @@ export const HeroArenaPage: React.FC<HeroArenaPageProps> = ({
         <ArenaSummaryView
           attempt={lastAttempt}
           badges={badges}
+          canRetry={getGameAttemptRecordCount(studentName, activeGameId) < MAX_ATTEMPTS_PER_GAME}
           onPlayAgain={() => startGame(activeGameId)}
           onBackToLobby={() => setSessionState('LOBBY')}
           onOpenLeaderboard={() => setViewTab('badges-and-results')}

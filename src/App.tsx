@@ -529,7 +529,7 @@ export default function App() {
   );
 
   const handleFinishArena = useCallback(
-    async (score: number, record?: ArenaAttemptRecord) => {
+    async (score: number, record?: ArenaAttemptRecord, attemptNumber?: number) => {
       let base = saveDemoPassport({
         ...passportRef.current,
         arenaBestScore: Math.max(passportRef.current.arenaBestScore, score),
@@ -539,7 +539,7 @@ export default function App() {
       setPassport(base);
 
       if (record) {
-        recordArenaAttemptToStudentProfile(base, record);
+        recordArenaAttemptToStudentProfile(base, record, attemptNumber || 1);
       } else {
         upsertStudentLearningProfile(base);
       }

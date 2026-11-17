@@ -2,6 +2,73 @@ import { ArenaAttemptRecord, ArenaBadgeStatus } from '../types/museum';
 import { playCorrectSound, playWrongSound } from './ambientAudioService';
 
 const ARENA_ATTEMPTS_KEY = 'suthiso_arena_attempts_v1';
+const GAME_ATTEMPTS_COUNT_KEY = 'suthiso_game_attempts_count_v2';
+
+export const MAX_ATTEMPTS_PER_GAME = 2; // Mỗi học sinh chỉ được làm 1 lần và thử lại 1 lần (tổng 2 lần)
+
+/**
+ * Đếm số lượt đã thi đấu của học sinh cho 1 trò chơi cụ thể (tối đa 2 lượt)
+ */
+export function getGameAttemptRecordCount(studentName: string, gameId: string): number {
+  try {
+    const raw = localStorage.getItem(GAME_ATTEMPTS_COUNT_KEY);
+    if (!raw) return 0;
+    const map = JSON.parse(raw);
+    const key = `${studentName.trim().toLowerCase()}_${gameId}`;
+    return typeof map[key] === 'number' ? map[key] : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Tăng số lượt đã thi đấu của học sinh
+ */
+export function incrementGameAttemptCount(studentName: string, gameId: string): number {
+  try {
+    const raw = localStorage.getItem(GAME_ATTEMPTS_COUNT_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    const key = `${studentName.trim().toLowerCase()}_${gameId}`;
+    const nextCount = (map[key] || 0) + 1;
+    map[key] = nextCount;
+    localStorage.setItem(GAME_ATTEMPTS_COUNT_KEY, JSON.stringify(map));
+    return nextCount;
+  } catch {
+    return 1;
+  }
+}
+
+/**
+ * Kiểm tra hạn mức thi đấu: cho phép làm 1 lần chính thức và thử lại 1 lần
+ */
+export function checkStudentGameAttemptQuota(studentName: string, gameId: string): {
+  canPlay: boolean;
+  attemptNumber: number; // 1 = Lần đầu, 2 = Thử lại
+  attemptsCount: number;
+  maxAttempts: number;
+  isRetry: boolean;
+  message?: string;
+} {
+  const count = getGameAttemptRecordCount(studentName, gameId);
+  const maxAttempts = MAX_ATTEMPTS_PER_GAME;
+  if (count >= maxAttempts) {
+    return {
+      canPlay: false,
+      attemptNumber: count,
+      attemptsCount: count,
+      maxAttempts,
+      isRetry: true,
+      message: 'Bạn đã hoàn thành tối đa 2/2 lượt làm bài (1 lần làm chính thức + 1 lần thử lại). Kết quả mới nhất đã được lưu!',
+    };
+  }
+  return {
+    canPlay: true,
+    attemptNumber: count + 1,
+    attemptsCount: count,
+    maxAttempts,
+    isRetry: count === 1,
+  };
+}
 
 export function loadArenaAttempts(): ArenaAttemptRecord[] {
   try {
@@ -14,9 +81,21 @@ export function loadArenaAttempts(): ArenaAttemptRecord[] {
   }
 }
 
+/**
+ * Lưu kết quả thi đấu Đấu trường:
+ * Luôn cập nhật và lưu kết quả MỚI NHẤT của học sinh đối với từng trò chơi
+ */
 export function saveArenaAttempt(record: ArenaAttemptRecord): ArenaAttemptRecord[] {
   const existing = loadArenaAttempts();
-  const next = [record, ...existing].slice(0, 60);
+  // Lọc bỏ bài làm cũ cùng trò chơi của học sinh này để chỉ lưu kết quả mới nhất
+  const otherAttempts = existing.filter(
+    (a) =>
+      !(
+        a.gameId === record.gameId &&
+        a.studentName.trim().toLowerCase() === record.studentName.trim().toLowerCase()
+      )
+  );
+  const next = [record, ...otherAttempts].slice(0, 60);
   try {
     localStorage.setItem(ARENA_ATTEMPTS_KEY, JSON.stringify(next));
   } catch {

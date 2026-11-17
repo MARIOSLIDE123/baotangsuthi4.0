@@ -20,6 +20,7 @@ interface ArenaSummaryViewProps {
   onPlayAgain: () => void;
   onBackToLobby: () => void;
   onOpenLeaderboard: () => void;
+  canRetry?: boolean;
 }
 
 export const ArenaSummaryView: React.FC<ArenaSummaryViewProps> = ({
@@ -28,6 +29,7 @@ export const ArenaSummaryView: React.FC<ArenaSummaryViewProps> = ({
   onPlayAgain,
   onBackToLobby,
   onOpenLeaderboard,
+  canRetry = true,
 }) => {
   const { breakdown } = attempt;
   const startStr = new Date(attempt.startedAtIso).toLocaleTimeString('vi-VN', {
@@ -172,14 +174,21 @@ export const ArenaSummaryView: React.FC<ArenaSummaryViewProps> = ({
 
       {/* Actions */}
       <div className="relative z-10 flex flex-wrap items-center gap-3 pt-2">
-        <button
-          type="button"
-          onClick={onPlayAgain}
-          className="px-5 py-2.5 text-sm font-semibold bg-gold-500 text-wood-950 rounded-lg hover:bg-gold-400 transition-colors inline-flex items-center gap-2 cursor-pointer"
-        >
-          <RotateCcw className="w-4 h-4" />
-          <span>Chơi lại (Xáo trộn mới)</span>
-        </button>
+        {canRetry ? (
+          <button
+            type="button"
+            onClick={onPlayAgain}
+            className="px-5 py-2.5 text-sm font-semibold bg-gold-500 text-wood-950 rounded-lg hover:bg-gold-400 transition-colors inline-flex items-center gap-2 cursor-pointer"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span>Thử lại lần cuối (Lượt 2/2)</span>
+          </button>
+        ) : (
+          <div className="px-4 py-2.5 text-xs font-semibold bg-wood-900 border border-gold-500/40 text-gold-300 rounded-lg inline-flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>Đã hoàn thành 2/2 lượt (1 lần làm + 1 lần thử lại)</span>
+          </div>
+        )}
         <button
           type="button"
           onClick={onBackToLobby}

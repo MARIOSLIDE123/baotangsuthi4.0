@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { sanitizeHttpUrl } from '../../services/configService';
 import { MuseumRouteId, ServiceConnectionStatus } from '../../types/museum';
+import { StemRealPhotoGallery } from './StemRealPhotoGallery';
 
 type PadletBoardKey = 'infographic-mindmap' | 'house' | 'journey';
 
@@ -263,8 +264,13 @@ export const StemPadletGallery: React.FC<StemPadletGalleryProps> = ({
       {/* TAB 2: Sản phẩm mô hình nhà dài Ê-đê (Ảnh thực hành của học sinh + Padlet) */}
       {activeBoard === 'house' && (
         <div className="space-y-6 animate-fade-in">
-          {/* Featured Photo of Students Assembling Model */}
-          <div className="bg-cream border border-sandstone rounded-2xl overflow-hidden shadow-md">
+          {/* Gallery 4 ảnh thực tế học sinh lắp ráp mô hình */}
+          <div className="bg-cream border border-sandstone rounded-3xl p-6 sm:p-8 shadow-sm">
+            <StemRealPhotoGallery />
+          </div>
+
+          {/* Tiêu điểm ảnh tổng kết & Thuyết minh sản phẩm */}
+          <div className="rounded-2xl border border-sandstone bg-cream overflow-hidden shadow-sm">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
               <div className="lg:col-span-7 relative min-h-[320px] lg:min-h-[420px] bg-wood-950">
                 <img

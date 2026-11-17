@@ -2,7 +2,10 @@ import {
   ArenaAttemptRecord,
   ExplorerPassportState,
 } from '../types/museum';
-import { syncToGoogleSheets } from './googleSheetsService';
+import {
+  syncToGoogleSheets,
+  fetchRawDataFromGoogleSheets,
+} from './googleSheetsService';
 
 export const ALL_STUDENTS_RECORDS_KEY = 'suthiso_all_students_records_v2';
 export const TEACHER_SESSION_KEY = 'suthiso_teacher_auth_session_v1';
@@ -20,6 +23,7 @@ export interface DetailedAnswerRecord {
   scoreAwarded: number;
   maxScore: number;
   teacherOrAiFeedback?: string;
+  attemptNumber?: number; // 1 = Lần làm chính thức, 2 = Lần thử lại
 }
 
 export interface StudentFullLearningProfile {
@@ -183,24 +187,39 @@ export function upsertStudentLearningProfile(
 
 /**
  * Ghi nhận toàn bộ kết quả trò chơi Đấu Trường kèm chi tiết câu trả lời
+ * Luôn cập nhật và lưu kết quả MỚI NHẤT (ghi đè kết quả bài làm cũ của cùng trò chơi)
  */
 export function recordArenaAttemptToStudentProfile(
   passport: ExplorerPassportState,
-  attempt: ArenaAttemptRecord
+  attempt: ArenaAttemptRecord,
+  attemptNumber: number = 1
 ): void {
   const answerRecords: DetailedAnswerRecord[] = attempt.reviewItems.map((item, idx) => ({
     id: `${attempt.id}_ans_${idx}`,
     activityId: attempt.gameId,
     activityTitle: attempt.gameTitle,
-    activityType: attempt.gameId === 'evidence-challenge' ? 'evidence' : attempt.gameId === 'epic-dialogue' ? 'dialogue' : 'quiz',
+    activityType:
+      attempt.gameId === 'evidence-challenge'
+        ? 'evidence'
+        : attempt.gameId === 'epic-dialogue'
+        ? 'dialogue'
+        : attempt.gameId === 'who-is-hero'
+        ? 'match'
+        : attempt.gameId === 'timeline'
+        ? 'timeline'
+        : 'quiz',
     timestampIso: attempt.completedAtIso,
     questionPrompt: item.prompt,
     studentAnswer: item.yourAnswer,
     correctAnswer: item.correctAnswer,
-    isCorrect: attempt.gameId === 'epic-dialogue' ? item.explanation.includes('Lập luận') || item.yourAnswer.length > 30 : item.yourAnswer === item.correctAnswer,
+    isCorrect:
+      attempt.gameId === 'epic-dialogue'
+        ? item.explanation.includes('Lập luận') || item.yourAnswer.length > 30
+        : item.yourAnswer.trim().toLowerCase() === (item.correctAnswer || '').trim().toLowerCase(),
     scoreAwarded: Math.round(attempt.score / Math.max(1, attempt.reviewItems.length)),
     maxScore: Math.round(attempt.score / Math.max(1, attempt.reviewItems.length)),
     teacherOrAiFeedback: item.explanation,
+    attemptNumber,
   }));
 
   const profiles = loadAllStudentsProfiles();
@@ -211,7 +230,9 @@ export function recordArenaAttemptToStudentProfile(
 
   if (existingIndex >= 0) {
     const existing = profiles[existingIndex];
-    const combinedAnswers = [...answerRecords, ...existing.detailedAnswers];
+    // LỌC BỎ CÂU TRẢ LỜI CŨ CỦA CÙNG TRÒ CHƠI ĐỂ CHỈ LƯU KẾT QUẢ MỚI NHẤT
+    const otherAnswers = existing.detailedAnswers.filter((a) => a.activityId !== attempt.gameId);
+    const combinedAnswers = [...answerRecords, ...otherAnswers];
     const correctCount = combinedAnswers.filter((a) => a.isCorrect).length;
 
     profiles[existingIndex] = {
@@ -224,7 +245,7 @@ export function recordArenaAttemptToStudentProfile(
       detailedAnswers: combinedAnswers,
     };
     saveAllStudentsProfiles(profiles);
-    syncProfileToGoogleSheet(profiles[existingIndex]);
+    syncProfileToGoogleSheet(profiles[existingIndex], answerRecords[0]);
   } else {
     upsertStudentLearningProfile(passport, answerRecords[0]);
   }
@@ -233,15 +254,28 @@ export function recordArenaAttemptToStudentProfile(
 /**
  * Đồng bộ dữ liệu chi tiết lên Google Sheet của Cô Loan Hồ
  */
+/**
+ * Đồng bộ dữ liệu chi tiết lên Google Sheet (Ghi vào cả 2 sheet DANH_SACH_HOC_SINH và CHI_TIET_BAI_LAM)
+ */
 function syncProfileToGoogleSheet(
   profile: StudentFullLearningProfile,
   latestAnswer?: DetailedAnswerRecord
 ): void {
   const latestAnsText = latestAnswer
-    ? `[${latestAnswer.activityTitle}] Câu hỏi: ${latestAnswer.questionPrompt.slice(0, 80)}... | HS chọn: ${latestAnswer.studentAnswer.slice(0, 100)}`
+    ? `[${latestAnswer.activityTitle}] HS chọn: ${latestAnswer.studentAnswer.slice(0, 100)}`
     : profile.detailedAnswers.length > 0
       ? `Đã làm ${profile.detailedAnswers.length} câu hỏi. Gần nhất: ${profile.detailedAnswers[0].questionPrompt.slice(0, 60)}`
       : 'Tham quan & học tập';
+
+  const answersPayload = (latestAnswer ? [latestAnswer] : profile.detailedAnswers.slice(0, 15)).map((a) => ({
+    questionPrompt: a.questionPrompt,
+    studentAnswer: a.studentAnswer,
+    correctAnswer: a.correctAnswer,
+    isCorrect: a.isCorrect,
+    scoreAwarded: a.scoreAwarded,
+    activityTitle: a.activityTitle,
+    attemptNumber: a.attemptNumber || 1,
+  }));
 
   syncToGoogleSheets({
     action: 'update_progress',
@@ -256,7 +290,94 @@ function syncProfileToGoogleSheet(
     stemActions: profile.stemCompletedTasks.join('; '),
     latestActivity: latestAnsText,
     notes: `Tổng câu đúng: ${profile.totalQuestionsCorrect}/${profile.totalQuestionsAnswered}`,
+    detailedAnswers: answersPayload,
   }).catch(() => {});
+}
+
+/**
+ * Đồng bộ ngược từ Google Sheet về APP cho Giáo viên (2 chiều)
+ */
+export async function pullLearningRecordsFromGoogleSheets(): Promise<{
+  ok: boolean;
+  students: StudentFullLearningProfile[];
+  message: string;
+}> {
+  const res = await fetchRawDataFromGoogleSheets();
+  if (!res.ok || !res.students) {
+    return {
+      ok: false,
+      students: loadAllStudentsProfiles(),
+      message: res.message,
+    };
+  }
+
+  const localProfiles = loadAllStudentsProfiles();
+  const remoteStudents = res.students;
+  const remoteAnswers = res.detailedAnswers || [];
+
+  for (const r of remoteStudents) {
+    const key = generateStudentKey(r.studentName, r.className);
+    const existingIdx = localProfiles.findIndex((p) => p.studentId === key);
+
+    const studentAnswers: DetailedAnswerRecord[] = remoteAnswers
+      .filter(
+        (a: any) =>
+          String(a.studentName || '').toLowerCase() === String(r.studentName || '').toLowerCase() &&
+          String(a.className || '').toLowerCase() === String(r.className || '').toLowerCase()
+      )
+      .map((a: any, idx: number) => ({
+        id: `remote_${key}_${idx}`,
+        activityId: 'google-sheet-synced',
+        activityTitle: a.activityTitle || 'Đấu trường',
+        activityType: 'quiz' as const,
+        timestampIso: a.timestampIso || new Date().toISOString(),
+        questionPrompt: a.questionPrompt || '',
+        studentAnswer: a.studentAnswer || '',
+        correctAnswer: a.correctAnswer || '',
+        isCorrect: Boolean(a.isCorrect),
+        scoreAwarded: Number(a.scoreAwarded) || 0,
+        maxScore: Number(a.scoreAwarded) || 10,
+        attemptNumber: a.attemptNumber || 1,
+      }));
+
+    if (existingIdx >= 0) {
+      localProfiles[existingIdx] = {
+        ...localProfiles[existingIdx],
+        totalScore: Math.max(localProfiles[existingIdx].totalScore, Number(r.totalScore) || 0),
+        museum3DScore: Math.max(localProfiles[existingIdx].museum3DScore, Number(r.museum3DScore) || 0),
+        arenaBestScore: Math.max(localProfiles[existingIdx].arenaBestScore, Number(r.arenaBestScore) || 0),
+        lastActiveIso: r.lastActiveIso || localProfiles[existingIdx].lastActiveIso,
+        detailedAnswers:
+          studentAnswers.length > 0 ? studentAnswers : localProfiles[existingIdx].detailedAnswers,
+      };
+    } else {
+      localProfiles.push({
+        studentId: key,
+        studentName: r.studentName,
+        className: r.className || 'Lớp 10',
+        school: r.school || 'Trường THPT',
+        firstJoinedIso: r.lastActiveIso || new Date().toISOString(),
+        lastActiveIso: r.lastActiveIso || new Date().toISOString(),
+        totalScore: Number(r.totalScore) || 0,
+        museum3DScore: Number(r.museum3DScore) || 0,
+        arenaBestScore: Number(r.arenaBestScore) || 0,
+        readingScore: 0,
+        visitedZones: ['home', 'museum-3d', 'hero-arena'],
+        completedHotspots: [],
+        stemCompletedTasks: [],
+        totalQuestionsAnswered: studentAnswers.length,
+        totalQuestionsCorrect: studentAnswers.filter((a) => a.isCorrect).length,
+        detailedAnswers: studentAnswers,
+      });
+    }
+  }
+
+  saveAllStudentsProfiles(localProfiles);
+  return {
+    ok: true,
+    students: localProfiles,
+    message: `Đã đồng bộ thành công ${remoteStudents.length} học sinh từ Google Sheet!`,
+  };
 }
 
 /**

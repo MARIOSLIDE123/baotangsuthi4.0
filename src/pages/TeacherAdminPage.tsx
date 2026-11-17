@@ -38,6 +38,12 @@ import {
   saveLocalPadletUrls,
 } from '../services/configService';
 import {
+  getGoogleSheetsScriptUrl,
+  saveGoogleSheetsScriptUrl,
+  syncToGoogleSheets,
+  SAMPLE_GOOGLE_APPS_SCRIPT_CODE,
+} from '../services/googleSheetsService';
+import {
   EPIC_CONCEPT_CARDS,
   VIETNAM_EPIC_DOSSIERS,
   WORLD_EPIC_DOSSIERS,
@@ -86,6 +92,7 @@ type AdminTabId =
   | 'reading'
   | 'badges'
   | 'padlet'
+  | 'google-sheets'
   | 'curriculum';
 
 const ADMIN_TABS: Array<{
@@ -101,6 +108,7 @@ const ADMIN_TABS: Array<{
   { id: 'reading', label: 'Xem kết quả đọc hiểu', icon: BookOpenCheck },
   { id: 'badges', label: 'Quản lý huy hiệu', icon: Award },
   { id: 'padlet', label: 'Cập nhật Padlet', icon: Link2 },
+  { id: 'google-sheets', label: 'Google Sheets (Real-time)', icon: FileSpreadsheet },
   { id: 'curriculum', label: 'Quản lý học liệu', icon: FileCode2 },
 ];
 
@@ -172,6 +180,13 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
     serviceStatus.padlet.journeyEmbedUrl || localUrls.journeyEmbedUrl || ''
   );
   const [presentationMode, setPresentationMode] = useState(false);
+
+  // Google Sheets integration state
+  const [googleSheetsUrl, setGoogleSheetsUrl] = useState<string>(() => getGoogleSheetsScriptUrl());
+  const [sheetsSavedNote, setSheetsSavedNote] = useState<string | null>(null);
+  const [sheetsTestLoading, setSheetsTestLoading] = useState(false);
+  const [sheetsTestResult, setSheetsTestResult] = useState<string | null>(null);
+  const [copiedScript, setCopiedScript] = useState(false);
   const [padletSavedNote, setPadletSavedNote] = useState<string | null>(null);
   const [padletError, setPadletError] = useState<string | null>(null);
   const [curriculumFeedback, setCurriculumFeedback] = useState<string | null>(null);
@@ -492,6 +507,52 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
     setPadletError(null);
     setPadletSavedNote('Đã xóa liên kết Padlet lưu cục bộ.');
     setTimeout(() => setPadletSavedNote(null), 3000);
+  };
+
+  const handleSaveGoogleSheetsUrl = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveGoogleSheetsScriptUrl(googleSheetsUrl);
+    setSheetsSavedNote('Đã lưu URL Google Apps Script thành công!');
+    setTimeout(() => setSheetsSavedNote(null), 3000);
+  };
+
+  const handleTestGoogleSheetsConnection = async () => {
+    if (!googleSheetsUrl.trim()) {
+      setSheetsTestResult('Vui lòng dán URL Google Apps Script Web App trước khi kiểm tra.');
+      return;
+    }
+    setSheetsTestLoading(true);
+    setSheetsTestResult(null);
+    saveGoogleSheetsScriptUrl(googleSheetsUrl);
+    const res = await syncToGoogleSheets({
+      action: 'test_connection',
+      studentName: 'Giáo viên kiểm tra',
+      className: 'Tất cả các lớp',
+      school: passport.school || 'Trường THPT',
+      latestActivity: 'Kiểm tra đường truyền đồng bộ thời gian thực',
+      visitedZonesCount: 11,
+      totalScore: 100,
+      notes: 'Bản ghi kiểm tra kết nối từ trang Quản trị GV',
+    });
+    setSheetsTestLoading(false);
+    if (res.ok) {
+      setSheetsTestResult('✅ Gửi dữ liệu kiểm tra thành công! Vui lòng mở Google Sheet để kiểm tra dòng dữ liệu mới.');
+    } else {
+      setSheetsTestResult(`⚠️ ${res.message}`);
+    }
+  };
+
+  const handleClearGoogleSheetsUrl = () => {
+    setGoogleSheetsUrl('');
+    saveGoogleSheetsScriptUrl('');
+    setSheetsSavedNote('Đã xóa cấu hình URL Google Apps Script.');
+    setTimeout(() => setSheetsSavedNote(null), 3000);
+  };
+
+  const handleCopyScriptCode = () => {
+    navigator.clipboard.writeText(SAMPLE_GOOGLE_APPS_SCRIPT_CODE);
+    setCopiedScript(true);
+    setTimeout(() => setCopiedScript(false), 3000);
   };
 
   const handleExportJson = () => {
@@ -1514,6 +1575,147 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
             )}
           </div>
         </form>
+      )}
+
+      {/* TAB: Kết nối Google Sheets & Apps Script (Thời gian thực) */}
+      {activeTab === 'google-sheets' && (
+        <div className="space-y-8 animate-fade-in max-w-4xl">
+          {/* Main Form */}
+          <form
+            onSubmit={handleSaveGoogleSheetsUrl}
+            className="bg-cream border border-sandstone rounded-2xl p-6 sm:p-8 space-y-5 shadow-sm"
+          >
+            <div className="flex items-center gap-2.5">
+              <FileSpreadsheet className="w-6 h-6 text-forest-700" />
+              <div>
+                <h2 className="font-serif text-2xl font-bold text-wood-900">
+                  Liên kết Google Sheet lưu trữ hồ sơ &amp; kết quả học tập
+                </h2>
+                <p className="text-xs sm:text-sm text-wood-700 mt-0.5">
+                  Tự động đồng bộ danh sách học sinh (họ tên, lớp, trường), điểm số Đấu trường và tiến độ tham quan theo thời gian thực thông qua Google Apps Script Web App.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="google-sheets-script-url" className="block text-xs font-semibold text-wood-800">
+                URL Google Apps Script Web App (Triển khai ở chế độ "Anyone / Bất kỳ ai"):
+              </label>
+              <input
+                id="google-sheets-script-url"
+                type="url"
+                value={googleSheetsUrl}
+                onChange={(e) => setGoogleSheetsUrl(e.target.value)}
+                placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                className="w-full px-3.5 py-2.5 text-sm font-mono bg-cream border border-sandstone rounded-lg focus:border-gold-500 focus:outline-none"
+              />
+              <p className="text-xs text-wood-600">
+                Hệ thống tự động sử dụng biến này để ghi danh khi học sinh vào bảo tàng và cập nhật tiến độ học tập.
+              </p>
+            </div>
+
+            {sheetsTestResult && (
+              <div className="p-3.5 rounded-xl bg-parchment border border-sandstone text-xs text-wood-900 font-medium leading-relaxed">
+                {sheetsTestResult}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <button
+                type="submit"
+                className="px-5 py-2.5 text-xs sm:text-sm font-semibold bg-forest-700 text-cream rounded-xl hover:bg-forest-800 transition-colors cursor-pointer shadow-sm"
+              >
+                Lưu cấu hình Google Sheet
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTestGoogleSheetsConnection}
+                disabled={sheetsTestLoading}
+                className="px-4 py-2.5 text-xs sm:text-sm font-semibold bg-gold-500 text-wood-950 rounded-xl hover:bg-gold-400 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {sheetsTestLoading ? 'Đang gửi kiểm tra...' : 'Kiểm tra kết nối / Gửi mẫu'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearGoogleSheetsUrl}
+                className="px-3.5 py-2.5 text-xs font-semibold bg-parchment text-wood-800 border border-sandstone rounded-xl hover:border-gold-500 transition-colors cursor-pointer"
+              >
+                Xóa URL
+              </button>
+
+              {sheetsSavedNote && (
+                <span className="text-xs font-medium text-forest-700 inline-flex items-center gap-1">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{sheetsSavedNote}</span>
+                </span>
+              )}
+            </div>
+          </form>
+
+          {/* Setup Guide for Teachers */}
+          <div className="bg-cream border border-sandstone rounded-2xl p-6 sm:p-8 space-y-4 shadow-sm">
+            <h3 className="font-serif text-xl font-bold text-wood-900 flex items-center gap-2">
+              <Database className="w-5 h-5 text-gold-600" />
+              <span>Hướng dẫn 3 bước thiết lập Google Sheet cho Giáo viên:</span>
+            </h3>
+
+            <ol className="list-decimal pl-6 space-y-3 text-xs sm:text-sm text-wood-800 leading-relaxed">
+              <li>
+                <strong>Bước 1: Tạo Google Spreadsheet mới</strong>
+                <p className="text-wood-600 mt-0.5">
+                  Truy cập <a href="https://sheets.new" target="_blank" rel="noopener noreferrer" className="text-forest-700 underline font-semibold">sheets.new</a> để tạo 1 file Google Sheet mới (Đặt tên ví dụ: <em>"Bảo Tàng Sử Thi 4.0 - Kết Quả Học Sinh"</em>).
+                </p>
+              </li>
+              <li>
+                <strong>Bước 2: Mở Apps Script &amp; Dán mã nguồn</strong>
+                <p className="text-wood-600 mt-0.5">
+                  Trên thanh menu của Google Sheet, chọn: <strong>Tiện ích mở rộng (Extensions)</strong> &rarr; <strong>Apps Script</strong>. Xóa mã mặc định và dán toàn bộ đoạn mã bên dưới vào.
+                </p>
+              </li>
+              <li>
+                <strong>Bước 3: Triển khai dưới dạng Web App</strong>
+                <p className="text-wood-600 mt-0.5">
+                  Bấm nút <strong>Triển khai (Deploy)</strong> ở góc trên bên phải &rarr; <strong>Tùy chọn triển khai mới (New deployment)</strong> &rarr; Chọn loại: <strong>Ứng dụng web (Web app)</strong>.
+                  <br />
+                  - Tại mục <em>"Người có quyền truy cập" (Who has access)</em>: Chọn <strong>Bất kỳ ai (Anyone)</strong>.
+                  <br />
+                  - Bấm <strong>Triển khai</strong> &rarr; Sao chép <strong>URL ứng dụng web (Web app URL)</strong> và dán vào ô nhập ở trên.
+                </p>
+              </li>
+            </ol>
+
+            <div className="pt-3">
+              <div className="flex items-center justify-between pb-2">
+                <span className="text-xs font-bold text-wood-900 uppercase tracking-wider">
+                  Mã nguồn Google Apps Script mẫu (Code.gs):
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyScriptCode}
+                  className="px-3 py-1.5 rounded-lg bg-wood-900 hover:bg-wood-800 text-cream text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  {copiedScript ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Đã sao chép mã!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Sao chép mã Apps Script</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <pre className="p-4 rounded-xl bg-wood-950 text-sandstone-light text-xs font-mono overflow-x-auto max-h-72 border border-sandstone leading-relaxed">
+                {SAMPLE_GOOGLE_APPS_SCRIPT_CODE}
+              </pre>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* TAB 9: Quản lý học liệu */}

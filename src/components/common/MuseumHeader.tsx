@@ -3,6 +3,7 @@ import {
   Maximize2,
   Menu,
   Minimize2,
+  User,
   Volume1,
   Volume2,
   VolumeX,
@@ -15,13 +16,17 @@ import { ambientAudio } from '../../services/ambientAudioService';
 interface MuseumHeaderProps {
   activeRoute: MuseumRouteId;
   studentName: string;
+  studentClass?: string;
   onNavigate: (route: MuseumRouteId) => void;
+  onEditProfile?: () => void;
 }
 
 export const MuseumHeader: React.FC<MuseumHeaderProps> = ({
   activeRoute,
   studentName,
+  studentClass,
   onNavigate,
+  onEditProfile,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -165,11 +170,17 @@ export const MuseumHeader: React.FC<MuseumHeaderProps> = ({
 
           <button
             type="button"
-            onClick={() => onNavigate('passport')}
-            title={`Hồ sơ người học: ${studentName}`}
-            className="px-4 py-2 text-xs sm:text-sm font-semibold bg-forest-700 text-cream rounded-lg hover:bg-forest-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-sm"
+            onClick={onEditProfile || (() => onNavigate('passport'))}
+            title={`Hồ sơ học sinh: ${studentName}${studentClass ? ` (${studentClass})` : ''} - Nhấn để đổi hoặc cập nhật hồ sơ`}
+            className="px-3 py-1.5 text-xs sm:text-sm font-semibold bg-forest-700 text-cream rounded-lg hover:bg-forest-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-sm flex items-center gap-1.5"
           >
-            Hồ sơ người học
+            <User className="w-3.5 h-3.5 text-gold-300" />
+            <span className="max-w-[130px] truncate">{studentName || 'Hồ sơ học sinh'}</span>
+            {studentClass && (
+              <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-forest-900/60 text-gold-300 hidden sm:inline">
+                {studentClass}
+              </span>
+            )}
           </button>
 
           <button

@@ -232,6 +232,46 @@ export const StemHouseMissionPanel: React.FC<StemHouseMissionPanelProps> = ({
             );
           })}
         </div>
+
+        {/* Hình ảnh thực tế học sinh lắp mô hình nhà dài Ê-đê */}
+        <div className="mt-6 pt-5 border-t border-sandstone">
+          <div className="rounded-xl overflow-hidden border border-sandstone bg-wood-950/90 text-cream grid grid-cols-1 md:grid-cols-12 gap-0 shadow-sm">
+            <div className="md:col-span-6 relative min-h-[220px]">
+              <img
+                src="/assets/images/hoc_sinh_lap_mo_hinh_nha_dai_ede.jpg"
+                alt="Học sinh thực hành lắp ráp mô hình nhà dài Ê-đê trong tiết dạy STEM"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-wood-950/80 via-transparent to-transparent" />
+              <div className="absolute bottom-3 left-3 right-3 text-xs text-sandstone-light">
+                <span className="px-2 py-0.5 rounded bg-gold-500/30 text-gold-300 font-semibold border border-gold-500/40">
+                  Ảnh thực tế sản phẩm STEM
+                </span>
+              </div>
+            </div>
+            <div className="md:col-span-6 p-5 flex flex-col justify-center space-y-2.5 bg-parchment/95 text-wood-900">
+              <p className="text-xs font-bold uppercase tracking-wider text-forest-800">
+                Sản phẩm của tiết dạy có ứng dụng STEM
+              </p>
+              <h4 className="font-serif text-lg font-bold text-wood-900">
+                Học sinh thực hành lắp ráp mô hình nhà dài Ê-đê
+              </h4>
+              <p className="text-xs text-wood-700 leading-relaxed">
+                Nhóm học sinh phân vai: kĩ sư kết cấu (dựng cột, dầm đỡ sàn), kiến trúc sư (ghép mái dốc, vách đan) và nhà nghiên cứu văn hóa (chạm khắc cầu thang đực – cầu thang cái, trang trí bếp lửa).
+              </p>
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => onSwitchTab('gallery')}
+                  className="px-3 py-1.5 rounded-lg bg-forest-700 hover:bg-forest-800 text-cream text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>Xem phòng trưng bày Padlet</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

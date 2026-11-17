@@ -32,6 +32,12 @@ import { MuseumIntroScreen } from './components/intro/MuseumIntroScreen';
 import { MuseumHeader } from './components/common/MuseumHeader';
 import { MuseumZoneDirectory } from './components/common/MuseumZoneDirectory';
 import { GuideCharacterWidget } from './components/common/GuideCharacterWidget';
+import { StudentEntryModal } from './components/common/StudentEntryModal';
+import {
+  isStudentProfileRegistered,
+  syncToGoogleSheets,
+  StudentProfileData,
+} from './services/googleSheetsService';
 import { HomePage } from './pages/HomePage';
 import { EpicGatePage } from './pages/EpicGatePage';
 import { VietnamEpicsPage } from './pages/VietnamEpicsPage';
@@ -132,6 +138,8 @@ export default function App() {
     DEFAULT_CONFIG_STATUS
   );
   const [audioEnabled, setAudioEnabled] = useState(false);
+  const [showStudentEntryModal, setShowStudentEntryModal] = useState(false);
+  const [isEditProfileMode, setIsEditProfileMode] = useState(false);
   const [reducedMotion, setReducedMotion] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem(REDUCED_MOTION_KEY);
@@ -237,6 +245,56 @@ export default function App() {
     ambientAudio.start();
   }, []);
 
+  const handleStartFromIntro = useCallback(() => {
+    if (!isStudentProfileRegistered()) {
+      setIsEditProfileMode(false);
+      setShowStudentEntryModal(true);
+    } else {
+      handleEnterMuseum();
+    }
+  }, [handleEnterMuseum]);
+
+  const handleSaveStudentProfile = useCallback(
+    (profile: StudentProfileData) => {
+      setPassport((prev) => {
+        const next: ExplorerPassportState = {
+          ...prev,
+          studentName: profile.studentName,
+          className: profile.className,
+          school: profile.school,
+        };
+        saveDemoPassport(next);
+        passportRef.current = next;
+        return next;
+      });
+      setShowStudentEntryModal(false);
+      if (showIntro) {
+        handleEnterMuseum();
+      }
+    },
+    [showIntro, handleEnterMuseum]
+  );
+
+  const triggerGoogleSheetsProgressSync = useCallback(
+    (customActivity?: string) => {
+      const p = passportRef.current;
+      syncToGoogleSheets({
+        action: 'update_progress',
+        studentName: p.studentName,
+        className: p.className,
+        school: p.school,
+        visitedZonesCount: p.visitedZones.length,
+        visitedZonesList: p.visitedZones.join(', '),
+        museum3DScore: p.museum3DScore,
+        arenaBestScore: p.arenaBestScore,
+        totalScore: p.totalScore,
+        stemActions: p.completedStemActions?.join('; ') || '',
+        latestActivity: customActivity || `Hoạt động tại phân khu: ${activeRoute}`,
+      }).catch(() => {});
+    },
+    [activeRoute]
+  );
+
   const handleNavigate = useCallback(
     (route: MuseumRouteId) => {
       setActiveRoute(route);
@@ -247,9 +305,10 @@ export default function App() {
         return next;
       });
       syncUrlQuery(route, route === 'stem-studio' ? stemTab : undefined);
+      triggerGoogleSheetsProgressSync(`Tham quan phân khu: ${route}`);
       window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
     },
-    [reducedMotion, stemTab]
+    [reducedMotion, stemTab, triggerGoogleSheetsProgressSync]
   );
 
   const handleChangeStemTab = useCallback(
@@ -496,11 +555,14 @@ export default function App() {
         });
         passportRef.current = next;
         setPassport(next);
+        triggerGoogleSheetsProgressSync(
+          `Hoàn thành trò chơi Đấu trường: ${record?.gameTitle || 'Trò chơi'} (${score}đ)`
+        );
       } catch {
         // Handled safely
       }
     },
-    []
+    [triggerGoogleSheetsProgressSync]
   );
 
   const handleRecordStemAction = useCallback(
@@ -514,11 +576,12 @@ export default function App() {
         });
         passportRef.current = next;
         setPassport(next);
+        triggerGoogleSheetsProgressSync(`Hoàn thành nhiệm vụ STEM: ${label}`);
       } catch {
         // Handled safely
       }
     },
-    []
+    [triggerGoogleSheetsProgressSync]
   );
 
   const handleUpdateDemoProfile = useCallback(
@@ -535,10 +598,11 @@ export default function App() {
           ...profile,
         });
         passportRef.current = next;
+        triggerGoogleSheetsProgressSync('Cập nhật hồ sơ học sinh');
         return next;
       });
     },
-    []
+    [triggerGoogleSheetsProgressSync]
   );
 
   const handleSyncPassport = useCallback((next: ExplorerPassportState) => {
@@ -676,10 +740,20 @@ export default function App() {
             reducedMotion={reducedMotion}
             onToggleAudio={handleToggleAudio}
             onToggleReducedMotion={handleToggleReducedMotion}
-            onEnterMuseum={handleEnterMuseum}
+            onEnterMuseum={handleStartFromIntro}
           />
         )}
       </AnimatePresence>
+
+      <StudentEntryModal
+        isOpen={showStudentEntryModal}
+        initialName={passport.studentName === 'Học sinh trải nghiệm' ? '' : passport.studentName}
+        initialClass={passport.className === 'Lớp 10' ? '' : passport.className}
+        initialSchool={passport.school === 'Trường THPT (Chưa liên kết)' ? '' : passport.school}
+        isEditMode={isEditProfileMode}
+        onSaveProfile={handleSaveStudentProfile}
+        onClose={() => setShowStudentEntryModal(false)}
+      />
 
       <div className="tay-nguyen-fret" aria-hidden="true" />
 
@@ -688,7 +762,12 @@ export default function App() {
         <MuseumHeader
           activeRoute={activeRoute}
           studentName={passport.studentName}
+          studentClass={passport.className}
           onNavigate={handleNavigate}
+          onEditProfile={() => {
+            setIsEditProfileMode(true);
+            setShowStudentEntryModal(true);
+          }}
         />
 
         <MuseumZoneDirectory

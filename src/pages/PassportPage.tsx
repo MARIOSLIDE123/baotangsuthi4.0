@@ -38,7 +38,6 @@ import {
   updateStudentProfileCloud,
 } from '../services/firebaseService';
 import { auth } from '../services/firebaseClient';
-import { DemoModeBanner } from '../components/common/StateFeedback';
 import { SafeImage } from '../components/common/SafeImage';
 
 interface PassportPageProps {
@@ -422,15 +421,6 @@ export const PassportPage: React.FC<PassportPageProps> = ({
           )}
         </div>
       </header>
-
-      {!serviceStatus.firebase.configured && (
-        <DemoModeBanner
-          serviceName="Firebase Firestore & Auth"
-          detail="Chưa cấu hình dự án Firebase. Tiến trình Hộ chiếu hiện được lưu cục bộ trên trình duyệt ở chế độ Demo."
-          actionLabel="Xem trạng thái hệ thống"
-          onAction={() => onNavigate('teacher-admin')}
-        />
-      )}
 
       {errorMessage && (
         <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-wood-900 text-sm flex items-start gap-2.5">

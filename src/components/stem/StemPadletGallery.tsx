@@ -26,7 +26,7 @@ interface StemPadletGalleryProps {
   onNavigate: (route: MuseumRouteId) => void;
 }
 
-const DEFAULT_PADLET_STEM_URL = 'https://sieu-tro-ly-tro-choi.netlify.app/?choi=4KBWFRDH';
+const DEFAULT_PADLET_STEM_URL = 'https://padlet.com/beloan107/tong-ket-oan-trich-am-san-i-bat-nu-than-mat-troi-s025f1wgbahs8e60vyvk';
 const QR_PADLET_STEM_PATH = '/assets/images/qr_padlet_stem_dam_san.png';
 const STUDENT_MODEL_ASSEMBLY_PATH = '/assets/images/hoc_sinh_lap_mo_hinh_nha_dai_ede.jpg';
 

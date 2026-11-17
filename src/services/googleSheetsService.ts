@@ -36,8 +36,11 @@ export interface SyncResult {
   message: string;
 }
 
+export const DEFAULT_GOOGLE_SHEETS_SCRIPT_URL =
+  'https://script.google.com/macros/s/AKfycby-VKWmhlyRzH_1UPwTDEZgQg5RFL4NJFr0vpMiGSTndye02Lu4kJo3Y8mU-HIHwJxEpA/exec';
+
 /**
- * Lấy URL Google Apps Script đã cấu hình từ localStorage hoặc env
+ * Lấy URL Google Apps Script được cấu hình cố định trong hệ thống
  */
 export function getGoogleSheetsScriptUrl(): string {
   try {
@@ -46,7 +49,7 @@ export function getGoogleSheetsScriptUrl(): string {
   } catch {
     // Ignore storage errors
   }
-  return (import.meta.env.VITE_GOOGLE_SHEETS_SCRIPT_URL || '').trim();
+  return DEFAULT_GOOGLE_SHEETS_SCRIPT_URL;
 }
 
 /**

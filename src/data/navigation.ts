@@ -115,7 +115,7 @@ export const MUSEUM_ZONES: MuseumZoneInfo[] = [
     id: 'teacher-admin',
     orderLabel: '11',
     title: 'Trang quản trị dành cho giáo viên',
-    shortTitle: 'Quản trị GV',
+    shortTitle: 'Kết quả học tập',
     category: 'admin',
     subtitle: 'Kiểm tra trạng thái dịch vụ (Firebase, Gemini, Padlet) và cấu hình liên kết lớp học.',
     guideTip:

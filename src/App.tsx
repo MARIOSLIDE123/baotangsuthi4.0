@@ -38,6 +38,10 @@ import {
   syncToGoogleSheets,
   StudentProfileData,
 } from './services/googleSheetsService';
+import {
+  recordArenaAttemptToStudentProfile,
+  upsertStudentLearningProfile,
+} from './services/studentLearningRecordsService';
 import { HomePage } from './pages/HomePage';
 import { EpicGatePage } from './pages/EpicGatePage';
 import { VietnamEpicsPage } from './pages/VietnamEpicsPage';
@@ -265,6 +269,7 @@ export default function App() {
         };
         saveDemoPassport(next);
         passportRef.current = next;
+        upsertStudentLearningProfile(next);
         return next;
       });
       setShowStudentEntryModal(false);
@@ -532,6 +537,12 @@ export default function App() {
       });
       passportRef.current = base;
       setPassport(base);
+
+      if (record) {
+        recordArenaAttemptToStudentProfile(base, record);
+      } else {
+        upsertStudentLearningProfile(base);
+      }
 
       try {
         const maxPossible = Math.max(score, (record?.totalItems || 5) * 20, 20);

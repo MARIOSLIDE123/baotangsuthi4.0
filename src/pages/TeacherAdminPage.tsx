@@ -38,11 +38,16 @@ import {
   saveLocalPadletUrls,
 } from '../services/configService';
 import {
-  getGoogleSheetsScriptUrl,
-  saveGoogleSheetsScriptUrl,
+  DEFAULT_GOOGLE_SHEETS_SCRIPT_URL,
   syncToGoogleSheets,
   SAMPLE_GOOGLE_APPS_SCRIPT_CODE,
 } from '../services/googleSheetsService';
+import {
+  isTeacherAuthenticated,
+  setTeacherAuthenticated,
+  verifyTeacherCredentials,
+} from '../services/studentLearningRecordsService';
+import { LearningResultsView } from '../components/admin/LearningResultsView';
 import {
   EPIC_CONCEPT_CARDS,
   VIETNAM_EPIC_DOSSIERS,
@@ -84,6 +89,7 @@ interface TeacherAdminPageProps {
 }
 
 type AdminTabId =
+  | 'results'
   | 'overview'
   | 'students'
   | 'classes'
@@ -92,7 +98,6 @@ type AdminTabId =
   | 'reading'
   | 'badges'
   | 'padlet'
-  | 'google-sheets'
   | 'curriculum';
 
 const ADMIN_TABS: Array<{
@@ -100,6 +105,7 @@ const ADMIN_TABS: Array<{
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
+  { id: 'results', label: 'Kết quả học tập', icon: FileSpreadsheet },
   { id: 'overview', label: 'Biểu đồ & Xuất báo cáo', icon: BarChart3 },
   { id: 'students', label: 'Quản lý học sinh', icon: Users },
   { id: 'classes', label: 'Quản lý lớp', icon: School },
@@ -108,7 +114,6 @@ const ADMIN_TABS: Array<{
   { id: 'reading', label: 'Xem kết quả đọc hiểu', icon: BookOpenCheck },
   { id: 'badges', label: 'Quản lý huy hiệu', icon: Award },
   { id: 'padlet', label: 'Cập nhật Padlet', icon: Link2 },
-  { id: 'google-sheets', label: 'Google Sheets (Real-time)', icon: FileSpreadsheet },
   { id: 'curriculum', label: 'Quản lý học liệu', icon: FileCode2 },
 ];
 
@@ -123,9 +128,33 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
   serviceStatus,
   onRefreshStatus,
 }) => {
-  const [activeTab, setActiveTab] = useState<AdminTabId>('overview');
+  const [activeTab, setActiveTab] = useState<AdminTabId>('results');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('ALL');
   const [studentSearch, setStudentSearch] = useState('');
+
+  // Authentication for Teacher (loanho / 2026)
+  const [isTeacherAuth, setIsTeacherAuth] = useState<boolean>(() => isTeacherAuthenticated());
+  const [authUsername, setAuthUsername] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const handleTeacherLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verifyTeacherCredentials(authUsername, authPassword)) {
+      setTeacherAuthenticated(true);
+      setIsTeacherAuth(true);
+      setAuthError(null);
+      setAuthUsername('');
+      setAuthPassword('');
+    } else {
+      setAuthError('Tài khoản hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.');
+    }
+  };
+
+  const handleTeacherLogout = () => {
+    setTeacherAuthenticated(false);
+    setIsTeacherAuth(false);
+  };
 
   const [dashboard, setDashboard] = useState<TeacherDashboardPayload>({
     classes: [],
@@ -181,12 +210,6 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
   );
   const [presentationMode, setPresentationMode] = useState(false);
 
-  // Google Sheets integration state
-  const [googleSheetsUrl, setGoogleSheetsUrl] = useState<string>(() => getGoogleSheetsScriptUrl());
-  const [sheetsSavedNote, setSheetsSavedNote] = useState<string | null>(null);
-  const [sheetsTestLoading, setSheetsTestLoading] = useState(false);
-  const [sheetsTestResult, setSheetsTestResult] = useState<string | null>(null);
-  const [copiedScript, setCopiedScript] = useState(false);
   const [padletSavedNote, setPadletSavedNote] = useState<string | null>(null);
   const [padletError, setPadletError] = useState<string | null>(null);
   const [curriculumFeedback, setCurriculumFeedback] = useState<string | null>(null);
@@ -509,52 +532,6 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
     setTimeout(() => setPadletSavedNote(null), 3000);
   };
 
-  const handleSaveGoogleSheetsUrl = (e: React.FormEvent) => {
-    e.preventDefault();
-    saveGoogleSheetsScriptUrl(googleSheetsUrl);
-    setSheetsSavedNote('Đã lưu URL Google Apps Script thành công!');
-    setTimeout(() => setSheetsSavedNote(null), 3000);
-  };
-
-  const handleTestGoogleSheetsConnection = async () => {
-    if (!googleSheetsUrl.trim()) {
-      setSheetsTestResult('Vui lòng dán URL Google Apps Script Web App trước khi kiểm tra.');
-      return;
-    }
-    setSheetsTestLoading(true);
-    setSheetsTestResult(null);
-    saveGoogleSheetsScriptUrl(googleSheetsUrl);
-    const res = await syncToGoogleSheets({
-      action: 'test_connection',
-      studentName: 'Giáo viên kiểm tra',
-      className: 'Tất cả các lớp',
-      school: passport.school || 'Trường THPT',
-      latestActivity: 'Kiểm tra đường truyền đồng bộ thời gian thực',
-      visitedZonesCount: 11,
-      totalScore: 100,
-      notes: 'Bản ghi kiểm tra kết nối từ trang Quản trị GV',
-    });
-    setSheetsTestLoading(false);
-    if (res.ok) {
-      setSheetsTestResult('✅ Gửi dữ liệu kiểm tra thành công! Vui lòng mở Google Sheet để kiểm tra dòng dữ liệu mới.');
-    } else {
-      setSheetsTestResult(`⚠️ ${res.message}`);
-    }
-  };
-
-  const handleClearGoogleSheetsUrl = () => {
-    setGoogleSheetsUrl('');
-    saveGoogleSheetsScriptUrl('');
-    setSheetsSavedNote('Đã xóa cấu hình URL Google Apps Script.');
-    setTimeout(() => setSheetsSavedNote(null), 3000);
-  };
-
-  const handleCopyScriptCode = () => {
-    navigator.clipboard.writeText(SAMPLE_GOOGLE_APPS_SCRIPT_CODE);
-    setCopiedScript(true);
-    setTimeout(() => setCopiedScript(false), 3000);
-  };
-
   const handleExportJson = () => {
     const payload = {
       exportedAt: new Date().toISOString(),
@@ -585,63 +562,88 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
       : dashboard.classes.find((c) => c.classId === selectedClassFilter)?.name ||
         selectedClassFilter;
 
-  // Access Gate if not signed in or role is student
-  if (!isAuthorizedEducator) {
+  // Access Gate if not signed in or not teacher authenticated
+  if (!isAuthorizedEducator && !isTeacherAuth) {
     return (
-      <div className="space-y-8 pb-14 max-w-4xl mx-auto">
-        <header className="border-b border-sandstone pb-6 space-y-2">
+      <div className="space-y-8 pb-14 max-w-xl mx-auto animate-fade-in">
+        <header className="border-b border-sandstone pb-6 space-y-2 text-center">
           <p className="text-xs font-medium text-wood-600">
-            Phân khu 11 · Cổng xác thực Giáo viên &amp; Quản trị hệ thống
+            Phân khu 11 · Cổng xác thực Giáo viên Ngữ văn
           </p>
-          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-wood-900">
-            Trang quản trị dành cho giáo viên
+          <h1 className="font-serif text-3xl font-bold text-wood-900">
+            KẾT QUẢ HỌC TẬP
           </h1>
         </header>
 
-        <section className="bg-wood-900 text-cream rounded-2xl p-6 sm:p-10 space-y-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-xl bg-gold-500/20 text-gold-400 shrink-0">
+        <section className="bg-cream border border-sandstone rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-forest-700/10 border border-forest-700/20 flex items-center justify-center text-forest-800">
               <Lock className="w-6 h-6" />
             </div>
-            <div className="space-y-2">
-              <h2 className="font-serif text-2xl font-bold">
-                {!passport.uid
-                  ? 'Đăng nhập tài khoản Giáo viên / Quản trị viên'
-                  : 'Quyền truy cập được bảo vệ theo vai trò (RBAC)'}
-              </h2>
-              <p className="text-sm text-cream/80 leading-relaxed">
-                {!passport.uid
-                  ? 'Để quản lý lớp học, xem tiến độ học sinh, chấm bài đọc hiểu, xem 4 biểu đồ thống kê và xuất báo cáo Excel/CSV, vui lòng đăng nhập bằng tài khoản Giáo viên hoặc Quản trị viên.'
-                  : `Tài khoản hiện tại (${passport.studentName}) đang mang vai trò Học sinh. Học sinh chỉ xem được dữ liệu cá nhân trong Hộ chiếu và không thể truy cập điểm số hay danh sách của các bạn khác.`}
-              </p>
-            </div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-forest-800 bg-forest-50 px-2.5 py-1 rounded-full border border-forest-200">
+              Khu vực bảo mật dành cho Giáo viên
+            </span>
+            <p className="text-xs text-wood-600 leading-relaxed max-w-sm mx-auto">
+              Chỉ giáo viên phụ trách mới có quyền xem điểm số, thời gian học và kiểm tra toàn bộ chi tiết các câu trả lời của học sinh.
+            </p>
           </div>
 
-          {actionError && (
-            <p className="text-xs text-amber-300 bg-wood-950 p-3 rounded-lg border border-amber-500/40">
-              {actionError}
-            </p>
+          {authError && (
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs font-medium flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+              <span>{authError}</span>
+            </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-3">
-            {!passport.uid ? (
-              <button
-                type="button"
-                onClick={handleSignIn}
-                className="px-5 py-2.5 text-sm font-semibold bg-gold-500 text-wood-950 rounded-xl hover:bg-gold-400 inline-flex items-center gap-2 cursor-pointer"
-              >
-                <LogIn className="w-4 h-4" />
-                <span>Đăng nhập bằng Google</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => signOutFirebase()}
-                className="px-4 py-2 text-sm font-semibold bg-parchment text-wood-900 rounded-xl hover:bg-cream cursor-pointer"
-              >
-                Đăng xuất để đổi tài khoản giáo viên
-              </button>
-            )}
+          <form onSubmit={handleTeacherLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-wood-800 mb-1.5">
+                Tài khoản giáo viên
+              </label>
+              <input
+                type="text"
+                autoComplete="off"
+                value={authUsername}
+                onChange={(e) => setAuthUsername(e.target.value)}
+                placeholder="Nhập tài khoản giáo viên..."
+                className="w-full px-3.5 py-2.5 text-sm bg-parchment/60 border border-sandstone rounded-xl focus:border-gold-500 focus:outline-none"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-wood-800 mb-1.5">
+                Mật khẩu
+              </label>
+              <input
+                type="password"
+                autoComplete="off"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                placeholder="Nhập mật khẩu..."
+                className="w-full px-3.5 py-2.5 text-sm bg-parchment/60 border border-sandstone rounded-xl focus:border-gold-500 focus:outline-none"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 rounded-xl bg-forest-700 hover:bg-forest-800 text-cream font-bold text-sm shadow-md transition-colors cursor-pointer flex items-center justify-center gap-2"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>ĐĂNG NHẬP XEM KẾT QUẢ</span>
+            </button>
+          </form>
+
+          <div className="pt-2 border-t border-sandstone text-center">
+            <button
+              type="button"
+              onClick={handleSignIn}
+              className="text-xs text-wood-600 hover:text-wood-900 inline-flex items-center gap-1.5 cursor-pointer underline"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Hoặc đăng nhập bằng tài khoản Google (Firebase)</span>
+            </button>
           </div>
         </section>
 
@@ -667,11 +669,11 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
           </div>
           <div className="bg-cream border border-sandstone rounded-xl p-5 space-y-1.5">
             <p className="text-xs font-semibold text-wood-800 flex items-center gap-1.5">
-              <Link2 className="w-4 h-4 text-gold-600" />
-              <span>Padlet trưng bày STEM</span>
+              <FileSpreadsheet className="w-4 h-4 text-forest-700" />
+              <span>Google Sheets Real-time</span>
             </p>
-            <p className="text-xs text-wood-700">
-              {serviceStatus.padlet.configured ? 'Đã cấu hình URL' : 'Chờ giáo viên cập nhật'}
+            <p className="text-xs text-wood-700 text-forest-800 font-medium">
+              Đã tích hợp tự động
             </p>
           </div>
         </section>
@@ -692,6 +694,21 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
           <p className="text-sm sm:text-base text-wood-700 leading-relaxed">
             Quản lý lớp học, theo dõi tiến độ 3 trạng thái, chấm kết quả đọc hiểu &amp; trò chơi, phân tích 4 biểu đồ và xuất báo cáo CSV/Excel.
           </p>
+          {isTeacherAuth && (
+            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded-xl w-fit">
+              <ShieldCheck className="w-4 h-4 text-emerald-700" />
+              <span className="text-xs font-semibold text-emerald-900">
+                Tài khoản Giáo viên: loanho
+              </span>
+              <button
+                type="button"
+                onClick={handleTeacherLogout}
+                className="text-xs text-rose-700 hover:text-rose-800 ml-2 font-bold cursor-pointer underline"
+              >
+                Đăng xuất
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Class Filter & Refresh + Export */}
@@ -794,6 +811,9 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
           );
         })}
       </nav>
+
+      {/* TAB 0: KẾT QUẢ HỌC TẬP (Bảo mật giáo viên & Real-time Google Sheets) */}
+      {activeTab === 'results' && <LearningResultsView />}
 
       {/* TAB 1: Overview & 4 Analytics Charts */}
       {activeTab === 'overview' && (
@@ -1577,146 +1597,7 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
         </form>
       )}
 
-      {/* TAB: Kết nối Google Sheets & Apps Script (Thời gian thực) */}
-      {activeTab === 'google-sheets' && (
-        <div className="space-y-8 animate-fade-in max-w-4xl">
-          {/* Main Form */}
-          <form
-            onSubmit={handleSaveGoogleSheetsUrl}
-            className="bg-cream border border-sandstone rounded-2xl p-6 sm:p-8 space-y-5 shadow-sm"
-          >
-            <div className="flex items-center gap-2.5">
-              <FileSpreadsheet className="w-6 h-6 text-forest-700" />
-              <div>
-                <h2 className="font-serif text-2xl font-bold text-wood-900">
-                  Liên kết Google Sheet lưu trữ hồ sơ &amp; kết quả học tập
-                </h2>
-                <p className="text-xs sm:text-sm text-wood-700 mt-0.5">
-                  Tự động đồng bộ danh sách học sinh (họ tên, lớp, trường), điểm số Đấu trường và tiến độ tham quan theo thời gian thực thông qua Google Apps Script Web App.
-                </p>
-              </div>
-            </div>
 
-            <div className="space-y-1.5">
-              <label htmlFor="google-sheets-script-url" className="block text-xs font-semibold text-wood-800">
-                URL Google Apps Script Web App (Triển khai ở chế độ "Anyone / Bất kỳ ai"):
-              </label>
-              <input
-                id="google-sheets-script-url"
-                type="url"
-                value={googleSheetsUrl}
-                onChange={(e) => setGoogleSheetsUrl(e.target.value)}
-                placeholder="https://script.google.com/macros/s/AKfycb.../exec"
-                className="w-full px-3.5 py-2.5 text-sm font-mono bg-cream border border-sandstone rounded-lg focus:border-gold-500 focus:outline-none"
-              />
-              <p className="text-xs text-wood-600">
-                Hệ thống tự động sử dụng biến này để ghi danh khi học sinh vào bảo tàng và cập nhật tiến độ học tập.
-              </p>
-            </div>
-
-            {sheetsTestResult && (
-              <div className="p-3.5 rounded-xl bg-parchment border border-sandstone text-xs text-wood-900 font-medium leading-relaxed">
-                {sheetsTestResult}
-              </div>
-            )}
-
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button
-                type="submit"
-                className="px-5 py-2.5 text-xs sm:text-sm font-semibold bg-forest-700 text-cream rounded-xl hover:bg-forest-800 transition-colors cursor-pointer shadow-sm"
-              >
-                Lưu cấu hình Google Sheet
-              </button>
-
-              <button
-                type="button"
-                onClick={handleTestGoogleSheetsConnection}
-                disabled={sheetsTestLoading}
-                className="px-4 py-2.5 text-xs sm:text-sm font-semibold bg-gold-500 text-wood-950 rounded-xl hover:bg-gold-400 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {sheetsTestLoading ? 'Đang gửi kiểm tra...' : 'Kiểm tra kết nối / Gửi mẫu'}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleClearGoogleSheetsUrl}
-                className="px-3.5 py-2.5 text-xs font-semibold bg-parchment text-wood-800 border border-sandstone rounded-xl hover:border-gold-500 transition-colors cursor-pointer"
-              >
-                Xóa URL
-              </button>
-
-              {sheetsSavedNote && (
-                <span className="text-xs font-medium text-forest-700 inline-flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{sheetsSavedNote}</span>
-                </span>
-              )}
-            </div>
-          </form>
-
-          {/* Setup Guide for Teachers */}
-          <div className="bg-cream border border-sandstone rounded-2xl p-6 sm:p-8 space-y-4 shadow-sm">
-            <h3 className="font-serif text-xl font-bold text-wood-900 flex items-center gap-2">
-              <Database className="w-5 h-5 text-gold-600" />
-              <span>Hướng dẫn 3 bước thiết lập Google Sheet cho Giáo viên:</span>
-            </h3>
-
-            <ol className="list-decimal pl-6 space-y-3 text-xs sm:text-sm text-wood-800 leading-relaxed">
-              <li>
-                <strong>Bước 1: Tạo Google Spreadsheet mới</strong>
-                <p className="text-wood-600 mt-0.5">
-                  Truy cập <a href="https://sheets.new" target="_blank" rel="noopener noreferrer" className="text-forest-700 underline font-semibold">sheets.new</a> để tạo 1 file Google Sheet mới (Đặt tên ví dụ: <em>"Bảo Tàng Sử Thi 4.0 - Kết Quả Học Sinh"</em>).
-                </p>
-              </li>
-              <li>
-                <strong>Bước 2: Mở Apps Script &amp; Dán mã nguồn</strong>
-                <p className="text-wood-600 mt-0.5">
-                  Trên thanh menu của Google Sheet, chọn: <strong>Tiện ích mở rộng (Extensions)</strong> &rarr; <strong>Apps Script</strong>. Xóa mã mặc định và dán toàn bộ đoạn mã bên dưới vào.
-                </p>
-              </li>
-              <li>
-                <strong>Bước 3: Triển khai dưới dạng Web App</strong>
-                <p className="text-wood-600 mt-0.5">
-                  Bấm nút <strong>Triển khai (Deploy)</strong> ở góc trên bên phải &rarr; <strong>Tùy chọn triển khai mới (New deployment)</strong> &rarr; Chọn loại: <strong>Ứng dụng web (Web app)</strong>.
-                  <br />
-                  - Tại mục <em>"Người có quyền truy cập" (Who has access)</em>: Chọn <strong>Bất kỳ ai (Anyone)</strong>.
-                  <br />
-                  - Bấm <strong>Triển khai</strong> &rarr; Sao chép <strong>URL ứng dụng web (Web app URL)</strong> và dán vào ô nhập ở trên.
-                </p>
-              </li>
-            </ol>
-
-            <div className="pt-3">
-              <div className="flex items-center justify-between pb-2">
-                <span className="text-xs font-bold text-wood-900 uppercase tracking-wider">
-                  Mã nguồn Google Apps Script mẫu (Code.gs):
-                </span>
-                <button
-                  type="button"
-                  onClick={handleCopyScriptCode}
-                  className="px-3 py-1.5 rounded-lg bg-wood-900 hover:bg-wood-800 text-cream text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
-                >
-                  {copiedScript ? (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-emerald-400">Đã sao chép mã!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Sao chép mã Apps Script</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <pre className="p-4 rounded-xl bg-wood-950 text-sandstone-light text-xs font-mono overflow-x-auto max-h-72 border border-sandstone leading-relaxed">
-                {SAMPLE_GOOGLE_APPS_SCRIPT_CODE}
-              </pre>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* TAB 9: Quản lý học liệu */}
       {activeTab === 'curriculum' && (

@@ -17,10 +17,12 @@ import {
   Lock,
   LogIn,
   Plus,
+  Printer,
   RefreshCw,
   RotateCcw,
   School,
   ShieldCheck,
+  Trash2,
   Users,
 } from 'lucide-react';
 import {
@@ -46,6 +48,13 @@ import {
   isTeacherAuthenticated,
   setTeacherAuthenticated,
   verifyTeacherCredentials,
+  loadAllStudentsProfiles,
+  loadLocalClassrooms,
+  saveLocalClassrooms,
+  loadLocalBadges,
+  saveLocalBadge,
+  LocalClassroomRecord,
+  LocalAwardedBadge,
 } from '../services/studentLearningRecordsService';
 import { LearningResultsView } from '../components/admin/LearningResultsView';
 import {
@@ -80,6 +89,8 @@ import { TeacherAnalyticsCharts } from '../components/admin/TeacherAnalyticsChar
 import {
   exportClassReportCsv,
   exportClassReportExcel,
+  exportFullStudentProfilesToExcel,
+  printClassLearningReportPdf,
 } from '../utils/reportExport';
 
 interface TeacherAdminPageProps {
@@ -122,6 +133,130 @@ const STATUS_LABEL: Record<ModuleProgressStatus, { text: string; cls: string }> 
   in_progress: { text: 'Đang khám phá', cls: 'bg-gold-500/15 text-wood-900 border-gold-500/50' },
   completed: { text: 'Đã hoàn thành', cls: 'bg-forest-700/15 text-forest-800 border-forest-700/40' },
 };
+
+function buildDashboardFromLocalRecords(): TeacherDashboardPayload {
+  const localClasses = loadLocalClassrooms();
+  const profiles = loadAllStudentsProfiles();
+  const localBadges = loadLocalBadges();
+
+  const classes: ClassroomRecord[] = localClasses.map((c) => ({
+    classId: c.classId,
+    name: c.name,
+    school: c.school,
+    academicYear: c.academicYear,
+    joinCode: c.joinCode,
+    teacherUid: 'loanho',
+    teacherName: c.teacherName,
+    isActive: c.isActive,
+    createdAtIso: c.createdAtIso || new Date().toISOString(),
+    updatedAtIso: new Date().toISOString(),
+  }));
+
+  const students: UserProfileRecord[] = profiles.map((p) => {
+    const matched = localClasses.find(
+      (c) => c.name.toLowerCase() === p.className.toLowerCase()
+    );
+    return {
+      uid: p.studentId,
+      displayName: p.studentName,
+      school: p.school,
+      className: p.className,
+      classId: matched?.classId || p.className,
+      joinCode: matched?.joinCode || p.className,
+      teacherUid: 'loanho',
+      avatarPreset: 'dam-san',
+      avatarUrl: '',
+      role: 'student' as UserRole,
+      totalScore: p.totalScore,
+      createdAtIso: p.firstJoinedIso,
+      updatedAtIso: p.lastActiveIso,
+    };
+  });
+
+  const progressRecords: ModuleProgressRecord[] = [];
+  for (const p of profiles) {
+    for (const modId of CORE_WING_IDS) {
+      const isVisited = p.visitedZones.includes(modId);
+      const isCompleted =
+        isVisited &&
+        (modId === 'museum-3d'
+          ? p.completedHotspots.length >= 3
+          : modId === 'hero-arena'
+          ? p.totalQuestionsAnswered >= 3
+          : modId === 'stem-studio'
+          ? p.stemCompletedTasks.length >= 1
+          : true);
+
+      progressRecords.push({
+        progressDocId: `prog_${p.studentId}_${modId}`,
+        studentUid: p.studentId,
+        studentName: p.studentName,
+        classId: p.className,
+        teacherUid: 'loanho',
+        moduleId: modId,
+        status: isCompleted ? 'completed' : isVisited ? 'in_progress' : 'not_started',
+        requiredActionsCount: 4,
+        actionsCompleted: isVisited ? ['action_visit', 'action_interact'] : [],
+        scoreEarned:
+          modId === 'museum-3d'
+            ? p.museum3DScore
+            : modId === 'hero-arena'
+            ? p.arenaBestScore
+            : isVisited
+            ? 20
+            : 0,
+        lastInteractionAtIso: p.lastActiveIso,
+      });
+    }
+  }
+
+  const quizAttempts: QuizAttemptRecord[] = [];
+  for (const p of profiles) {
+    for (const ans of p.detailedAnswers) {
+      quizAttempts.push({
+        attemptId: ans.id,
+        studentUid: p.studentId,
+        studentName: p.studentName,
+        classId: p.className,
+        teacherUid: 'loanho',
+        moduleId: (ans.activityId === 'museum-3d' ? 'museum-3d' : 'hero-arena') as CoreWingId,
+        activityType: (ans.activityType === 'quiz' ? 'quiz' : 'dialogue') as QuizAttemptRecord['activityType'],
+        activityTitle: ans.activityTitle,
+        workTitle: 'Đăm Săn đi bắt Nữ thần Mặt Trời',
+        difficultTopic: ans.questionPrompt,
+        score: ans.scoreAwarded,
+        maxScore: ans.maxScore || 15,
+        correctCount: ans.isCorrect ? 1 : 0,
+        wrongCount: ans.isCorrect ? 0 : 1,
+        createdAtIso: ans.timestampIso,
+      });
+    }
+  }
+
+  const badges: BadgeRecord[] = localBadges.map((b) => ({
+    badgeDocId: b.badgeDocId,
+    recordType: 'issued',
+    badgeId: b.badgeId,
+    badgeTitle: b.badgeTitle,
+    criteria: b.criteria,
+    studentUid: b.studentUid,
+    classId: b.className,
+    teacherUid: 'loanho',
+    awardedBy: 'teacher',
+    pointsBonus: b.pointsBonus,
+    createdAtIso: b.createdAtIso,
+  }));
+
+  return {
+    classes,
+    students,
+    progressRecords,
+    quizAttempts,
+    badges,
+    assignments: [],
+    submissionsCountByAssignment: {},
+  };
+}
 
 export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
   passport,
@@ -170,12 +305,10 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   // Class creation state
-  const [newClassName, setNewClassName] = useState('10A1');
-  const [newClassSchool, setNewClassSchool] = useState('THPT Chuyên');
+  const [newClassName, setNewClassName] = useState('10D3');
+  const [newClassSchool, setNewClassSchool] = useState('THPT Trần Nguyên Hãn');
   const [newAcademicYear, setNewAcademicYear] = useState('2025-2026');
-  const [newJoinCode, setNewJoinCode] = useState(
-    () => `VAN10_${Math.random().toString(36).slice(2, 6).toUpperCase()}`
-  );
+  const [newJoinCode, setNewJoinCode] = useState('TNH_10D3');
   const [creatingClass, setCreatingClass] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
@@ -201,9 +334,11 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
   >({});
 
   // Padlet & curriculum state
+  const DEFAULT_PADLET_HOUSE_URL =
+    'https://padlet.com/beloan107/tong-ket-oan-trich-am-san-i-bat-nu-than-mat-troi-s025f1wgbahs8e60vyvk';
   const localUrls = getLocalPadletUrls();
   const [houseEmbedUrl, setHouseEmbedUrl] = useState<string>(
-    serviceStatus.padlet.houseEmbedUrl || localUrls.houseEmbedUrl || ''
+    () => serviceStatus.padlet.houseEmbedUrl || localUrls.houseEmbedUrl || DEFAULT_PADLET_HOUSE_URL
   );
   const [journeyEmbedUrl, setJourneyEmbedUrl] = useState<string>(
     serviceStatus.padlet.journeyEmbedUrl || localUrls.journeyEmbedUrl || ''
@@ -219,36 +354,52 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
     (passport.role === 'teacher' || passport.role === 'admin');
 
   const loadDashboard = useCallback(async () => {
-    if (!passport.uid || !isAuthorizedEducator) return;
     setLoadingData(true);
     setActionError(null);
     try {
-      const payload = await fetchTeacherDashboardData(passport.uid, passport.role);
-      setDashboard(payload);
-      if (!assignClassId && payload.classes.length > 0) {
-        setAssignClassId(payload.classes[0].classId);
+      const localData = buildDashboardFromLocalRecords();
+      if (passport.uid && isAuthorizedEducator) {
+        try {
+          const cloudPayload = await fetchTeacherDashboardData(passport.uid, passport.role);
+          if (cloudPayload.classes.length > 0 || cloudPayload.students.length > 0) {
+            setDashboard({
+              classes: cloudPayload.classes.length > 0 ? cloudPayload.classes : localData.classes,
+              students: cloudPayload.students.length > 0 ? cloudPayload.students : localData.students,
+              progressRecords: cloudPayload.progressRecords.length > 0 ? cloudPayload.progressRecords : localData.progressRecords,
+              quizAttempts: cloudPayload.quizAttempts.length > 0 ? cloudPayload.quizAttempts : localData.quizAttempts,
+              badges: [...cloudPayload.badges, ...localData.badges],
+              assignments: cloudPayload.assignments,
+              submissionsCountByAssignment: cloudPayload.submissionsCountByAssignment,
+            });
+            if (!assignClassId && (cloudPayload.classes[0] || localData.classes[0])) {
+              setAssignClassId((cloudPayload.classes[0] || localData.classes[0]).classId);
+            }
+            if (!badgeStudentUid && (cloudPayload.students[0] || localData.students[0])) {
+              setBadgeStudentUid((cloudPayload.students[0] || localData.students[0]).uid);
+            }
+            return;
+          }
+        } catch {
+          // Cloud failed, fallback to localData
+        }
       }
-      if (!badgeStudentUid && payload.students.length > 0) {
-        const firstStudent =
-          payload.students.find((s) => s.role === 'student') || payload.students[0];
-        setBadgeStudentUid(firstStudent.uid);
+      setDashboard(localData);
+      if (!assignClassId && localData.classes.length > 0) {
+        setAssignClassId(localData.classes[0].classId);
+      }
+      if (!badgeStudentUid && localData.students.length > 0) {
+        setBadgeStudentUid(localData.students[0].uid);
       }
     } catch (err: unknown) {
-      setActionError(
-        err instanceof Error
-          ? err.message
-          : 'Không thể tải dữ liệu lớp học từ Cloud Firestore.'
-      );
+      console.warn('Dashboard load error:', err);
     } finally {
       setLoadingData(false);
     }
   }, [passport.uid, passport.role, isAuthorizedEducator, assignClassId, badgeStudentUid]);
 
   useEffect(() => {
-    if (isAuthorizedEducator) {
-      loadDashboard();
-    }
-  }, [isAuthorizedEducator, loadDashboard]);
+    loadDashboard();
+  }, [loadDashboard]);
 
   // Filtered datasets by selected class
   const filteredStudents = useMemo(() => {
@@ -317,23 +468,60 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
 
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passport.uid) return;
     setCreatingClass(true);
     setActionError(null);
     setActionNotice(null);
+
+    const createdClass: ClassroomRecord = {
+      classId: `cls_${Date.now()}`,
+      name: newClassName.trim(),
+      school: newClassSchool.trim(),
+      academicYear: newAcademicYear.trim(),
+      joinCode: newJoinCode.trim().toUpperCase(),
+      teacherUid: 'loanho',
+      teacherName: 'Cô Hồ Thị Thanh Loan',
+      isActive: true,
+      createdAtIso: new Date().toISOString(),
+      updatedAtIso: new Date().toISOString(),
+    };
+
     try {
-      const created = await createClassroomCloud(passport.uid, passport.studentName, {
-        name: newClassName,
-        school: newClassSchool,
-        academicYear: newAcademicYear,
-        joinCode: newJoinCode,
-      });
+      if (passport.uid && isAuthorizedEducator) {
+        try {
+          const cloudCreated = await createClassroomCloud(passport.uid, passport.studentName, {
+            name: newClassName,
+            school: newClassSchool,
+            academicYear: newAcademicYear,
+            joinCode: newJoinCode,
+          });
+          createdClass.classId = cloudCreated.classId;
+        } catch {
+          // Fallback to local
+        }
+      }
+
+      const localClasses = loadLocalClassrooms();
+      const updatedLocal: LocalClassroomRecord[] = [
+        {
+          classId: createdClass.classId,
+          name: createdClass.name,
+          school: createdClass.school,
+          academicYear: createdClass.academicYear,
+          joinCode: createdClass.joinCode,
+          teacherName: createdClass.teacherName,
+          isActive: createdClass.isActive,
+          createdAtIso: createdClass.createdAtIso,
+        },
+        ...localClasses,
+      ];
+      saveLocalClassrooms(updatedLocal);
+
       setDashboard((prev) => ({
         ...prev,
-        classes: [created, ...prev.classes],
+        classes: [createdClass, ...prev.classes],
       }));
-      setNewJoinCode(`VAN10_${Math.random().toString(36).slice(2, 6).toUpperCase()}`);
-      setActionNotice(`Đã tạo lớp "${created.name}" với mã tham gia ${created.joinCode}.`);
+      setNewJoinCode(`TNH_${Math.random().toString(36).slice(2, 6).toUpperCase()}`);
+      setActionNotice(`Đã tạo lớp "${createdClass.name}" (${createdClass.school}) với mã tham gia ${createdClass.joinCode}.`);
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : 'Lỗi khi tạo lớp mới.');
     } finally {
@@ -343,21 +531,47 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
 
   const handleToggleClass = async (classId: string, nextActive: boolean) => {
     try {
-      await toggleClassroomActiveCloud(classId, nextActive);
+      if (passport.uid && isAuthorizedEducator) {
+        try {
+          await toggleClassroomActiveCloud(classId, nextActive);
+        } catch {}
+      }
+      const localClasses = loadLocalClassrooms();
+      const updatedLocal = localClasses.map((c) =>
+        c.classId === classId ? { ...c, isActive: nextActive } : c
+      );
+      saveLocalClassrooms(updatedLocal);
+
       setDashboard((prev) => ({
         ...prev,
         classes: prev.classes.map((c) =>
           c.classId === classId ? { ...c, isActive: nextActive } : c
         ),
       }));
+      setActionNotice('Đã cập nhật trạng thái lớp học.');
     } catch {
       setActionError('Không thể cập nhật trạng thái lớp.');
     }
   };
 
+  const handleDeleteClass = (classId: string, className: string) => {
+    if (window.confirm(`Cô có chắc chắn muốn xóa lớp "${className}" không?`)) {
+      const localClasses = loadLocalClassrooms();
+      const updatedLocal = localClasses.filter((c) => c.classId !== classId);
+      saveLocalClassrooms(updatedLocal);
+      setDashboard((prev) => ({
+        ...prev,
+        classes: prev.classes.filter((c) => c.classId !== classId),
+      }));
+      setActionNotice(`Đã xóa lớp "${className}".`);
+    }
+  };
+
   const handleUpdateUserRole = async (uid: string, role: UserRole) => {
     try {
-      await updateUserByAdminOrTeacherCloud(uid, { role });
+      if (passport.uid && isAuthorizedEducator) {
+        await updateUserByAdminOrTeacherCloud(uid, { role });
+      }
       setDashboard((prev) => ({
         ...prev,
         students: prev.students.map((s) => (s.uid === uid ? { ...s, role } : s)),
@@ -372,7 +586,11 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
     const raw = Number(scoreDrafts[uid]);
     if (Number.isNaN(raw) || raw < 0) return;
     try {
-      await updateUserByAdminOrTeacherCloud(uid, { totalScore: Math.round(raw) });
+      if (passport.uid && isAuthorizedEducator) {
+        try {
+          await updateUserByAdminOrTeacherCloud(uid, { totalScore: Math.round(raw) });
+        } catch {}
+      }
       setDashboard((prev) => ({
         ...prev,
         students: prev.students.map((s) =>
@@ -387,25 +605,58 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
 
   const handleAwardBadge = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passport.uid || !badgeStudentUid) return;
+    if (!badgeStudentUid) return;
     const student = dashboard.students.find((s) => s.uid === badgeStudentUid);
     if (!student) return;
+
+    const newBadge: BadgeRecord = {
+      badgeDocId: `badge_${Date.now()}`,
+      recordType: 'issued',
+      badgeId: `badge_${Date.now()}`,
+      badgeTitle,
+      criteria: badgeCriteria,
+      studentUid: student.uid,
+      classId: student.classId || '10D3',
+      teacherUid: 'loanho',
+      awardedBy: 'teacher',
+      pointsBonus: badgePoints,
+      createdAtIso: new Date().toISOString(),
+    };
+
     try {
-      const created = await awardBadgeToStudentCloud({
+      saveLocalBadge({
+        badgeDocId: newBadge.badgeDocId,
+        badgeId: newBadge.badgeId,
+        badgeTitle: newBadge.badgeTitle,
+        criteria: newBadge.criteria,
         studentUid: student.uid,
-        classId: student.classId || '',
-        teacherUid: student.teacherUid || passport.uid,
-        badgeTitle,
-        criteria: badgeCriteria,
+        studentName: student.displayName,
+        className: student.className,
         pointsBonus: badgePoints,
+        awardedBy: 'Cô Hồ Thị Thanh Loan',
+        createdAtIso: newBadge.createdAtIso,
       });
+
+      if (passport.uid && isAuthorizedEducator) {
+        try {
+          await awardBadgeToStudentCloud({
+            studentUid: student.uid,
+            classId: student.classId || '',
+            teacherUid: student.teacherUid || passport.uid,
+            badgeTitle,
+            criteria: badgeCriteria,
+            pointsBonus: badgePoints,
+          });
+        } catch {}
+      }
+
       setDashboard((prev) => ({
         ...prev,
-        badges: [created, ...prev.badges],
+        badges: [newBadge, ...prev.badges],
       }));
-      setActionNotice(`Đã trao huy hiệu "${created.badgeTitle}" cho ${student.displayName}.`);
+      setActionNotice(`Đã trao huy hiệu "${badgeTitle}" (+${badgePoints}đ) cho học sinh ${student.displayName}.`);
     } catch {
-      setActionError('Không thể trao huy hiệu. Hãy đảm bảo học sinh thuộc lớp bạn phụ trách.');
+      setActionError('Không thể trao huy hiệu.');
     }
   };
 
@@ -739,6 +990,54 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
 
           <button
             type="button"
+            onClick={() => {
+              const allProfiles = loadAllStudentsProfiles();
+              const profilesToExport =
+                selectedClassFilter === 'ALL'
+                  ? allProfiles
+                  : allProfiles.filter(
+                      (p) =>
+                        p.className === selectedClassFilter ||
+                        p.studentId === selectedClassFilter
+                    );
+              exportFullStudentProfilesToExcel({
+                classLabel: activeClassLabel,
+                profiles: profilesToExport,
+              });
+            }}
+            className="px-3 py-2 text-xs font-semibold bg-emerald-700 text-cream rounded-lg hover:bg-emerald-800 inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+            title="Xuất bảng điểm và chi tiết bài làm học sinh sang Excel (.xls)"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Xuất Excel Báo Cáo</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const allProfiles = loadAllStudentsProfiles();
+              const profilesToExport =
+                selectedClassFilter === 'ALL'
+                  ? allProfiles
+                  : allProfiles.filter(
+                      (p) =>
+                        p.className === selectedClassFilter ||
+                        p.studentId === selectedClassFilter
+                    );
+              printClassLearningReportPdf({
+                classLabel: activeClassLabel,
+                profiles: profilesToExport,
+              });
+            }}
+            className="px-3 py-2 text-xs font-semibold bg-indigo-700 text-cream rounded-lg hover:bg-indigo-800 inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+            title="In hoặc lưu báo cáo học tập PDF có chữ ký giáo viên"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>In Báo Cáo PDF</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() =>
               exportClassReportCsv({
                 classLabel: activeClassLabel,
@@ -751,23 +1050,6 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
           >
             <Download className="w-3.5 h-3.5" />
             <span>Xuất CSV</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              exportClassReportExcel({
-                classLabel: activeClassLabel,
-                classes: dashboard.classes,
-                students: filteredStudents,
-                progressRecords: filteredProgress,
-                quizAttempts: filteredAttempts,
-              })
-            }
-            className="px-3 py-2 text-xs font-semibold bg-forest-700 text-cream rounded-lg hover:bg-forest-800 inline-flex items-center gap-1.5 cursor-pointer"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Xuất Excel</span>
           </button>
         </div>
       </header>
@@ -1080,6 +1362,15 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
                           }`}
                         >
                           {cls.isActive ? 'Đang mở' : 'Tạm khóa'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteClass(cls.classId, cls.name)}
+                          className="p-1.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 cursor-pointer"
+                          title={`Xóa lớp ${cls.name}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -1601,65 +1892,144 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
 
       {/* TAB 9: Quản lý học liệu */}
       {activeTab === 'curriculum' && (
-        <section className="max-w-2xl bg-cream border border-sandstone rounded-2xl p-6 sm:p-8 space-y-5">
-          <div className="flex items-center gap-2">
-            <FileCode2 className="w-5 h-5 text-wood-700" />
-            <h2 className="font-serif text-2xl font-bold text-wood-900">
-              Quản lý kho học liệu có cấu trúc
-            </h2>
+        <div className="space-y-6">
+          {/* 1. Trọng tâm: 2 Câu hỏi Đối thoại sử thi */}
+          <section className="bg-cream border border-sandstone rounded-2xl p-6 sm:p-8 space-y-4 shadow-sm">
+            <div className="flex items-center gap-2 border-b border-sandstone pb-4">
+              <BookOpenCheck className="w-5 h-5 text-forest-700" />
+              <div>
+                <h2 className="font-serif text-xl sm:text-2xl font-bold text-wood-900">
+                  2 Câu hỏi Đối thoại sử thi trọng tâm (Văn bản: Đăm Săn đi bắt Nữ thần Mặt Trời)
+                </h2>
+                <p className="text-xs text-wood-600 mt-0.5">
+                  Bộ câu hỏi tự luận phát triển tư duy phản biện và liên hệ thực tiễn cho học sinh lớp 10
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div className="p-4 rounded-xl bg-parchment/60 border border-sandstone space-y-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-forest-100 text-forest-800 text-[11px] font-bold">
+                  Câu hỏi 1 · Giá trị biểu tượng
+                </span>
+                <p className="text-xs sm:text-sm font-semibold text-wood-900 leading-snug">
+                  Có ý kiến cho rằng: Đăm Săn cố chấp không nghe lời khuyên của Đăm Par Kvây và Nữ Thần Mặt Trời để rồi lún sâu trong rừng Sáp Đen. Đó là một sự thất bại vô nghĩa. Em có đồng tình với ý kiến đó không? Hãy viết quan điểm của em (khoảng 3 - 5 câu) lí giải giá trị biểu tượng của lựa chọn ấy.
+                </p>
+                <div className="p-3 rounded-lg bg-cream border border-sandstone text-xs text-wood-700 space-y-1">
+                  <p className="font-bold text-forest-900">Tiêu chí chấm điểm (15đ):</p>
+                  <p>• Lập trường rõ ràng: Không đồng tình hoặc có góc nhìn phản biện đa chiều (3đ).</p>
+                  <p>• Lí giải giá trị biểu tượng: Khát vọng chinh phục cái đẹp, ý chí dấn thân vượt ngưỡng của cộng đồng Ê-đê (8đ).</p>
+                  <p>• Vẻ đẹp bi tráng và thông điệp nhân văn (4đ).</p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-parchment/60 border border-sandstone space-y-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-gold-100 text-gold-900 text-[11px] font-bold">
+                  Câu hỏi 2 · Bài học hành động
+                </span>
+                <p className="text-xs sm:text-sm font-semibold text-wood-900 leading-snug">
+                  Từ câu chuyện Đăm Săn đi bắt nữ thần Mặt Trời, em sẽ lựa chọn: dám vượt qua giới hạn để chinh phục những đỉnh cao mới hay nhận thức đúng giới hạn của bản thân để lựa chọn những mục tiêu phù hợp?
+                </p>
+                <div className="p-3 rounded-lg bg-cream border border-sandstone text-xs text-wood-700 space-y-1">
+                  <p className="font-bold text-forest-900">Tiêu chí chấm điểm (15đ):</p>
+                  <p>• Xác định rõ quan điểm hoặc dung hòa cả hai khía cạnh (4đ).</p>
+                  <p>• Lập luận thuyết phục gắn với bối cảnh đời sống giới trẻ hiện nay (7đ).</p>
+                  <p>• Rút ra bài học hành động thiết thực cho bản thân (4đ).</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 2. Thống kê & Quản lý kho học liệu */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <section className="lg:col-span-5 bg-cream border border-sandstone rounded-2xl p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <FileCode2 className="w-5 h-5 text-wood-700" />
+                <h3 className="font-serif text-xl font-bold text-wood-900">
+                  Cơ sở dữ liệu học liệu
+                </h3>
+              </div>
+
+              <dl className="divide-y divide-sandstone/70 text-xs sm:text-sm">
+                <div className="py-2.5 flex justify-between gap-4">
+                  <dt className="text-wood-700">Cánh cửa sử thi (Chuyên đề lý thuyết)</dt>
+                  <dd className="font-mono tabular-nums font-semibold text-wood-900">
+                    {EPIC_CONCEPT_CARDS.length} chuyên đề
+                  </dd>
+                </div>
+                <div className="py-2.5 flex justify-between gap-4">
+                  <dt className="text-wood-700">Thư viện Sử thi Việt Nam</dt>
+                  <dd className="font-mono tabular-nums font-semibold text-wood-900">
+                    {VIETNAM_EPIC_DOSSIERS.length} tác phẩm
+                  </dd>
+                </div>
+                <div className="py-2.5 flex justify-between gap-4">
+                  <dt className="text-wood-700">Thư viện Sử thi thế giới</dt>
+                  <dd className="font-mono tabular-nums font-semibold text-wood-900">
+                    {WORLD_EPIC_DOSSIERS.length} tác phẩm
+                  </dd>
+                </div>
+                <div className="py-2.5 flex justify-between gap-4">
+                  <dt className="text-wood-700">Ngân hàng câu hỏi Đấu trường</dt>
+                  <dd className="font-mono tabular-nums font-semibold text-wood-900">
+                    {ARENA_QUESTIONS.length} câu hỏi
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="flex flex-wrap items-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={handleExportJson}
+                  className="px-3.5 py-2 text-xs font-semibold bg-wood-900 text-cream rounded-lg hover:bg-wood-800 inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Xuất học liệu JSON</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResetCurriculum}
+                  className="px-3.5 py-2 text-xs font-semibold bg-parchment text-wood-900 border border-sandstone rounded-lg hover:border-gold-500 inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Khôi phục bản gốc</span>
+                </button>
+              </div>
+
+              {curriculumFeedback && (
+                <p className="text-xs font-medium text-forest-700">{curriculumFeedback}</p>
+              )}
+            </section>
+
+            {/* 3. Ngân hàng câu hỏi Đấu trường mẫu */}
+            <section className="lg:col-span-7 bg-cream border border-sandstone rounded-2xl p-6 space-y-4">
+              <h3 className="font-serif text-xl font-bold text-wood-900">
+                Ngân hàng câu hỏi Đấu trường mẫu ({ARENA_QUESTIONS.length} câu)
+              </h3>
+              <div className="divide-y divide-sandstone/70 max-h-96 overflow-y-auto text-xs pr-1">
+                {ARENA_QUESTIONS.slice(0, 15).map((q, idx) => (
+                  <div key={idx} className="py-3 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-wood-900/10 text-wood-800 font-mono text-[11px] font-bold">
+                        Câu {idx + 1}
+                      </span>
+                      <span className="font-semibold text-wood-900">{q.prompt}</span>
+                    </div>
+                    <p className="text-forest-800 pl-2">
+                      ✓ <strong>Đáp án đúng:</strong> {q.options[q.correctIndex]}
+                    </p>
+                    {q.explanation && (
+                      <p className="text-wood-600 pl-2 italic">
+                        Lí giải: {q.explanation}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
-
-          <dl className="divide-y divide-sandstone/70 text-sm">
-            <div className="py-2.5 flex justify-between gap-4">
-              <dt className="text-wood-700">Thẻ Cánh cửa sử thi (literaryCurriculumData.ts)</dt>
-              <dd className="font-mono tabular-nums font-semibold text-wood-900">
-                {EPIC_CONCEPT_CARDS.length} chuyên đề
-              </dd>
-            </div>
-            <div className="py-2.5 flex justify-between gap-4">
-              <dt className="text-wood-700">Thư viện Sử thi Việt Nam</dt>
-              <dd className="font-mono tabular-nums font-semibold text-wood-900">
-                {VIETNAM_EPIC_DOSSIERS.length} tác phẩm
-              </dd>
-            </div>
-            <div className="py-2.5 flex justify-between gap-4">
-              <dt className="text-wood-700">Thư viện Sử thi thế giới</dt>
-              <dd className="font-mono tabular-nums font-semibold text-wood-900">
-                {WORLD_EPIC_DOSSIERS.length} tác phẩm
-              </dd>
-            </div>
-            <div className="py-2.5 flex justify-between gap-4">
-              <dt className="text-wood-700">Ngân hàng Đấu trường (arenaAndStemData.ts)</dt>
-              <dd className="font-mono tabular-nums font-semibold text-wood-900">
-                {ARENA_QUESTIONS.length} câu hỏi
-              </dd>
-            </div>
-          </dl>
-
-          <div className="flex flex-wrap items-center gap-2.5 pt-2">
-            <button
-              type="button"
-              onClick={handleExportJson}
-              className="px-3.5 py-2 text-xs font-semibold bg-wood-900 text-cream rounded-lg hover:bg-wood-800 inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Xuất học liệu JSON</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleResetCurriculum}
-              className="px-3.5 py-2 text-xs font-semibold bg-parchment text-wood-900 border border-sandstone rounded-lg hover:border-gold-500 inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Khôi phục bản gốc</span>
-            </button>
-          </div>
-
-          {curriculumFeedback && (
-            <p className="text-xs font-medium text-forest-700">{curriculumFeedback}</p>
-          )}
-        </section>
+        </div>
       )}
     </div>
   );

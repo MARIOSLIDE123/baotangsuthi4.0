@@ -9,6 +9,144 @@ import {
 
 export const ALL_STUDENTS_RECORDS_KEY = 'suthiso_all_students_records_v2';
 export const TEACHER_SESSION_KEY = 'suthiso_teacher_auth_session_v1';
+export const TEACHER_CLASSES_KEY = 'suthiso_teacher_classes_v2';
+export const TEACHER_BADGES_KEY = 'suthiso_teacher_badges_v2';
+
+/**
+ * Danh sách tên các tài khoản học sinh thử nghiệm cần loại bỏ
+ */
+export const TEST_STUDENTS_TO_PURGE_NAMES: string[] = [
+  'hồ quang nhật',
+  'ho quang nhat',
+  'hồ thị thanh loan',
+  'ho thi thanh loan',
+  'nguyễn hoàng nam',
+  'nguyen hoang nam',
+  'trần thị mai anh',
+  'tran thi mai anh',
+  'thân phương nhac',
+  'than phuong nhac',
+  'thân phương nhạc',
+  'bảo an',
+  'bao an',
+  'học sinh trải nghiệm',
+  'hoc sinh trai nghiem',
+  '12',
+  'nguyễn khánh đan',
+  'nguyen khanh dan',
+];
+
+/**
+ * Kiểm tra xem một bản ghi có phải là tài khoản thử nghiệm cần xóa hay không
+ */
+export function isTestStudentToPurge(studentName: string, className?: string): boolean {
+  const normName = (studentName || '').trim().toLowerCase();
+  const normClass = (className || '').trim().toLowerCase();
+
+  // Kiểm tra tên bằng 12 hoặc lớp 19D3
+  if (normName === '12' || normName === 'hs_12' || normClass === '19d3' || normClass.includes('19d3')) {
+    return true;
+  }
+
+  // So khớp tên với danh sách thử nghiệm
+  return TEST_STUDENTS_TO_PURGE_NAMES.some((t) => {
+    return normName === t || normName.includes(t);
+  });
+}
+
+export interface LocalClassroomRecord {
+  classId: string;
+  name: string;
+  school: string;
+  academicYear: string;
+  joinCode: string;
+  teacherName: string;
+  isActive: boolean;
+  createdAtIso: string;
+}
+
+export const DEFAULT_LOAN_HO_CLASSES: LocalClassroomRecord[] = [
+  {
+    classId: 'cls_10d3_tnh',
+    name: '10D3',
+    school: 'THPT Trần Nguyên Hãn',
+    academicYear: '2025-2026',
+    joinCode: 'TNH_10D3',
+    teacherName: 'Cô Hồ Thị Thanh Loan',
+    isActive: true,
+    createdAtIso: '2026-09-05T07:30:00.000Z',
+  },
+  {
+    classId: 'cls_10d7_tnh',
+    name: '10D7',
+    school: 'THPT Trần Nguyên Hãn',
+    academicYear: '2025-2026',
+    joinCode: 'TNH_10D7',
+    teacherName: 'Cô Hồ Thị Thanh Loan',
+    isActive: true,
+    createdAtIso: '2026-09-05T07:30:00.000Z',
+  },
+];
+
+export function loadLocalClassrooms(): LocalClassroomRecord[] {
+  try {
+    const raw = localStorage.getItem(TEACHER_CLASSES_KEY);
+    if (!raw) {
+      saveLocalClassrooms(DEFAULT_LOAN_HO_CLASSES);
+      return DEFAULT_LOAN_HO_CLASSES;
+    }
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed;
+    }
+    return DEFAULT_LOAN_HO_CLASSES;
+  } catch {
+    return DEFAULT_LOAN_HO_CLASSES;
+  }
+}
+
+export function saveLocalClassrooms(classes: LocalClassroomRecord[]): void {
+  try {
+    localStorage.setItem(TEACHER_CLASSES_KEY, JSON.stringify(classes));
+  } catch {
+    // Ignore storage error
+  }
+}
+
+export interface LocalAwardedBadge {
+  badgeDocId: string;
+  badgeId: string;
+  badgeTitle: string;
+  criteria: string;
+  studentUid: string;
+  studentName: string;
+  className: string;
+  pointsBonus: number;
+  awardedBy: string;
+  createdAtIso: string;
+}
+
+export function loadLocalBadges(): LocalAwardedBadge[] {
+  try {
+    const raw = localStorage.getItem(TEACHER_BADGES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveLocalBadge(badge: LocalAwardedBadge): LocalAwardedBadge[] {
+  const existing = loadLocalBadges();
+  const updated = [badge, ...existing.filter((b) => b.badgeDocId !== badge.badgeDocId)];
+  try {
+    localStorage.setItem(TEACHER_BADGES_KEY, JSON.stringify(updated));
+  } catch {
+    // Ignore storage error
+  }
+  return updated;
+}
 
 export interface DetailedAnswerRecord {
   id: string;
@@ -85,20 +223,60 @@ export function generateStudentKey(name: string, cls: string): string {
 }
 
 /**
- * Tải danh sách toàn bộ hồ sơ kết quả học tập của học sinh
+ * Tải danh sách toàn bộ hồ sơ kết quả học tập của học sinh (Tự động lọc bỏ các tài khoản thử nghiệm)
  */
 export function loadAllStudentsProfiles(): StudentFullLearningProfile[] {
   try {
     const raw = localStorage.getItem(ALL_STUDENTS_RECORDS_KEY);
-    if (!raw) return getInitialDemoStudents();
+    if (!raw) {
+      const initial = getInitialDemoStudents();
+      saveAllStudentsProfiles(initial);
+      return initial;
+    }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed as StudentFullLearningProfile[];
+    if (Array.isArray(parsed)) {
+      // Tự động làm sạch các tài khoản thử nghiệm theo danh sách yêu cầu
+      const cleaned = (parsed as StudentFullLearningProfile[]).filter(
+        (p) => !isTestStudentToPurge(p.studentName, p.className)
+      );
+      if (cleaned.length !== parsed.length) {
+        saveAllStudentsProfiles(cleaned);
+      }
+      return cleaned.length > 0 ? cleaned : getInitialDemoStudents();
     }
     return getInitialDemoStudents();
   } catch {
     return getInitialDemoStudents();
   }
+}
+
+/**
+ * Xóa một học sinh cụ thể khỏi cơ sở dữ liệu
+ */
+export function deleteStudentProfile(studentId: string): StudentFullLearningProfile[] {
+  const current = loadAllStudentsProfiles();
+  const updated = current.filter((p) => p.studentId !== studentId);
+  saveAllStudentsProfiles(updated);
+  return updated;
+}
+
+/**
+ * Dọn dẹp toàn bộ tài khoản thử nghiệm theo yêu cầu của Giáo viên
+ */
+export function purgeAllTestStudentsProfiles(): {
+  purgedCount: number;
+  remainingProfiles: StudentFullLearningProfile[];
+} {
+  const current = loadAllStudentsProfiles();
+  const initialLen = current.length;
+  const cleaned = current.filter(
+    (p) => !isTestStudentToPurge(p.studentName, p.className)
+  );
+  saveAllStudentsProfiles(cleaned);
+  return {
+    purgedCount: initialLen - cleaned.length,
+    remainingProfiles: cleaned,
+  };
 }
 
 /**
@@ -316,6 +494,7 @@ export async function pullLearningRecordsFromGoogleSheets(): Promise<{
   const remoteAnswers = res.detailedAnswers || [];
 
   for (const r of remoteStudents) {
+    if (!r.studentName || isTestStudentToPurge(r.studentName, r.className)) continue;
     const key = generateStudentKey(r.studentName, r.className);
     const existingIdx = localProfiles.findIndex((p) => p.studentId === key);
 
@@ -354,8 +533,8 @@ export async function pullLearningRecordsFromGoogleSheets(): Promise<{
       localProfiles.push({
         studentId: key,
         studentName: r.studentName,
-        className: r.className || 'Lớp 10',
-        school: r.school || 'Trường THPT',
+        className: r.className || '10D3',
+        school: r.school || 'THPT Trần Nguyên Hãn',
         firstJoinedIso: r.lastActiveIso || new Date().toISOString(),
         lastActiveIso: r.lastActiveIso || new Date().toISOString(),
         totalScore: Number(r.totalScore) || 0,
@@ -372,29 +551,34 @@ export async function pullLearningRecordsFromGoogleSheets(): Promise<{
     }
   }
 
-  saveAllStudentsProfiles(localProfiles);
+  // Lọc sạch trước khi lưu
+  const cleanedProfiles = localProfiles.filter(
+    (p) => !isTestStudentToPurge(p.studentName, p.className)
+  );
+
+  saveAllStudentsProfiles(cleanedProfiles);
   return {
     ok: true,
-    students: localProfiles,
-    message: `Đã đồng bộ thành công ${remoteStudents.length} học sinh từ Google Sheet!`,
+    students: cleanedProfiles,
+    message: `Đã đồng bộ thành công ${cleanedProfiles.length} học sinh từ Google Sheet!`,
   };
 }
 
 /**
- * Dữ liệu mẫu chuẩn mực ban đầu để giáo viên xem trực quan
+ * Dữ liệu chuẩn mực ban đầu của lớp 10D3 & 10D7 THPT Trần Nguyên Hãn
  */
 function getInitialDemoStudents(): StudentFullLearningProfile[] {
   return [
     {
-      studentId: 'hs_nguyen_hoang_nam_10a1',
-      studentName: 'Nguyễn Hoàng Nam',
-      className: '10A1',
-      school: 'THPT Buôn Ma Thuột',
+      studentId: 'hs_vu_gia_huy_10d3',
+      studentName: 'Vũ Gia Huy',
+      className: '10D3',
+      school: 'THPT Trần Nguyên Hãn',
       firstJoinedIso: new Date(Date.now() - 3600000 * 2).toISOString(),
       lastActiveIso: new Date(Date.now() - 600000).toISOString(),
-      totalScore: 235,
-      museum3DScore: 80,
-      arenaBestScore: 115,
+      totalScore: 245,
+      museum3DScore: 85,
+      arenaBestScore: 120,
       readingScore: 40,
       visitedZones: ['home', 'epic-gate', 'vietnam-epics', 'museum-3d', 'dam-san-journey', 'hero-arena', 'stem-studio'],
       completedHotspots: ['hotspot_cot_chu', 'hotspot_bep_lua', 'hotspot_ghe_kpan', 'hotspot_cau_thang_cai'],
@@ -405,35 +589,35 @@ function getInitialDemoStudents(): StudentFullLearningProfile[] {
         {
           id: 'ans_1',
           activityId: 'epic-dialogue',
-          activityTitle: 'Đối thoại sử thi · Tình huống 1',
+          activityTitle: 'Đối thoại sử thi · Câu hỏi 1',
           activityType: 'dialogue',
           timestampIso: new Date(Date.now() - 900000).toISOString(),
-          questionPrompt: 'Có ý kiến cho rằng: Đăm Săn cố chấp không nghe lời khuyên của Đăm Par Kvây và Nữ Thần Mặt Trời để rồi lún sâu trong rừng Sáp Đen. Đó là một sự thất bại vô nghĩa. Em có đồng tình với ý kiến đó không?',
-          studentAnswer: 'Em hoàn toàn không đồng tình với ý kiến trên. Sự ra đi của Đăm Săn không phải là thất bại vô nghĩa mà là biểu tượng sáng ngời cho khát vọng vượt qua giới hạn của con người Tây Nguyên để chạm tới ánh sáng và cái đẹp tuyệt đối.',
-          correctAnswer: 'Khát vọng vượt ngưỡng, vẻ đẹp bi tráng và ý chí buôn làng',
+          questionPrompt: 'Có ý kiến cho rằng: Đăm Săn cố chấp không nghe lời khuyên của Đăm Par Kvây và Nữ Thần Mặt Trời để rồi lún sâu trong rừng Sáp Đen. Đó là một sự thất bại vô nghĩa. Em có đồng tình với ý kiến đó không? Hãy viết quan điểm của em (khoảng 3 - 5 câu) lí giải giá trị biểu tượng của lựa chọn ấy.',
+          studentAnswer: 'Em không đồng tình với ý kiến cho rằng đó là thất bại vô nghĩa. Hành động của Đăm Săn biểu tượng cho khát vọng chinh phục những đỉnh cao tự nhiên và vượt qua mọi giới hạn của con người Tây Nguyên thời cổ đại. Dù ngã xuống trong rừng Sáp Đen, cái chết ấy mang tầm vóc bi tráng, khẳng định ý chí kiên định và tinh thần dấn thân bất diệt.',
+          correctAnswer: 'Khát vọng vượt ngưỡng, vẻ đẹp bi tráng và ý chí cộng đồng',
           isCorrect: true,
           scoreAwarded: 15,
           maxScore: 15,
-          teacherOrAiFeedback: 'Lập luận sắc bén, lập trường vững vàng và thể hiện tư duy phản biện văn học rất tốt!',
+          teacherOrAiFeedback: 'Lập luận sắc bén, hiểu sâu sắc giá trị biểu tượng bi tráng của sử thi Ê-đê!',
         },
         {
           id: 'ans_2',
           activityId: 'epic-dialogue',
-          activityTitle: 'Đối thoại sử thi · Tình huống 2',
+          activityTitle: 'Đối thoại sử thi · Câu hỏi 2',
           activityType: 'dialogue',
           timestampIso: new Date(Date.now() - 1500000).toISOString(),
           questionPrompt: 'Từ câu chuyện Đăm Săn đi bắt nữ thần Mặt Trời, em sẽ lựa chọn: dám vượt qua giới hạn để chinh phục những đỉnh cao mới hay nhận thức đúng giới hạn của bản thân để lựa chọn những mục tiêu phù hợp?',
-          studentAnswer: 'Theo em, người trẻ cần dung hòa cả hai: vừa có dũng khí dám dấn thân bước ra khỏi vùng an toàn để vươn tới mục tiêu lớn, vừa có trí tuệ nhận thức quy luật tự nhiên để kế hoạch hành động bền vững.',
-          correctAnswer: 'Dung hòa giữa khát vọng lớn lao và sự tỉnh táo, nhận thức quy luật',
+          studentAnswer: 'Em lựa chọn dung hòa cả hai bài học: thế hệ trẻ hôm nay cần lòng quả cảm, dám vượt qua vùng an toàn để vươn tới khát vọng đổi mới, nhưng đồng thời phải có trí tuệ tỉnh táo để lượng định thực tế và xây dựng phương pháp chinh phục bền vững.',
+          correctAnswer: 'Dung hòa giữa dũng khí dấn thân và sự tỉnh táo, nhận thức quy luật tự nhiên',
           isCorrect: true,
           scoreAwarded: 15,
           maxScore: 15,
-          teacherOrAiFeedback: 'Góc nhìn toàn diện, sâu sắc, có liên hệ thực tiễn sinh động.',
+          teacherOrAiFeedback: 'Góc nhìn toàn diện, tư duy phản biện tốt và liên hệ thực tiễn thiết thực.',
         },
         {
           id: 'ans_3',
           activityId: 'evidence-challenge',
-          activityTitle: 'Thử thách dẫn chứng',
+          activityTitle: 'Thử thách dẫn chứng văn bản',
           activityType: 'evidence',
           timestampIso: new Date(Date.now() - 2100000).toISOString(),
           questionPrompt: 'Nhận định: “Đăm Săn sở hữu ý chí dấn thân phi thường, dám đối diện hiểm nguy vì khát vọng lớn.” Hãy chọn dẫn chứng phù hợp nhất.',
@@ -442,29 +626,29 @@ function getInitialDemoStudents(): StudentFullLearningProfile[] {
           isCorrect: true,
           scoreAwarded: 10,
           maxScore: 10,
-          teacherOrAiFeedback: 'Chọn dẫn chứng rất chuẩn xác và tiêu biểu cho nhận định.',
+          teacherOrAiFeedback: 'Dẫn chứng xác đáng, tiêu biểu nhất cho nhận định.',
         },
       ],
     },
     {
-      studentId: 'hs_tran_thi_mai_anh_10van',
-      studentName: 'Trần Thị Mai Anh',
-      className: '10 Văn',
-      school: 'THPT Chuyên Nguyễn Du',
+      studentId: 'hs_do_ngoc_minh_chau_10d7',
+      studentName: 'Đỗ Ngọc Minh Châu',
+      className: '10D7',
+      school: 'THPT Trần Nguyên Hãn',
       firstJoinedIso: new Date(Date.now() - 3600000 * 3).toISOString(),
       lastActiveIso: new Date(Date.now() - 1800000).toISOString(),
-      totalScore: 195,
-      museum3DScore: 60,
-      arenaBestScore: 95,
+      totalScore: 210,
+      museum3DScore: 70,
+      arenaBestScore: 100,
       readingScore: 40,
-      visitedZones: ['home', 'epic-gate', 'vietnam-epics', 'museum-3d', 'hero-arena'],
+      visitedZones: ['home', 'epic-gate', 'vietnam-epics', 'museum-3d', 'hero-arena', 'stem-studio'],
       completedHotspots: ['hotspot_cot_chu', 'hotspot_bep_lua', 'hotspot_cau_thang_cai'],
       stemCompletedTasks: ['stem_house_mission'],
-      totalQuestionsAnswered: 3,
-      totalQuestionsCorrect: 3,
+      totalQuestionsAnswered: 4,
+      totalQuestionsCorrect: 4,
       detailedAnswers: [
         {
-          id: 'ans_ma_1',
+          id: 'ans_mc_1',
           activityId: 'decode',
           activityTitle: 'Giải mã sử thi',
           activityType: 'quiz',
@@ -475,7 +659,7 @@ function getInitialDemoStudents(): StudentFullLearningProfile[] {
           isCorrect: true,
           scoreAwarded: 10,
           maxScore: 10,
-          teacherOrAiFeedback: 'Chính xác! Nhà dài phát triển theo chiều dài qua các thế hệ con gái.',
+          teacherOrAiFeedback: 'Chính xác! Nhà dài phát triển nối dài qua các thế hệ dòng họ mẹ.',
         },
       ],
     },

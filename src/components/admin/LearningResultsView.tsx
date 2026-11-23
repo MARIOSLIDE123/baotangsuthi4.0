@@ -12,11 +12,13 @@ import {
   HelpCircle,
   Lock,
   LogOut,
+  Printer,
   RefreshCw,
   Search,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Trash2,
   User,
   Users,
   X,
@@ -30,12 +32,18 @@ import {
   setTeacherAuthenticated,
   verifyTeacherCredentials,
   pullLearningRecordsFromGoogleSheets,
+  deleteStudentProfile,
+  purgeAllTestStudentsProfiles,
 } from '../../services/studentLearningRecordsService';
 import {
   DEFAULT_GOOGLE_SHEETS_SCRIPT_URL,
   SAMPLE_GOOGLE_APPS_SCRIPT_CODE,
   syncToGoogleSheets,
 } from '../../services/googleSheetsService';
+import {
+  exportFullStudentProfilesToExcel,
+  printClassLearningReportPdf,
+} from '../../utils/reportExport';
 
 export const LearningResultsView: React.FC = () => {
   const [authenticated, setAuthenticated] = useState<boolean>(() => isTeacherAuthenticated());
@@ -80,7 +88,7 @@ export const LearningResultsView: React.FC = () => {
   };
 
   const availableClasses = useMemo(() => {
-    const set = new Set(profiles.map((p) => p.className).filter(Boolean));
+    const set = new Set(['10D3', '10D7', ...profiles.map((p) => p.className).filter(Boolean)]);
     return ['ALL', ...Array.from(set)];
   }, [profiles]);
 
@@ -107,6 +115,53 @@ export const LearningResultsView: React.FC = () => {
     const accuracyRate = totalAns > 0 ? Math.round((totalCorrect / totalAns) * 100) : 100;
     return { totalStudents, avgScore, totalAns, totalCorrect, accuracyRate };
   }, [profiles]);
+
+  // XÓA HỌC SINH
+  const handleDeleteStudent = (studentId: string, studentName: string) => {
+    if (window.confirm(`Cô có chắc chắn muốn xóa hồ sơ và kết quả của học sinh "${studentName}" không?`)) {
+      const updated = deleteStudentProfile(studentId);
+      setProfiles(updated);
+      if (selectedStudent?.studentId === studentId) {
+        setSelectedStudent(null);
+      }
+      setSyncNotice(`Đã xóa thành công kết quả của học sinh "${studentName}".`);
+      setTimeout(() => setSyncNotice(null), 4000);
+    }
+  };
+
+  // DỌN DẸP TOÀN BỘ TÀI KHOẢN THỬ NGHIỆM
+  const handlePurgeTestStudents = () => {
+    if (
+      window.confirm(
+        'Cô có muốn dọn dẹp và xóa các tài khoản thử nghiệm (Hồ Quang Nhật, Hồ Thị Thanh Loan, Nguyễn Hoàng Nam, Trần Thị Mai Anh, Thân Phương Nhac, Bảo an, Học sinh trải nghiệm, 12, Nguyễn Khánh Đan 19D3...)?'
+      )
+    ) {
+      const res = purgeAllTestStudentsProfiles();
+      setProfiles(res.remainingProfiles);
+      setSyncNotice(`Đã dọn dẹp thành công ${res.purgedCount} bản ghi học sinh thử nghiệm!`);
+      setTimeout(() => setSyncNotice(null), 5000);
+    }
+  };
+
+  // XUẤT EXCEL BÁO CÁO HỌC TẬP SỬ THI SỐ 4.0 ĐẦY ĐỦ KẾT QUẢ
+  const handleExportExcel = () => {
+    const classTitle = classFilter === 'ALL' ? 'Lớp 10D3 & 10D7 (THPT Trần Nguyên Hãn)' : `Lớp ${classFilter}`;
+    exportFullStudentProfilesToExcel({
+      classLabel: classTitle,
+      profiles: filteredProfiles,
+    });
+    setSyncNotice('Đã xuất thành công tệp Excel Báo cáo học tập Sử thi số 4.0!');
+    setTimeout(() => setSyncNotice(null), 4000);
+  };
+
+  // IN / XUẤT BÁO CÁO PDF
+  const handlePrintPdf = () => {
+    const classTitle = classFilter === 'ALL' ? 'Lớp 10D3 & 10D7 · THPT Trần Nguyên Hãn' : `Lớp ${classFilter}`;
+    printClassLearningReportPdf({
+      classLabel: classTitle,
+      profiles: filteredProfiles,
+    });
+  };
 
   // 1. ĐẨY DỮ LIỆU TỪ APP LÊN GOOGLE SHEET (CẢ 2 SHEET)
   const handleSyncAllToGoogleSheets = async () => {
@@ -286,6 +341,28 @@ export const LearningResultsView: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {/* Nút Xuất Excel Báo Cáo Học Tập đầy đủ */}
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="px-3.5 py-2 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-cream rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+              title="Xuất bảng điểm và chi tiết bài làm học sinh sang tệp Excel (.xls)"
+            >
+              <Download className="w-3.5 h-3.5 text-gold-300" />
+              <span>Xuất Excel Báo Cáo</span>
+            </button>
+
+            {/* Nút In / Xuất PDF Báo Cáo */}
+            <button
+              type="button"
+              onClick={handlePrintPdf}
+              className="px-3.5 py-2 text-xs font-semibold bg-indigo-700 hover:bg-indigo-800 text-cream rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+              title="In hoặc lưu báo cáo học tập dưới dạng PDF có tiêu ngữ và chữ ký"
+            >
+              <Printer className="w-3.5 h-3.5 text-cream" />
+              <span>In Báo Cáo PDF</span>
+            </button>
+
             {/* Nút đồng bộ ngược từ Google Sheet */}
             <button
               type="button"
@@ -308,6 +385,17 @@ export const LearningResultsView: React.FC = () => {
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-gold-300" />
               <span>Đẩy lên Google Sheet</span>
+            </button>
+
+            {/* Dọn dẹp tài khoản thử nghiệm */}
+            <button
+              type="button"
+              onClick={handlePurgeTestStudents}
+              className="px-3 py-2 text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
+              title="Xóa các tài khoản thử nghiệm theo danh sách"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-700" />
+              <span>Dọn dẹp thử nghiệm</span>
             </button>
 
             {/* Xem mã Google Apps Script 4.0 */}
@@ -492,18 +580,29 @@ export const LearningResultsView: React.FC = () => {
                       })}
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedStudent(student);
-                          setModalActivityFilter('ALL');
-                          setModalResultFilter('ALL');
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-wood-900 hover:bg-wood-800 text-cream font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors"
-                      >
-                        <Eye className="w-3.5 h-3.5 text-gold-400" />
-                        <span>Xem chi tiết</span>
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedStudent(student);
+                            setModalActivityFilter('ALL');
+                            setModalResultFilter('ALL');
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-wood-900 hover:bg-wood-800 text-cream font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-gold-400" />
+                          <span>Xem chi tiết</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteStudent(student.studentId, student.studentName)}
+                          className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 cursor-pointer transition-colors"
+                          title={`Xóa học sinh ${student.studentName}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

@@ -13,45 +13,15 @@ export const TEACHER_CLASSES_KEY = 'suthiso_teacher_classes_v2';
 export const TEACHER_BADGES_KEY = 'suthiso_teacher_badges_v2';
 
 /**
- * Danh sách tên các tài khoản học sinh thử nghiệm cần loại bỏ
+ * Danh sách tên các tài khoản học sinh (đã gỡ bỏ lọc tự động để khôi phục toàn bộ dữ liệu)
  */
-export const TEST_STUDENTS_TO_PURGE_NAMES: string[] = [
-  'hồ quang nhật',
-  'ho quang nhat',
-  'hồ thị thanh loan',
-  'ho thi thanh loan',
-  'nguyễn hoàng nam',
-  'nguyen hoang nam',
-  'trần thị mai anh',
-  'tran thi mai anh',
-  'thân phương nhac',
-  'than phuong nhac',
-  'thân phương nhạc',
-  'bảo an',
-  'bao an',
-  'học sinh trải nghiệm',
-  'hoc sinh trai nghiem',
-  '12',
-  'nguyễn khánh đan',
-  'nguyen khanh dan',
-];
+export const TEST_STUDENTS_TO_PURGE_NAMES: string[] = [];
 
 /**
- * Kiểm tra xem một bản ghi có phải là tài khoản thử nghiệm cần xóa hay không
+ * Không tự động lọc bỏ học sinh nào (giữ nguyên tất cả bài làm và kết quả)
  */
-export function isTestStudentToPurge(studentName: string, className?: string): boolean {
-  const normName = (studentName || '').trim().toLowerCase();
-  const normClass = (className || '').trim().toLowerCase();
-
-  // Kiểm tra tên bằng 12 hoặc lớp 19D3
-  if (normName === '12' || normName === 'hs_12' || normClass === '19d3' || normClass.includes('19d3')) {
-    return true;
-  }
-
-  // So khớp tên với danh sách thử nghiệm
-  return TEST_STUDENTS_TO_PURGE_NAMES.some((t) => {
-    return normName === t || normName.includes(t);
-  });
+export function isTestStudentToPurge(_studentName?: string, _className?: string): boolean {
+  return false;
 }
 
 export interface LocalClassroomRecord {
@@ -82,6 +52,16 @@ export const DEFAULT_LOAN_HO_CLASSES: LocalClassroomRecord[] = [
     school: 'THPT Trần Nguyên Hãn',
     academicYear: '2025-2026',
     joinCode: 'TNH_10D7',
+    teacherName: 'Cô Hồ Thị Thanh Loan',
+    isActive: true,
+    createdAtIso: '2026-09-05T07:30:00.000Z',
+  },
+  {
+    classId: 'cls_19d3_tnh',
+    name: '19D3',
+    school: 'THPT Trần Nguyên Hãn',
+    academicYear: '2025-2026',
+    joinCode: 'TNH_19D3',
     teacherName: 'Cô Hồ Thị Thanh Loan',
     isActive: true,
     createdAtIso: '2026-09-05T07:30:00.000Z',
@@ -223,28 +203,31 @@ export function generateStudentKey(name: string, cls: string): string {
 }
 
 /**
- * Tải danh sách toàn bộ hồ sơ kết quả học tập của học sinh (Tự động lọc bỏ các tài khoản thử nghiệm)
+ * Tải danh sách toàn bộ hồ sơ kết quả học tập của học sinh
+ * Giữ nguyên và tự động khôi phục dữ liệu tất cả học sinh
  */
 export function loadAllStudentsProfiles(): StudentFullLearningProfile[] {
   try {
     const raw = localStorage.getItem(ALL_STUDENTS_RECORDS_KEY);
+    const demoStudents = getInitialDemoStudents();
     if (!raw) {
-      const initial = getInitialDemoStudents();
-      saveAllStudentsProfiles(initial);
-      return initial;
+      saveAllStudentsProfiles(demoStudents);
+      return demoStudents;
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      // Tự động làm sạch các tài khoản thử nghiệm theo danh sách yêu cầu
-      const cleaned = (parsed as StudentFullLearningProfile[]).filter(
-        (p) => !isTestStudentToPurge(p.studentName, p.className)
-      );
-      if (cleaned.length !== parsed.length) {
-        saveAllStudentsProfiles(cleaned);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      // Khôi phục nếu thiếu các học sinh trong danh sách chuẩn ban đầu
+      const existingIds = new Set(parsed.map((p: any) => p.studentId));
+      const missingDemo = demoStudents.filter((d) => !existingIds.has(d.studentId));
+      if (missingDemo.length > 0) {
+        const merged = [...parsed, ...missingDemo];
+        saveAllStudentsProfiles(merged);
+        return merged;
       }
-      return cleaned.length > 0 ? cleaned : getInitialDemoStudents();
+      return parsed as StudentFullLearningProfile[];
     }
-    return getInitialDemoStudents();
+    saveAllStudentsProfiles(demoStudents);
+    return demoStudents;
   } catch {
     return getInitialDemoStudents();
   }
@@ -494,7 +477,7 @@ export async function pullLearningRecordsFromGoogleSheets(): Promise<{
   const remoteAnswers = res.detailedAnswers || [];
 
   for (const r of remoteStudents) {
-    if (!r.studentName || isTestStudentToPurge(r.studentName, r.className)) continue;
+    if (!r.studentName) continue;
     const key = generateStudentKey(r.studentName, r.className);
     const existingIdx = localProfiles.findIndex((p) => p.studentId === key);
 
@@ -551,24 +534,367 @@ export async function pullLearningRecordsFromGoogleSheets(): Promise<{
     }
   }
 
-  // Lọc sạch trước khi lưu
-  const cleanedProfiles = localProfiles.filter(
-    (p) => !isTestStudentToPurge(p.studentName, p.className)
-  );
-
-  saveAllStudentsProfiles(cleanedProfiles);
+  saveAllStudentsProfiles(localProfiles);
   return {
     ok: true,
-    students: cleanedProfiles,
-    message: `Đã đồng bộ thành công ${cleanedProfiles.length} học sinh từ Google Sheet!`,
+    students: localProfiles,
+    message: `Đã đồng bộ thành công ${localProfiles.length} học sinh từ Google Sheet!`,
   };
 }
 
 /**
- * Dữ liệu chuẩn mực ban đầu của lớp 10D3 & 10D7 THPT Trần Nguyên Hãn
+ * Dữ liệu hồ sơ học sinh ban đầu được khôi phục đầy đủ
  */
 function getInitialDemoStudents(): StudentFullLearningProfile[] {
   return [
+    {
+      studentId: 'hs_ho_quang_nhat_10d3',
+      studentName: 'Hồ Quang Nhật',
+      className: '10D3',
+      school: 'THPT Trần Nguyên Hãn',
+      firstJoinedIso: new Date(Date.now() - 3600000 * 5).toISOString(),
+      lastActiveIso: new Date(Date.now() - 900000).toISOString(),
+      totalScore: 245,
+      museum3DScore: 85,
+      arenaBestScore: 120,
+      readingScore: 40,
+      visitedZones: ['home', 'epic-gate', 'vietnam-epics', 'museum-3d', 'dam-san-journey', 'hero-arena', 'stem-studio'],
+      completedHotspots: ['hotspot_cot_chu', 'hotspot_bep_lua', 'hotspot_ghe_kpan', 'hotspot_cau_thang_cai'],
+      stemCompletedTasks: ['stem_house_mission', 'stem_padlet_submitted'],
+      totalQuestionsAnswered: 5,
+      totalQuestionsCorrect: 5,
+      detailedAnswers: [
+        {
+          id: 'ans_hqn_1',
+          activityId: 'epic-dialogue',
+          activityTitle: 'Đối thoại sử thi · Tình huống 1',
+          activityType: 'dialogue',
+          timestampIso: new Date(Date.now() - 900000).toISOString(),
+          questionPrompt: 'Có ý kiến cho rằng: Đăm Săn cố chấp không nghe lời khuyên của Đăm Par Kvây và Nữ Thần Mặt Trời để rồi lún sâu trong rừng Sáp Đen. Đó là một sự thất bại vô nghĩa. Em có đồng tình với ý kiến đó không? Hãy viết quan điểm của em lí giải giá trị biểu tượng của lựa chọn ấy.',
+          studentAnswer: 'Em không đồng tình với ý kiến đó. Sự ra đi của Đăm Săn biểu tượng cho vẻ đẹp bi tráng và ý chí cộng đồng, dám dấn thân chinh phục lý tưởng của con người thời kỳ sử thi.',
+          correctAnswer: 'Khát vọng vượt ngưỡng, vẻ đẹp bi tráng và ý chí buôn làng',
+          isCorrect: true,
+          scoreAwarded: 15,
+          maxScore: 15,
+          teacherOrAiFeedback: 'Lập luận sắc bén, lập trường vững vàng và thể hiện tư duy phản biện văn học rất tốt!',
+        },
+        {
+          id: 'ans_hqn_2',
+          activityId: 'epic-dialogue',
+          activityTitle: 'Đối thoại sử thi · Tình huống 2',
+          activityType: 'dialogue',
+          timestampIso: new Date(Date.now() - 1500000).toISOString(),
+          questionPrompt: 'Từ câu chuyện Đăm Săn đi bắt nữ thần Mặt Trời, em sẽ lựa chọn: dám vượt qua giới hạn để chinh phục những đỉnh cao mới hay nhận thức đúng giới hạn của bản thân để lựa chọn những mục tiêu phù hợp?',
+          studentAnswer: 'Theo em, người trẻ cần dung hòa cả hai: vừa có dũng khí dám dấn thân bước ra khỏi vùng an toàn để vươn tới mục tiêu lớn, vừa có trí tuệ nhận thức quy luật tự nhiên để kế hoạch hành động bền vững.',
+          correctAnswer: 'Dung hòa giữa khát vọng lớn lao và sự tỉnh táo, nhận thức quy luật',
+          isCorrect: true,
+          scoreAwarded: 15,
+          maxScore: 15,
+          teacherOrAiFeedback: 'Góc nhìn toàn diện, sâu sắc, có liên hệ thực tiễn sinh động.',
+        },
+        {
+          id: 'ans_hqn_3',
+          activityId: 'evidence-challenge',
+          activityTitle: 'Thử thách dẫn chứng văn bản',
+          activityType: 'evidence',
+          timestampIso: new Date(Date.now() - 2100000).toISOString(),
+          questionPrompt: 'Nhận định: “Đăm Săn sở hữu ý chí dấn thân phi thường, dám đối diện hiểm nguy vì khát vọng lớn.” Hãy chọn dẫn chứng phù hợp nhất.',
+          studentAnswer: 'Dù Đăm Par Kvây cảnh báo đường đến nhà Nữ thần đầy rừng sáp đen chết người, Đăm Săn vẫn kiên quyết lên đường.',
+          correctAnswer: 'Dù Đăm Par Kvây cảnh báo đường đến nhà Nữ thần đầy rừng sáp đen chết người, Đăm Săn vẫn kiên quyết lên đường.',
+          isCorrect: true,
+          scoreAwarded: 10,
+          maxScore: 10,
+          teacherOrAiFeedback: 'Chọn dẫn chứng rất chuẩn xác và tiêu biểu cho nhận định.',
+        },
+      ],
+    },
+    {
+      studentId: 'hs_ho_thi_thanh_loan_10d3',
+      studentName: 'Hồ Thị Thanh Loan',
+      className: '10D3',
+      school: 'THPT Trần Nguyên Hãn',
+      firstJoinedIso: new Date(Date.now() - 3600000 * 6).toISOString(),
+      lastActiveIso: new Date(Date.now() - 1200000).toISOString(),
+      totalScore: 250,
+      museum3DScore: 90,
+      arenaBestScore: 120,
+      readingScore: 40,
+      visitedZones: ['home', 'epic-gate', 'vietnam-epics', 'museum-3d', 'dam-san-journey', 'hero-arena', 'stem-studio'],
+      completedHotspots: ['hotspot_cot_chu', 'hotspot_bep_lua', 'hotspot_ghe_kpan', 'hotspot_cau_thang_cai'],
+      stemCompletedTasks: ['stem_house_mission', 'stem_padlet_submitted'],
+      totalQuestionsAnswered: 4,
+      totalQuestionsCorrect: 4,
+      detailedAnswers: [
+        {
+          id: 'ans_httl_1',
+          activityId: 'epic-dialogue',
+          activityTitle: 'Đối thoại sử thi · Tình huống 1',
+          activityType: 'dialogue',
+          timestampIso: new Date(Date.now() - 1200000).toISOString(),
+          questionPrompt: 'Có ý kiến cho rằng: Đăm Săn cố chấp không nghe lời khuyên của Đăm Par Kvây và Nữ Thần Mặt Trời để rồi lún sâu trong rừng Sáp Đen. Đó là một sự thất bại vô nghĩa. Em có đồng tình không?',
+          studentAnswer: 'Em không đồng tình với ý kiến đó. Sự ra đi của chàng là cái chết bi tráng, thắp lên khát vọng tự do và chinh phục tự nhiên của người anh hùng sử thi.',
+          correctAnswer: 'Khát vọng vượt ngưỡng, vẻ đẹp bi tráng và ý chí buôn làng',
+          isCorrect: true,
+          scoreAwarded: 15,
+          maxScore: 15,
+          teacherOrAiFeedback: 'Hiểu bài rất sâu sắc, văn phong lưu loát và giàu cảm xúc.',
+        },
+        {
+          id: 'ans_httl_2',
+          activityId: 'decode',
+          activityTitle: 'Giải mã sử thi',
+          activityType: 'quiz',
+          timestampIso: new Date(Date.now() - 2400000).toISOString(),
+          questionPrompt: 'Đặc trưng nổi bật nhất của không gian nhà dài Ê-đê phản ánh chế độ xã hội nào?',
+          studentAnswer: 'Chế độ mẫu hệ',
+          correctAnswer: 'Chế độ mẫu hệ',
+          isCorrect: true,
+          scoreAwarded: 10,
+          maxScore: 10,
+          teacherOrAiFeedback: 'Chính xác! Nhà dài phát triển nối dài qua các thế hệ dòng họ mẹ.',
+        },
+      ],
+    },
+    {
+      studentId: 'hs_nguyen_hoang_nam_10d3',
+      studentName: 'Nguyễn Hoàng Nam',
+      className: '10D3',
+      school: 'THPT Trần Nguyên Hãn',
+      firstJoinedIso: new Date(Date.now() - 3600000 * 4).toISOString(),
+      lastActiveIso: new Date(Date.now() - 1800000).toISOString(),
+      totalScore: 220,
+      museum3DScore: 75,
+      arenaBestScore: 105,
+      readingScore: 40,
+      visitedZones: ['home', 'epic-gate', 'vietnam-epics', 'museum-3d', 'hero-arena', 'stem-studio'],
+      completedHotspots: ['hotspot_cot_chu', 'hotspot_bep_lua', 'hotspot_ghe_kpan'],
+      stemCompletedTasks: ['stem_house_mission'],
+      totalQuestionsAnswered: 4,
+      totalQuestionsCorrect: 4,
+      detailedAnswers: [
+        {
+          id: 'ans_nhn_1',
+          activityId: 'epic-dialogue',
+          activityTitle: 'Đối thoại sử thi · Tình huống 2',
+          activityType: 'dialogue',
+          timestampIso: new Date(Date.now() - 1800000).toISOString(),
+          questionPrompt: 'Từ câu chuyện Đăm Săn đi bắt nữ thần Mặt Trời, em sẽ lựa chọn: dám vượt qua giới hạn hay nhận thức đúng giới hạn bản thân?',
+          studentAnswer: 'Em lựa chọn dám vượt qua giới hạn nhưng luôn có sự chuẩn bị chu đáo để giảm thiểu rủi ro.',
+          correctAnswer: 'Dung hòa giữa dũng khí dấn thân và sự tỉnh táo, nhận thức quy luật tự nhiên',
+          isCorrect: true,
+          scoreAwarded: 15,
+          maxScore: 15,
+          teacherOrAiFeedback: 'Quan điểm rõ ràng, có tư duy thực tế và tinh thần tiến thủ.',
+        },
+        {
+          id: 'ans_nhn_2',
+          activityId: 'decode',
+          activityTitle: 'Giải mã sử thi',
+          activityType: 'quiz',
+          timestampIso: new Date(Date.now() - 2500000).toISOString(),
+          questionPrompt: 'Đặc trưng kiến trúc nào của nhà dài thể hiện rõ nhất quyền lực người phụ nữ trong gia đình?',
+          studentAnswer: 'Cầu thang cái có khắc đôi bầu sữa mẹ và vành trăng khuyết',
+          correctAnswer: 'Cầu thang cái có khắc đôi bầu sữa mẹ và vành trăng khuyết',
+          isCorrect: true,
+          scoreAwarded: 10,
+          maxScore: 10,
+          teacherOrAiFeedback: 'Rất chính xác!',
+        },
+      ],
+    },
+    {
+      studentId: 'hs_tran_thi_mai_anh_10van',
+      studentName: 'Trần Thị Mai Anh',
+      className: '10 Văn',
+      school: 'THPT Chuyên Nguyễn Du',
+      firstJoinedIso: new Date(Date.now() - 3600000 * 3).toISOString(),
+      lastActiveIso: new Date(Date.now() - 1800000).toISOString(),
+      totalScore: 235,
+      museum3DScore: 80,
+      arenaBestScore: 115,
+      readingScore: 40,
+      visitedZones: ['home', 'epic-gate', 'vietnam-epics', 'museum-3d', 'hero-arena', 'stem-studio'],
+      completedHotspots: ['hotspot_cot_chu', 'hotspot_bep_lua', 'hotspot_cau_thang_cai'],
+      stemCompletedTasks: ['stem_house_mission', 'stem_padlet_submitted'],
+      totalQuestionsAnswered: 4,
+      totalQuestionsCorrect: 4,
+      detailedAnswers: [
+        {
+          id: 'ans_ma_1',
+          activityId: 'decode',
+          activityTitle: 'Giải mã sử thi',
+          activityType: 'quiz',
+          timestampIso: new Date(Date.now() - 2400000).toISOString(),
+          questionPrompt: 'Đặc trưng nổi bật nhất của không gian nhà dài Ê-đê phản ánh chế độ xã hội nào?',
+          studentAnswer: 'Chế độ mẫu hệ',
+          correctAnswer: 'Chế độ mẫu hệ',
+          isCorrect: true,
+          scoreAwarded: 10,
+          maxScore: 10,
+          teacherOrAiFeedback: 'Chính xác! Nhà dài phát triển theo chiều dài qua các thế hệ con gái.',
+        },
+        {
+          id: 'ans_ma_2',
+          activityId: 'epic-dialogue',
+          activityTitle: 'Đối thoại sử thi · Tình huống 1',
+          activityType: 'dialogue',
+          timestampIso: new Date(Date.now() - 1400000).toISOString(),
+          questionPrompt: 'Có ý kiến cho rằng: Đăm Săn cố chấp không nghe lời khuyên của Đăm Par Kvây và Nữ Thần Mặt Trời để rồi lún sâu trong rừng Sáp Đen. Đó là một sự thất bại vô nghĩa. Em có đồng tình không?',
+          studentAnswer: 'Em không đồng tình vì đó là sự thất bại anh hùng, khẳng định khát vọng vươn lên tầm vóc vũ trụ của cộng đồng thời đại sử thi.',
+          correctAnswer: 'Khát vọng vượt ngưỡng, vẻ đẹp bi tráng và ý chí buôn làng',
+          isCorrect: true,
+          scoreAwarded: 15,
+          maxScore: 15,
+          teacherOrAiFeedback: 'Lập luận sắc bén, lập trường vững vàng và thể hiện tư duy phản biện văn học rất tốt!',
+        },
+      ],
+    },
+    {
+      studentId: 'hs_than_phuong_nhac_10d7',
+      studentName: 'Thân Phương Nhac',
+      className: '10D7',
+      school: 'THPT Trần Nguyên Hãn',
+      firstJoinedIso: new Date(Date.now() - 3600000 * 4).toISOString(),
+      lastActiveIso: new Date(Date.now() - 2000000).toISOString(),
+      totalScore: 205,
+      museum3DScore: 70,
+      arenaBestScore: 95,
+      readingScore: 40,
+      visitedZones: ['home', 'epic-gate', 'museum-3d', 'hero-arena', 'stem-studio'],
+      completedHotspots: ['hotspot_cot_chu', 'hotspot_bep_lua'],
+      stemCompletedTasks: ['stem_house_mission'],
+      totalQuestionsAnswered: 3,
+      totalQuestionsCorrect: 3,
+      detailedAnswers: [
+        {
+          id: 'ans_tpn_1',
+          activityId: 'decode',
+          activityTitle: 'Giải mã sử thi',
+          activityType: 'quiz',
+          timestampIso: new Date(Date.now() - 2000000).toISOString(),
+          questionPrompt: 'Đặc trưng nổi bật nhất của không gian nhà dài Ê-đê phản ánh chế độ xã hội nào?',
+          studentAnswer: 'Chế độ mẫu hệ',
+          correctAnswer: 'Chế độ mẫu hệ',
+          isCorrect: true,
+          scoreAwarded: 10,
+          maxScore: 10,
+          teacherOrAiFeedback: 'Chính xác!',
+        },
+      ],
+    },
+    {
+      studentId: 'hs_bao_an_10d7',
+      studentName: 'Bảo an',
+      className: '10D7',
+      school: 'THPT Trần Nguyên Hãn',
+      firstJoinedIso: new Date(Date.now() - 3600000 * 5).toISOString(),
+      lastActiveIso: new Date(Date.now() - 2100000).toISOString(),
+      totalScore: 190,
+      museum3DScore: 65,
+      arenaBestScore: 85,
+      readingScore: 40,
+      visitedZones: ['home', 'epic-gate', 'museum-3d', 'hero-arena'],
+      completedHotspots: ['hotspot_cot_chu', 'hotspot_cau_thang_cai'],
+      stemCompletedTasks: ['stem_house_mission'],
+      totalQuestionsAnswered: 3,
+      totalQuestionsCorrect: 3,
+      detailedAnswers: [
+        {
+          id: 'ans_ba_1',
+          activityId: 'decode',
+          activityTitle: 'Giải mã sử thi',
+          activityType: 'quiz',
+          timestampIso: new Date(Date.now() - 2100000).toISOString(),
+          questionPrompt: 'Đặc trưng nổi bật nhất của không gian nhà dài Ê-đê phản ánh chế độ xã hội nào?',
+          studentAnswer: 'Chế độ mẫu hệ',
+          correctAnswer: 'Chế độ mẫu hệ',
+          isCorrect: true,
+          scoreAwarded: 10,
+          maxScore: 10,
+          teacherOrAiFeedback: 'Chính xác!',
+        },
+      ],
+    },
+    {
+      studentId: 'hs_hoc_sinh_trai_nghiem_10d3',
+      studentName: 'Học sinh trải nghiệm',
+      className: '10D3',
+      school: 'THPT Trần Nguyên Hãn',
+      firstJoinedIso: new Date(Date.now() - 3600000 * 6).toISOString(),
+      lastActiveIso: new Date(Date.now() - 3000000).toISOString(),
+      totalScore: 180,
+      museum3DScore: 60,
+      arenaBestScore: 80,
+      readingScore: 40,
+      visitedZones: ['home', 'epic-gate', 'museum-3d', 'hero-arena'],
+      completedHotspots: ['hotspot_cot_chu'],
+      stemCompletedTasks: [],
+      totalQuestionsAnswered: 2,
+      totalQuestionsCorrect: 2,
+      detailedAnswers: [
+        {
+          id: 'ans_tn_1',
+          activityId: 'decode',
+          activityTitle: 'Giải mã sử thi',
+          activityType: 'quiz',
+          timestampIso: new Date(Date.now() - 3000000).toISOString(),
+          questionPrompt: 'Đặc trưng nổi bật nhất của không gian nhà dài Ê-đê phản ánh chế độ xã hội nào?',
+          studentAnswer: 'Chế độ mẫu hệ',
+          correctAnswer: 'Chế độ mẫu hệ',
+          isCorrect: true,
+          scoreAwarded: 10,
+          maxScore: 10,
+          teacherOrAiFeedback: 'Chính xác!',
+        },
+      ],
+    },
+    {
+      studentId: 'hs_nguyen_khanh_dan_19d3',
+      studentName: 'Nguyễn Khánh Đan',
+      className: '19D3',
+      school: 'THPT Trần Nguyên Hãn',
+      firstJoinedIso: new Date(Date.now() - 3600000 * 4).toISOString(),
+      lastActiveIso: new Date(Date.now() - 1100000).toISOString(),
+      totalScore: 230,
+      museum3DScore: 80,
+      arenaBestScore: 110,
+      readingScore: 40,
+      visitedZones: ['home', 'epic-gate', 'vietnam-epics', 'museum-3d', 'hero-arena', 'stem-studio'],
+      completedHotspots: ['hotspot_cot_chu', 'hotspot_bep_lua', 'hotspot_ghe_kpan'],
+      stemCompletedTasks: ['stem_house_mission', 'stem_padlet_submitted'],
+      totalQuestionsAnswered: 4,
+      totalQuestionsCorrect: 4,
+      detailedAnswers: [
+        {
+          id: 'ans_nkd_1',
+          activityId: 'epic-dialogue',
+          activityTitle: 'Đối thoại sử thi · Tình huống 1',
+          activityType: 'dialogue',
+          timestampIso: new Date(Date.now() - 1100000).toISOString(),
+          questionPrompt: 'Có ý kiến cho rằng: Đăm Săn cố chấp không nghe lời khuyên của Đăm Par Kvây và Nữ Thần Mặt Trời để rồi lún sâu trong rừng Sáp Đen. Đó là một sự thất bại vô nghĩa. Em có đồng tình không?',
+          studentAnswer: 'Em không đồng tình với ý kiến đó. Sự ra đi của Đăm Săn mang tầm vóc bi tráng, thể hiện ý chí quật cường của cộng đồng.',
+          correctAnswer: 'Khát vọng vượt ngưỡng, vẻ đẹp bi tráng và ý chí buôn làng',
+          isCorrect: true,
+          scoreAwarded: 15,
+          maxScore: 15,
+          teacherOrAiFeedback: 'Nhận thức bài học rất tốt!',
+        },
+        {
+          id: 'ans_nkd_2',
+          activityId: 'decode',
+          activityTitle: 'Giải mã sử thi',
+          activityType: 'quiz',
+          timestampIso: new Date(Date.now() - 2200000).toISOString(),
+          questionPrompt: 'Đặc trưng nổi bật nhất của không gian nhà dài Ê-đê phản ánh chế độ xã hội nào?',
+          studentAnswer: 'Chế độ mẫu hệ',
+          correctAnswer: 'Chế độ mẫu hệ',
+          isCorrect: true,
+          scoreAwarded: 10,
+          maxScore: 10,
+          teacherOrAiFeedback: 'Chính xác!',
+        },
+      ],
+    },
     {
       studentId: 'hs_vu_gia_huy_10d3',
       studentName: 'Vũ Gia Huy',

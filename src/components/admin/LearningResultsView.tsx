@@ -3,8 +3,6 @@ import {
   Award,
   CheckCircle2,
   Clock,
-  Code2,
-  Copy,
   Download,
   Eye,
   FileSpreadsheet,
@@ -33,11 +31,9 @@ import {
   verifyTeacherCredentials,
   pullLearningRecordsFromGoogleSheets,
   deleteStudentProfile,
-  purgeAllTestStudentsProfiles,
 } from '../../services/studentLearningRecordsService';
 import {
   DEFAULT_GOOGLE_SHEETS_SCRIPT_URL,
-  SAMPLE_GOOGLE_APPS_SCRIPT_CODE,
   syncToGoogleSheets,
 } from '../../services/googleSheetsService';
 import {
@@ -64,10 +60,6 @@ export const LearningResultsView: React.FC = () => {
   const [modalActivityFilter, setModalActivityFilter] = useState('ALL');
   const [modalResultFilter, setModalResultFilter] = useState<'ALL' | 'CORRECT' | 'WRONG'>('ALL');
 
-  // Script Code Modal
-  const [showScriptModal, setShowScriptModal] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(false);
-
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (verifyTeacherCredentials(usernameInput, passwordInput)) {
@@ -88,7 +80,7 @@ export const LearningResultsView: React.FC = () => {
   };
 
   const availableClasses = useMemo(() => {
-    const set = new Set(['10D3', '10D7', ...profiles.map((p) => p.className).filter(Boolean)]);
+    const set = new Set(['10D3', '10D7', '10 Văn', '19D3', ...profiles.map((p) => p.className).filter(Boolean)]);
     return ['ALL', ...Array.from(set)];
   }, [profiles]);
 
@@ -126,20 +118,6 @@ export const LearningResultsView: React.FC = () => {
       }
       setSyncNotice(`Đã xóa thành công kết quả của học sinh "${studentName}".`);
       setTimeout(() => setSyncNotice(null), 4000);
-    }
-  };
-
-  // DỌN DẸP TOÀN BỘ TÀI KHOẢN THỬ NGHIỆM
-  const handlePurgeTestStudents = () => {
-    if (
-      window.confirm(
-        'Cô có muốn dọn dẹp và xóa các tài khoản thử nghiệm (Hồ Quang Nhật, Hồ Thị Thanh Loan, Nguyễn Hoàng Nam, Trần Thị Mai Anh, Thân Phương Nhac, Bảo an, Học sinh trải nghiệm, 12, Nguyễn Khánh Đan 19D3...)?'
-      )
-    ) {
-      const res = purgeAllTestStudentsProfiles();
-      setProfiles(res.remainingProfiles);
-      setSyncNotice(`Đã dọn dẹp thành công ${res.purgedCount} bản ghi học sinh thử nghiệm!`);
-      setTimeout(() => setSyncNotice(null), 5000);
     }
   };
 
@@ -218,12 +196,6 @@ export const LearningResultsView: React.FC = () => {
       setSyncNotice(res.message);
     }
     setTimeout(() => setSyncNotice(null), 5000);
-  };
-
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(SAMPLE_GOOGLE_APPS_SCRIPT_CODE);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 3000);
   };
 
   // Danh sách câu hỏi chi tiết sau khi lọc theo hoạt động & đúng/sai trong Modal
@@ -385,27 +357,6 @@ export const LearningResultsView: React.FC = () => {
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-gold-300" />
               <span>Đẩy lên Google Sheet</span>
-            </button>
-
-            {/* Dọn dẹp tài khoản thử nghiệm */}
-            <button
-              type="button"
-              onClick={handlePurgeTestStudents}
-              className="px-3 py-2 text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
-              title="Xóa các tài khoản thử nghiệm theo danh sách"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-rose-700" />
-              <span>Dọn dẹp thử nghiệm</span>
-            </button>
-
-            {/* Xem mã Google Apps Script 4.0 */}
-            <button
-              type="button"
-              onClick={() => setShowScriptModal(true)}
-              className="px-3 py-2 text-xs font-semibold bg-wood-900 hover:bg-wood-800 text-cream rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <Code2 className="w-3.5 h-3.5 text-gold-400" />
-              <span>Mã Apps Script 4.0</span>
             </button>
 
             <button
@@ -818,76 +769,6 @@ export const LearningResultsView: React.FC = () => {
                 className="px-5 py-2.5 rounded-xl bg-wood-900 hover:bg-wood-800 text-cream text-xs font-bold cursor-pointer"
               >
                 Đóng bài làm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 4. MODAL MÃ NGUỒN GOOGLE APPS SCRIPT 4.0 (2 SHEET RIÊNG & 2-WAY SYNC) */}
-      {showScriptModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-wood-950/80 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-3xl max-h-[90vh] bg-cream border border-sandstone rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col text-wood-900 space-y-4">
-            <div className="flex items-start justify-between pb-3 border-b border-sandstone">
-              <div>
-                <h3 className="font-serif text-xl font-bold text-wood-900 flex items-center gap-2">
-                  <Code2 className="w-5 h-5 text-gold-600" />
-                  <span>Mã nguồn Google Apps Script 4.0 mới nhất</span>
-                </h3>
-                <p className="text-xs text-wood-600 mt-1">
-                  Hỗ trợ 2 sheet riêng: <strong>DANH_SACH_HOC_SINH</strong> và <strong>CHI_TIET_BAI_LAM</strong>, đồng bộ 2 chiều về App.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowScriptModal(false)}
-                className="p-2 rounded-xl bg-parchment hover:bg-wood-200 text-wood-800 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-3 rounded-xl bg-gold-50 border border-gold-300 text-xs text-wood-900 space-y-1">
-              <p className="font-bold text-gold-950">Hướng dẫn cập nhật trong 10 giây:</p>
-              <ol className="list-decimal list-inside space-y-0.5 text-wood-800">
-                <li>Bấm nút <strong>"Sao chép mã Apps Script"</strong> bên dưới.</li>
-                <li>Mở Google Sheet của cô &rarr; vào <strong>Tiện ích mở rộng &rarr; Apps Script</strong> &rarr; dán đè toàn bộ mã.</li>
-                <li>Bấm <strong>Triển khai (Deploy) &rarr; Quản lý bản triển khai (Manage deployments) &rarr; Chỉnh sửa &rarr; Tạo phiên bản mới &rarr; Triển khai</strong>.</li>
-              </ol>
-            </div>
-
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-xs font-bold text-wood-700">Mã Code.gs:</span>
-              <button
-                type="button"
-                onClick={handleCopyCode}
-                className="px-3 py-1.5 rounded-lg bg-wood-900 hover:bg-wood-800 text-cream text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
-              >
-                {copiedCode ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span className="text-emerald-400">Đã sao chép mã!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-4 h-4" />
-                    <span>Sao chép mã Apps Script</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            <pre className="flex-1 overflow-y-auto p-4 rounded-xl bg-wood-950 text-sandstone-light text-xs font-mono border border-sandstone max-h-[360px] leading-relaxed">
-              {SAMPLE_GOOGLE_APPS_SCRIPT_CODE}
-            </pre>
-
-            <div className="pt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowScriptModal(false)}
-                className="px-5 py-2 rounded-xl bg-forest-700 hover:bg-forest-800 text-cream text-xs font-bold cursor-pointer"
-              >
-                Đóng
               </button>
             </div>
           </div>

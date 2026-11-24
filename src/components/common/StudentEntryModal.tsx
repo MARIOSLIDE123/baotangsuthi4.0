@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Sparkles,
   User,
@@ -8,6 +8,7 @@ import {
   ArrowRight,
   ShieldCheck,
   Zap,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   StudentProfileData,
@@ -15,6 +16,7 @@ import {
   setStudentProfileRegistered,
   syncToGoogleSheets,
 } from '../../services/googleSheetsService';
+import { loadAllStudentsProfiles } from '../../services/studentLearningRecordsService';
 
 interface StudentEntryModalProps {
   isOpen: boolean;
@@ -41,6 +43,20 @@ export const StudentEntryModal: React.FC<StudentEntryModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+
+  // Cảnh báo nếu tên học sinh đã tồn tại trong hệ thống
+  const duplicateNotice = useMemo(() => {
+    const clean = studentName.trim().toLowerCase();
+    if (!clean || clean.length < 2) return null;
+    const existing = loadAllStudentsProfiles().filter(
+      (p) => p.studentName.trim().toLowerCase() === clean
+    );
+    if (existing.length > 0) {
+      const cls = Array.from(new Set(existing.map((p) => p.className))).join(', ');
+      return `Lưu ý: Tên "${studentName.trim()}" đã có trong hệ thống (Lớp ${cls}). Nếu bạn tiếp tục, dữ liệu mới sẽ được ghi nhận và cập nhật.`;
+    }
+    return null;
+  }, [studentName]);
 
   if (!isOpen) return null;
 
@@ -168,6 +184,12 @@ export const StudentEntryModal: React.FC<StudentEntryModalProps> = ({
               className="w-full px-4 py-3 rounded-xl bg-wood-950/90 border border-wood-700 text-cream text-sm placeholder:text-sandstone/50 focus:outline-none focus:border-gold-500 transition-colors"
               required
             />
+            {duplicateNotice && (
+              <div className="mt-2 p-2.5 rounded-xl bg-amber-950/70 border border-amber-500/50 text-amber-300 text-xs flex items-center gap-2 animate-fade-in">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="leading-relaxed">{duplicateNotice}</span>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -150,6 +150,67 @@ export async function syncToGoogleSheets(
 }
 
 /**
+ * Gửi yêu cầu xóa học sinh đồng bộ trên Google Sheet
+ * Hỗ trợ cả POST và GET beacon để đảm bảo 100% được ghi nhận
+ */
+export async function deleteStudentFromGoogleSheets(
+  studentName: string,
+  className?: string
+): Promise<SyncResult> {
+  const scriptUrl = getGoogleSheetsScriptUrl();
+  if (!scriptUrl) {
+    return {
+      ok: true,
+      mode: 'not-configured',
+      message: 'Đã xóa cục bộ trong máy (chưa cấu hình URL Google Sheets).',
+    };
+  }
+
+  const sName = studentName.trim();
+  const sClass = (className || '').trim();
+
+  try {
+    // 1. Gửi qua POST
+    await fetch(scriptUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify({
+        action: 'delete_student',
+        studentName: sName,
+        className: sClass,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+
+    // 2. Gửi thêm GET beacon fallback để đảm bảo xóa thành công
+    try {
+      const getDeleteUrl = `${scriptUrl}?action=delete_student&studentName=${encodeURIComponent(
+        sName
+      )}&className=${encodeURIComponent(sClass)}`;
+      fetch(getDeleteUrl, { method: 'GET', mode: 'no-cors' }).catch(() => {});
+    } catch {
+      // Ignore beacon error
+    }
+
+    return {
+      ok: true,
+      mode: 'cloud-synced',
+      message: `Đã gửi yêu cầu xóa học sinh "${studentName}" trên Google Sheet!`,
+    };
+  } catch (err) {
+    console.warn('Lỗi khi xóa trên Google Sheets:', err);
+    return {
+      ok: false,
+      mode: 'local-queued',
+      message: 'Không thể kết nối trực tiếp đến Google Sheet để xóa lúc này.',
+    };
+  }
+}
+
+/**
  * Đọc dữ liệu từ Google Sheet gửi ngược về APP cho Giáo viên (Đồng bộ 2 chiều)
  */
 export async function fetchRawDataFromGoogleSheets(): Promise<{
@@ -236,6 +297,9 @@ function doPost(e) {
   try {
     var contents = e.postData ? e.postData.contents : "";
     var data = contents ? JSON.parse(contents) : {};
+    if (data.action === "delete_student") {
+      return handleDeleteStudent(data.studentName, data.className);
+    }
     return handleSaveData(data);
   } catch (error) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: error.toString() }))
@@ -245,9 +309,17 @@ function doPost(e) {
 
 function doGet(e) {
   try {
+    // 0. Xóa học sinh trực tiếp qua GET beacon
+    if (e && e.parameter && e.parameter.action === "delete_student") {
+      return handleDeleteStudent(e.parameter.studentName, e.parameter.className);
+    }
+
     // 1. Đồng bộ qua tham số data trên GET
     if (e && e.parameter && e.parameter.data) {
       var data = JSON.parse(decodeURIComponent(e.parameter.data));
+      if (data.action === "delete_student") {
+        return handleDeleteStudent(data.studentName, data.className);
+      }
       return handleSaveData(data);
     }
     
@@ -398,6 +470,62 @@ function handleSaveData(data) {
 }
 
 /**
+ * Xóa học sinh trên Google Sheet và tự động đánh lại STT chuẩn
+ */
+function handleDeleteStudent(studentName, className) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sName = String(studentName || "").trim().toLowerCase();
+  var sClass = String(className || "").trim().toLowerCase();
+  
+  if (!sName) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Thiếu tên học sinh" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // 1. Xóa trong sheet DANH_SACH_HOC_SINH
+  var studentSheet = ss.getSheetByName("DANH_SACH_HOC_SINH");
+  if (studentSheet) {
+    var rows1 = studentSheet.getDataRange().getValues();
+    for (var i = rows1.length - 1; i >= 1; i--) {
+      var rowName = String(rows1[i][1] || "").trim().toLowerCase();
+      var rowClass = String(rows1[i][2] || "").trim().toLowerCase();
+      var matchName = rowName === sName;
+      var matchClass = !sClass || rowClass === sClass;
+      if (matchName && matchClass) {
+        studentSheet.deleteRow(i + 1);
+      }
+    }
+
+    // Đánh lại số thứ tự (STT) từ 1 đến N chuẩn xác
+    var updatedRows = studentSheet.getDataRange().getValues();
+    for (var k = 1; k < updatedRows.length; k++) {
+      studentSheet.getRange(k + 1, 1).setValue(k);
+    }
+  }
+
+  // 2. Xóa các câu hỏi của học sinh đó trong sheet CHI_TIET_BAI_LAM
+  var detailSheet = ss.getSheetByName("CHI_TIET_BAI_LAM");
+  if (detailSheet) {
+    var rows2 = detailSheet.getDataRange().getValues();
+    for (var j = rows2.length - 1; j >= 1; j--) {
+      var dName = String(rows2[j][1] || "").trim().toLowerCase();
+      var dClass = String(rows2[j][2] || "").trim().toLowerCase();
+      var matchDName = dName === sName;
+      var matchDClass = !sClass || dClass === sClass;
+      if (matchDName && matchDClass) {
+        detailSheet.deleteRow(j + 1);
+      }
+    }
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({
+    status: "success",
+    deleted: true,
+    message: "Đã xóa thành công học sinh '" + studentName + "' trên Google Sheet và tự động đánh lại STT!"
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
  * Đọc dữ liệu từ Google Sheet gửi ngược về APP cho Giáo viên
  */
 function handleGetData() {
@@ -412,6 +540,7 @@ function handleGetData() {
       var r = rows1[i];
       if (r[1]) {
         studentsList.push({
+          stt: Number(r[0]) || i, // Số thứ tự chuẩn từ cột STT trên Google Sheet
           studentName: String(r[1]),
           className: String(r[2] || ""),
           school: String(r[3] || ""),

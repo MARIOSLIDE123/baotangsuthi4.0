@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
+  AlertCircle,
+  AlertTriangle,
   Award,
   CheckCircle2,
   Clock,
@@ -31,6 +33,8 @@ import {
   verifyTeacherCredentials,
   pullLearningRecordsFromGoogleSheets,
   deleteStudentProfile,
+  deleteStudentProfileAndSync,
+  detectDuplicateStudents,
 } from '../../services/studentLearningRecordsService';
 import {
   DEFAULT_GOOGLE_SHEETS_SCRIPT_URL,
@@ -84,6 +88,14 @@ export const LearningResultsView: React.FC = () => {
     return ['ALL', ...Array.from(set)];
   }, [profiles]);
 
+  // Phát hiện danh sách học sinh bị trùng tên
+  const duplicateGroups = useMemo(() => detectDuplicateStudents(profiles), [profiles]);
+  const duplicateNameSet = useMemo(
+    () => new Set(duplicateGroups.map((d) => d.studentName.trim().toLowerCase())),
+    [duplicateGroups]
+  );
+  const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
+
   const filteredProfiles = useMemo(() => {
     return profiles.filter((p) => {
       const matchClass = classFilter === 'ALL' || p.className === classFilter;
@@ -92,9 +104,10 @@ export const LearningResultsView: React.FC = () => {
         p.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.className.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.school.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchClass && matchSearch;
+      const matchDuplicate = !showDuplicatesOnly || duplicateNameSet.has(p.studentName.trim().toLowerCase());
+      return matchClass && matchSearch && matchDuplicate;
     });
-  }, [profiles, classFilter, searchQuery]);
+  }, [profiles, classFilter, searchQuery, showDuplicatesOnly, duplicateNameSet]);
 
   const stats = useMemo(() => {
     const totalStudents = profiles.length;
@@ -108,16 +121,19 @@ export const LearningResultsView: React.FC = () => {
     return { totalStudents, avgScore, totalAns, totalCorrect, accuracyRate };
   }, [profiles]);
 
-  // XÓA HỌC SINH
-  const handleDeleteStudent = (studentId: string, studentName: string) => {
-    if (window.confirm(`Cô có chắc chắn muốn xóa hồ sơ và kết quả của học sinh "${studentName}" không?`)) {
-      const updated = deleteStudentProfile(studentId);
-      setProfiles(updated);
+  // XÓA HỌC SINH (ĐỒNG BỘ 2 CHIỀU: XÓA CẢ TRÊN APP VÀ GOOGLE SHEET)
+  const handleDeleteStudent = async (studentId: string, studentName: string, className?: string) => {
+    const confirmMsg = `Cô có chắc chắn muốn xóa hồ sơ học sinh "${studentName}" (Lớp ${className || ''})?\n\nHành động này sẽ xóa dữ liệu trên App và tự động đồng bộ xóa trên Google Sheet!`;
+    if (window.confirm(confirmMsg)) {
+      setSyncLoading(true);
+      const res = await deleteStudentProfileAndSync(studentId);
+      setProfiles(res.remainingProfiles);
       if (selectedStudent?.studentId === studentId) {
         setSelectedStudent(null);
       }
-      setSyncNotice(`Đã xóa thành công kết quả của học sinh "${studentName}".`);
-      setTimeout(() => setSyncNotice(null), 4000);
+      setSyncLoading(false);
+      setSyncNotice(res.message);
+      setTimeout(() => setSyncNotice(null), 5000);
     }
   };
 
@@ -444,15 +460,66 @@ export const LearningResultsView: React.FC = () => {
         </div>
       </div>
 
+      {/* CẢNH BÁO TRÙNG DỮ LIỆU TÊN HỌC SINH */}
+      {duplicateGroups.length > 0 && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/90 border-2 border-amber-300 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-amber-950">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-amber-200 text-amber-900 shrink-0 mt-0.5">
+              <AlertTriangle className="w-5 h-5 text-amber-800" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="font-bold text-sm text-amber-950 uppercase tracking-wide">
+                  Cảnh báo: Phát hiện {duplicateGroups.length} trường hợp trùng tên học sinh
+                </h4>
+                <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 text-[11px] font-bold">
+                  Dữ liệu cần kiểm tra
+                </span>
+              </div>
+              <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                Các học sinh có cùng họ tên:
+                {duplicateGroups.map((d) => (
+                  <span key={d.studentName} className="inline-block mx-1 font-bold text-amber-950 bg-amber-200/60 px-2 py-0.5 rounded-md border border-amber-300">
+                    "{d.studentName}" ({d.count} bản ghi &bull; Lớp: {d.classes.join(', ')})
+                  </span>
+                ))}
+                . Cô có thể bấm lọc bên cạnh để đối chiếu hoặc bấm nút Xóa để bỏ bớt bản ghi thừa.
+              </p>
+            </div>
+          </div>
+
+          <div className="shrink-0 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowDuplicatesOnly(!showDuplicatesOnly)}
+              className={`px-3.5 py-2 text-xs font-bold rounded-xl shadow-xs cursor-pointer transition-colors ${
+                showDuplicatesOnly
+                  ? 'bg-amber-800 text-cream hover:bg-amber-900'
+                  : 'bg-amber-600 text-cream hover:bg-amber-700'
+              }`}
+            >
+              {showDuplicatesOnly ? 'Hiển thị tất cả học sinh' : 'Chỉ xem các bạn bị trùng tên'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Student List Table */}
       <div className="bg-cream border border-sandstone rounded-2xl overflow-hidden shadow-sm">
         <div className="p-4 sm:p-5 border-b border-sandstone flex items-center justify-between">
-          <h3 className="font-serif text-lg font-bold text-wood-900 flex items-center gap-2">
-            <Users className="w-5 h-5 text-forest-700" />
-            <span>Danh sách kết quả học tập ({filteredProfiles.length} học sinh)</span>
-          </h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-serif text-lg font-bold text-wood-900 flex items-center gap-2">
+              <Users className="w-5 h-5 text-forest-700" />
+              <span>Danh sách kết quả học tập ({filteredProfiles.length} học sinh)</span>
+            </h3>
+            {showDuplicatesOnly && (
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 text-xs font-bold">
+                Đang lọc bản ghi trùng tên
+              </span>
+            )}
+          </div>
           <span className="text-xs text-wood-600 italic">
-            Nhấn vào "Xem bài làm chi tiết" để đối soát từng câu hỏi
+            STT khớp chuẩn theo số thứ tự trên Google Sheet
           </span>
         </div>
 
@@ -481,82 +548,110 @@ export const LearningResultsView: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredProfiles.map((student, idx) => (
-                  <tr key={student.studentId} className="hover:bg-parchment/40 transition-colors">
-                    <td className="py-3.5 px-4 font-mono font-semibold text-wood-600">{idx + 1}</td>
-                    <td className="py-3.5 px-4 font-bold text-wood-950 flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-forest-700/10 text-forest-800 flex items-center justify-center font-bold text-xs">
-                        {student.studentName.charAt(0).toUpperCase()}
-                      </div>
-                      <span>{student.studentName}</span>
-                    </td>
-                    <td className="py-3.5 px-4 font-medium text-wood-800">{student.className}</td>
-                    <td className="py-3.5 px-4 text-wood-600 max-w-[150px] truncate">{student.school}</td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span className="font-mono font-bold text-forest-800 text-sm">
-                        {student.totalScore}đ
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-mono font-semibold text-gold-800">
-                      {student.museum3DScore}đ
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-mono font-semibold text-amber-800">
-                      {student.arenaBestScore}đ
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-mono text-wood-800">
-                      {student.totalQuestionsAnswered} câu
-                    </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span
-                        className={`px-2 py-0.5 rounded-full font-mono text-[11px] font-bold ${
-                          student.totalQuestionsAnswered > 0 &&
-                          student.totalQuestionsCorrect / student.totalQuestionsAnswered >= 0.7
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {student.totalQuestionsAnswered > 0
-                          ? `${Math.round(
-                              (student.totalQuestionsCorrect / student.totalQuestionsAnswered) * 100
-                            )}%`
-                          : '100%'}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-[11px] text-wood-600">
-                      {new Date(student.lastActiveIso).toLocaleString('vi-VN', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedStudent(student);
-                            setModalActivityFilter('ALL');
-                            setModalResultFilter('ALL');
-                          }}
-                          className="px-3 py-1.5 rounded-lg bg-wood-900 hover:bg-wood-800 text-cream font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                filteredProfiles.map((student, idx) => {
+                  const isDuplicate = duplicateNameSet.has(student.studentName.trim().toLowerCase());
+                  const sttDisplay = student.sheetStt != null ? student.sheetStt : idx + 1;
+                  return (
+                    <tr
+                      key={student.studentId}
+                      className={`transition-colors ${
+                        isDuplicate
+                          ? 'bg-amber-50/70 border-l-4 border-amber-500 hover:bg-amber-100/60'
+                          : 'hover:bg-parchment/40'
+                      }`}
+                    >
+                      <td className="py-3.5 px-4 font-mono font-bold text-wood-700">
+                        {sttDisplay}
+                      </td>
+                      <td className="py-3.5 px-4 font-bold text-wood-950">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-forest-700/10 text-forest-800 flex items-center justify-center font-bold text-xs shrink-0">
+                            {student.studentName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span>{student.studentName}</span>
+                              {isDuplicate && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-bold shrink-0"
+                                  title="Cảnh báo: Tên học sinh này bị trùng với bản ghi khác trong hệ thống!"
+                                >
+                                  <AlertTriangle className="w-3 h-3 text-amber-700" />
+                                  Trùng tên
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 font-medium text-wood-800">{student.className}</td>
+                      <td className="py-3.5 px-4 text-wood-600 max-w-[150px] truncate">{student.school}</td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className="font-mono font-bold text-forest-800 text-sm">
+                          {student.totalScore}đ
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-mono font-semibold text-gold-800">
+                        {student.museum3DScore}đ
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-mono font-semibold text-amber-800">
+                        {student.arenaBestScore}đ
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-mono text-wood-800">
+                        {student.totalQuestionsAnswered} câu
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span
+                          className={`px-2 py-0.5 rounded-full font-mono text-[11px] font-bold ${
+                            student.totalQuestionsAnswered > 0 &&
+                            student.totalQuestionsCorrect / student.totalQuestionsAnswered >= 0.7
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-amber-100 text-amber-800'
+                          }`}
                         >
-                          <Eye className="w-3.5 h-3.5 text-gold-400" />
-                          <span>Xem chi tiết</span>
-                        </button>
+                          {student.totalQuestionsAnswered > 0
+                            ? `${Math.round(
+                                (student.totalQuestionsCorrect / student.totalQuestionsAnswered) * 100
+                              )}%`
+                            : '100%'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-[11px] text-wood-600">
+                        {new Date(student.lastActiveIso).toLocaleString('vi-VN', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedStudent(student);
+                              setModalActivityFilter('ALL');
+                              setModalResultFilter('ALL');
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-wood-900 hover:bg-wood-800 text-cream font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-gold-400" />
+                            <span>Xem chi tiết</span>
+                          </button>
 
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteStudent(student.studentId, student.studentName)}
-                          className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 cursor-pointer transition-colors"
-                          title={`Xóa học sinh ${student.studentName}`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteStudent(student.studentId, student.studentName, student.className)}
+                            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 cursor-pointer transition-colors"
+                            title={`Xóa học sinh ${student.studentName} (sẽ đồng bộ xóa trên Google Sheet)`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

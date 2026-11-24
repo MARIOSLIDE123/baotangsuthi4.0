@@ -237,7 +237,7 @@ export function exportFullStudentProfilesToExcel(params: {
         : 'Mới tham gia';
 
       return `<tr>
-        <td style="text-align: center;">${idx + 1}</td>
+        <td style="text-align: center;">${st.sheetStt != null ? st.sheetStt : idx + 1}</td>
         <td><strong>${escapeHtml(st.studentName)}</strong></td>
         <td style="text-align: center;">${escapeHtml(st.className)}</td>
         <td>${escapeHtml(st.school)}</td>
@@ -390,7 +390,7 @@ export function printClassLearningReportPdf(params: {
   const rows = profiles
     .map(
       (st, idx) => `<tr>
-        <td style="text-align: center;">${idx + 1}</td>
+        <td style="text-align: center;">${st.sheetStt != null ? st.sheetStt : idx + 1}</td>
         <td><strong>${escapeHtml(st.studentName)}</strong></td>
         <td style="text-align: center;">${escapeHtml(st.className)}</td>
         <td>${escapeHtml(st.school)}</td>

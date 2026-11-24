@@ -1160,6 +1160,7 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-sandstone text-wood-600">
+                    <th className="py-3 pr-4 font-semibold w-12">STT</th>
                     <th className="py-3 pr-4 font-semibold">Họ và tên / UID</th>
                     <th className="py-3 pr-4 font-semibold">Trường &amp; Lớp</th>
                     <th className="py-3 pr-4 font-semibold">Mã lớp</th>
@@ -1169,10 +1170,11 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-sandstone/60">
-                  {filteredStudents.map((st) => {
+                  {filteredStudents.map((st, sIdx) => {
                     const realScore = getComputedStudentScore(st.uid, st.totalScore);
                     return (
                       <tr key={st.uid} className="hover:bg-parchment/40">
+                        <td className="py-3 pr-4 font-mono font-bold text-wood-700">{sIdx + 1}</td>
                         <td className="py-3 pr-4">
                           <p className="font-semibold text-wood-900">{st.displayName}</p>
                           <p className="font-mono text-[10px] text-wood-500">{st.uid}</p>

@@ -5,6 +5,7 @@ import {
 import {
   syncToGoogleSheets,
   fetchRawDataFromGoogleSheets,
+  deleteStudentFromGoogleSheets,
 } from './googleSheetsService';
 
 export const ALL_STUDENTS_RECORDS_KEY = 'suthiso_all_students_records_v2';
@@ -146,6 +147,7 @@ export interface DetailedAnswerRecord {
 
 export interface StudentFullLearningProfile {
   studentId: string;
+  sheetStt?: number; // Số thứ tự theo đúng số trên Google Sheet
   studentName: string;
   className: string;
   school: string;
@@ -202,45 +204,102 @@ export function generateStudentKey(name: string, cls: string): string {
   return `hs_${cleanName}_${cleanCls}`;
 }
 
+export const INITIAL_DEMO_INITIALIZED_KEY = 'suthiso_demo_students_initialized_v3';
+
 /**
  * Tải danh sách toàn bộ hồ sơ kết quả học tập của học sinh
- * Giữ nguyên và tự động khôi phục dữ liệu tất cả học sinh
+ * Giữ nguyên và bảo toàn dữ liệu (không tự ý khôi phục bản ghi đã được Giáo viên xóa)
  */
 export function loadAllStudentsProfiles(): StudentFullLearningProfile[] {
   try {
     const raw = localStorage.getItem(ALL_STUDENTS_RECORDS_KEY);
-    const demoStudents = getInitialDemoStudents();
-    if (!raw) {
+    const hasInitialized = localStorage.getItem(INITIAL_DEMO_INITIALIZED_KEY);
+
+    if (!raw || !hasInitialized) {
+      const demoStudents = getInitialDemoStudents();
       saveAllStudentsProfiles(demoStudents);
+      localStorage.setItem(INITIAL_DEMO_INITIALIZED_KEY, 'true');
       return demoStudents;
     }
+
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      // Khôi phục nếu thiếu các học sinh trong danh sách chuẩn ban đầu
-      const existingIds = new Set(parsed.map((p: any) => p.studentId));
-      const missingDemo = demoStudents.filter((d) => !existingIds.has(d.studentId));
-      if (missingDemo.length > 0) {
-        const merged = [...parsed, ...missingDemo];
-        saveAllStudentsProfiles(merged);
-        return merged;
-      }
+    if (Array.isArray(parsed)) {
       return parsed as StudentFullLearningProfile[];
     }
-    saveAllStudentsProfiles(demoStudents);
-    return demoStudents;
+    return [];
   } catch {
     return getInitialDemoStudents();
   }
 }
 
 /**
- * Xóa một học sinh cụ thể khỏi cơ sở dữ liệu
+ * Xóa một học sinh cụ thể khỏi cơ sở dữ liệu nội bộ
  */
 export function deleteStudentProfile(studentId: string): StudentFullLearningProfile[] {
   const current = loadAllStudentsProfiles();
   const updated = current.filter((p) => p.studentId !== studentId);
   saveAllStudentsProfiles(updated);
   return updated;
+}
+
+/**
+ * Xóa một học sinh và tự động đồng bộ xóa ngay lập tức trên Google Sheet (2 chiều)
+ */
+export async function deleteStudentProfileAndSync(
+  studentId: string
+): Promise<{ remainingProfiles: StudentFullLearningProfile[]; message: string }> {
+  const current = loadAllStudentsProfiles();
+  const target = current.find((p) => p.studentId === studentId);
+  const remaining = current.filter((p) => p.studentId !== studentId);
+  saveAllStudentsProfiles(remaining);
+
+  if (target) {
+    const syncRes = await deleteStudentFromGoogleSheets(target.studentName, target.className);
+    return {
+      remainingProfiles: remaining,
+      message: `Đã xóa học sinh "${target.studentName}" trên App và tự động đồng bộ xóa trên Google Sheet (${syncRes.message})!`,
+    };
+  }
+
+  return {
+    remainingProfiles: remaining,
+    message: 'Đã xóa bản ghi học sinh.',
+  };
+}
+
+export interface DuplicateStudentItem {
+  studentName: string;
+  count: number;
+  classes: string[];
+  studentIds: string[];
+}
+
+/**
+ * Phát hiện danh sách học sinh bị trùng họ và tên trong cơ sở dữ liệu
+ */
+export function detectDuplicateStudents(profiles: StudentFullLearningProfile[]): DuplicateStudentItem[] {
+  const map = new Map<string, StudentFullLearningProfile[]>();
+  for (const p of profiles) {
+    const key = (p.studentName || '').trim().toLowerCase();
+    if (!key) continue;
+    const list = map.get(key) || [];
+    list.push(p);
+    map.set(key, list);
+  }
+
+  const duplicates: DuplicateStudentItem[] = [];
+  for (const [, list] of map.entries()) {
+    if (list.length > 1) {
+      duplicates.push({
+        studentName: list[0].studentName,
+        count: list.length,
+        classes: Array.from(new Set(list.map((item) => item.className))),
+        studentIds: list.map((item) => item.studentId),
+      });
+    }
+  }
+
+  return duplicates;
 }
 
 /**
@@ -476,10 +535,15 @@ export async function pullLearningRecordsFromGoogleSheets(): Promise<{
   const remoteStudents = res.students;
   const remoteAnswers = res.detailedAnswers || [];
 
-  for (const r of remoteStudents) {
+  // Đồng bộ 2 chiều: Danh sách học sinh trên Google Sheet là nguồn dữ liệu chuẩn mực.
+  // Bất kỳ học sinh nào bị xóa trên Google Sheet cũng sẽ tự động được xóa khỏi App!
+  const synchronizedProfiles: StudentFullLearningProfile[] = [];
+
+  for (let idx = 0; idx < remoteStudents.length; idx++) {
+    const r = remoteStudents[idx];
     if (!r.studentName) continue;
     const key = generateStudentKey(r.studentName, r.className);
-    const existingIdx = localProfiles.findIndex((p) => p.studentId === key);
+    const existing = localProfiles.find((p) => p.studentId === key);
 
     const studentAnswers: DetailedAnswerRecord[] = remoteAnswers
       .filter(
@@ -487,8 +551,8 @@ export async function pullLearningRecordsFromGoogleSheets(): Promise<{
           String(a.studentName || '').toLowerCase() === String(r.studentName || '').toLowerCase() &&
           String(a.className || '').toLowerCase() === String(r.className || '').toLowerCase()
       )
-      .map((a: any, idx: number) => ({
-        id: `remote_${key}_${idx}`,
+      .map((a: any, aIdx: number) => ({
+        id: `remote_${key}_${aIdx}`,
         activityId: 'google-sheet-synced',
         activityTitle: a.activityTitle || 'Đấu trường',
         activityType: 'quiz' as const,
@@ -502,19 +566,27 @@ export async function pullLearningRecordsFromGoogleSheets(): Promise<{
         attemptNumber: a.attemptNumber || 1,
       }));
 
-    if (existingIdx >= 0) {
-      localProfiles[existingIdx] = {
-        ...localProfiles[existingIdx],
-        totalScore: Math.max(localProfiles[existingIdx].totalScore, Number(r.totalScore) || 0),
-        museum3DScore: Math.max(localProfiles[existingIdx].museum3DScore, Number(r.museum3DScore) || 0),
-        arenaBestScore: Math.max(localProfiles[existingIdx].arenaBestScore, Number(r.arenaBestScore) || 0),
-        lastActiveIso: r.lastActiveIso || localProfiles[existingIdx].lastActiveIso,
+    // Đánh đúng số thứ tự (STT) theo số cột STT trên Google Sheet
+    const sheetStt = Number(r.stt) || idx + 1;
+
+    if (existing) {
+      synchronizedProfiles.push({
+        ...existing,
+        sheetStt,
+        studentName: r.studentName,
+        className: r.className || existing.className,
+        school: r.school || existing.school,
+        totalScore: Math.max(existing.totalScore, Number(r.totalScore) || 0),
+        museum3DScore: Math.max(existing.museum3DScore, Number(r.museum3DScore) || 0),
+        arenaBestScore: Math.max(existing.arenaBestScore, Number(r.arenaBestScore) || 0),
+        lastActiveIso: r.lastActiveIso || existing.lastActiveIso,
         detailedAnswers:
-          studentAnswers.length > 0 ? studentAnswers : localProfiles[existingIdx].detailedAnswers,
-      };
+          studentAnswers.length > 0 ? studentAnswers : existing.detailedAnswers,
+      });
     } else {
-      localProfiles.push({
+      synchronizedProfiles.push({
         studentId: key,
+        sheetStt,
         studentName: r.studentName,
         className: r.className || '10D3',
         school: r.school || 'THPT Trần Nguyên Hãn',
@@ -534,11 +606,11 @@ export async function pullLearningRecordsFromGoogleSheets(): Promise<{
     }
   }
 
-  saveAllStudentsProfiles(localProfiles);
+  saveAllStudentsProfiles(synchronizedProfiles);
   return {
     ok: true,
-    students: localProfiles,
-    message: `Đã đồng bộ thành công ${localProfiles.length} học sinh từ Google Sheet!`,
+    students: synchronizedProfiles,
+    message: `Đã đồng bộ thành công ${synchronizedProfiles.length} học sinh từ Google Sheet (Đã khớp đúng STT và tự động xóa các học sinh bị gỡ bỏ trên Sheet)!`,
   };
 }
 
@@ -549,6 +621,7 @@ function getInitialDemoStudents(): StudentFullLearningProfile[] {
   return [
     {
       studentId: 'hs_ho_quang_nhat_10d3',
+      sheetStt: 1,
       studentName: 'Hồ Quang Nhật',
       className: '10D3',
       school: 'THPT Trần Nguyên Hãn',
@@ -610,6 +683,7 @@ function getInitialDemoStudents(): StudentFullLearningProfile[] {
     },
     {
       studentId: 'hs_ho_thi_thanh_loan_10d3',
+      sheetStt: 2,
       studentName: 'Hồ Thị Thanh Loan',
       className: '10D3',
       school: 'THPT Trần Nguyên Hãn',
@@ -657,6 +731,7 @@ function getInitialDemoStudents(): StudentFullLearningProfile[] {
     },
     {
       studentId: 'hs_nguyen_hoang_nam_10d3',
+      sheetStt: 3,
       studentName: 'Nguyễn Hoàng Nam',
       className: '10D3',
       school: 'THPT Trần Nguyên Hãn',
@@ -704,6 +779,7 @@ function getInitialDemoStudents(): StudentFullLearningProfile[] {
     },
     {
       studentId: 'hs_tran_thi_mai_anh_10van',
+      sheetStt: 4,
       studentName: 'Trần Thị Mai Anh',
       className: '10 Văn',
       school: 'THPT Chuyên Nguyễn Du',
@@ -751,6 +827,7 @@ function getInitialDemoStudents(): StudentFullLearningProfile[] {
     },
     {
       studentId: 'hs_than_phuong_nhac_10d7',
+      sheetStt: 5,
       studentName: 'Thân Phương Nhac',
       className: '10D7',
       school: 'THPT Trần Nguyên Hãn',
@@ -784,6 +861,7 @@ function getInitialDemoStudents(): StudentFullLearningProfile[] {
     },
     {
       studentId: 'hs_bao_an_10d7',
+      sheetStt: 6,
       studentName: 'Bảo an',
       className: '10D7',
       school: 'THPT Trần Nguyên Hãn',
@@ -817,6 +895,7 @@ function getInitialDemoStudents(): StudentFullLearningProfile[] {
     },
     {
       studentId: 'hs_hoc_sinh_trai_nghiem_10d3',
+      sheetStt: 7,
       studentName: 'Học sinh trải nghiệm',
       className: '10D3',
       school: 'THPT Trần Nguyên Hãn',
@@ -850,6 +929,7 @@ function getInitialDemoStudents(): StudentFullLearningProfile[] {
     },
     {
       studentId: 'hs_nguyen_khanh_dan_19d3',
+      sheetStt: 8,
       studentName: 'Nguyễn Khánh Đan',
       className: '19D3',
       school: 'THPT Trần Nguyên Hãn',
@@ -897,6 +977,7 @@ function getInitialDemoStudents(): StudentFullLearningProfile[] {
     },
     {
       studentId: 'hs_vu_gia_huy_10d3',
+      sheetStt: 9,
       studentName: 'Vũ Gia Huy',
       className: '10D3',
       school: 'THPT Trần Nguyên Hãn',
@@ -958,6 +1039,7 @@ function getInitialDemoStudents(): StudentFullLearningProfile[] {
     },
     {
       studentId: 'hs_do_ngoc_minh_chau_10d7',
+      sheetStt: 10,
       studentName: 'Đỗ Ngọc Minh Châu',
       className: '10D7',
       school: 'THPT Trần Nguyên Hãn',

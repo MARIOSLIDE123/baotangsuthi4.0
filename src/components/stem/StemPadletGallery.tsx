@@ -66,14 +66,17 @@ export const StemPadletGallery: React.FC<StemPadletGalleryProps> = ({
           <div className="flex items-center gap-2 text-wood-900">
             <Layers className="w-5 h-5 text-forest-700" />
             <p className="text-xs font-bold uppercase tracking-wider text-forest-800">
-              Không gian trưng bày &amp; Nộp sản phẩm STEM
+              Không gian trưng bày &amp; Nộp sản phẩm STEAM
             </p>
           </div>
           <h2 className="font-serif text-2xl sm:text-3xl font-bold text-wood-900">
-            BẢO TÀNG SẢN PHẨM CỦA CHÚNG EM
+            BẢO TÀNG PADLET CỦA CHÚNG EM
           </h2>
+          <p className="text-xs sm:text-sm font-semibold text-forest-800">
+            Sản phẩm của những nhà thiết kế tri thức và người kết nối di sản
+          </p>
           <p className="text-sm text-wood-700 leading-relaxed">
-            Học sinh đăng tải Infographic, sơ đồ tư duy (Mind Map), ảnh chụp mô hình nhà dài Ê-đê và bản đồ hành trình lên bảng Padlet của lớp để giáo viên và các bạn cùng đánh giá, bình chọn.
+            Học sinh đăng tải Infographic, sơ đồ tư duy (Mind Map), bản vẽ thiết kế, ảnh chụp mô hình nhà dài Ê-đê và bản đồ hành trình lên bảng Padlet của lớp để giáo viên và các bạn cùng đánh giá, bình chọn.
           </p>
         </div>
 
@@ -101,7 +104,7 @@ export const StemPadletGallery: React.FC<StemPadletGalleryProps> = ({
           }`}
         >
           <Sparkles className="w-4 h-4 text-gold-400" />
-          <span>Padlet Infographic &amp; Mind Map Đăm Săn</span>
+          <span>Bảo tàng Padlet của chúng em</span>
           <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-gold-500/20 text-gold-400 border border-gold-500/30">
             Có mã QR
           </span>
@@ -176,12 +179,15 @@ export const StemPadletGallery: React.FC<StemPadletGalleryProps> = ({
               <div className="lg:col-span-7 space-y-4">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gold-500/20 text-gold-400 text-xs font-semibold uppercase tracking-wider border border-gold-500/30">
                   <BookOpen className="w-3.5 h-3.5" />
-                  <span>Sản phẩm tiết dạy STEM · Ngữ văn 10</span>
+                  <span>Sản phẩm tiết dạy STEAM · Ngữ văn 10</span>
                 </div>
 
                 <h3 className="text-xl sm:text-2xl font-serif font-bold text-cream leading-snug">
-                  TỔNG HỢP INFOGRAPHIC &amp; SƠ ĐỒ TƯ DUY (MIND MAP)
+                  BẢO TÀNG PADLET CỦA CHÚNG EM
                 </h3>
+                <p className="text-xs sm:text-sm font-semibold text-gold-400 uppercase tracking-wide">
+                  Sản phẩm của những nhà thiết kế tri thức và người kết nối di sản
+                </p>
 
                 <p className="text-sm text-sandstone-light leading-relaxed">
                   Khái quát toàn diện <strong>giá trị nội dung</strong> (khát vọng chinh phục, ý chí dấn thân phi thường, vẻ đẹp bi tráng của cộng đồng) và <strong>đặc sắc nghệ thuật</strong> (ngôn ngữ sử thi giàu nhạc tính, biện pháp so sánh phóng đại, trùng điệp tráng lệ) của văn bản <em>"Đăm Săn đi bắt Nữ Thần Mặt Trời"</em>.
@@ -286,7 +292,7 @@ export const StemPadletGallery: React.FC<StemPadletGalleryProps> = ({
                 <div className="absolute bottom-4 left-4 right-4 text-cream space-y-1">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gold-500/30 text-gold-300 text-xs font-semibold backdrop-blur-sm border border-gold-500/40">
                     <Camera className="w-3 h-3" />
-                    <span>Hình ảnh thực tế tiết dạy STEM</span>
+                    <span>Hình ảnh thực tế tiết dạy STEAM</span>
                   </div>
                   <h4 className="font-serif text-lg sm:text-xl font-bold">
                     Học sinh thực hành lắp ráp mô hình nhà dài Ê-đê

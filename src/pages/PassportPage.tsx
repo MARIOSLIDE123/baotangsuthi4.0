@@ -386,7 +386,7 @@ export const PassportPage: React.FC<PassportPageProps> = ({
                   {ROLE_LABELS[passport.role]} · ID: <span className="font-mono">{passport.uid.slice(0, 10)}…</span>
                 </p>
                 <p className="text-wood-600">
-                  {passport.classId ? `Đã tham gia lớp mã ${passport.joinCode || passport.classId}` : 'Chưa gắn mã lớp học'}
+                  {passport.className || 'Trải nghiệm tự do'} · {passport.school || 'Bảo tàng sử thi 4.0'}
                 </p>
               </div>
               {(passport.role === 'teacher' || passport.role === 'admin') && (
@@ -593,21 +593,12 @@ export const PassportPage: React.FC<PassportPageProps> = ({
               </div>
             </div>
 
-            <div>
-              <label htmlFor="passport-joincode" className="block text-xs text-cream/85 mb-1">
-                Mã lớp / Mã tham gia do giáo viên cung cấp
-              </label>
-              <input
-                id="passport-joincode"
-                type="text"
-                maxLength={24}
-                value={joinCodeInput}
-                onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-                placeholder="Ví dụ: VAN10A1"
-                className="w-full px-3.5 py-2 text-sm font-mono uppercase rounded-lg bg-wood-950 border border-wood-700 text-cream focus:outline-none focus:border-gold-400"
-              />
-              <p className="text-[11px] text-cream/60 mt-1">
-                Hệ thống không thu thập số điện thoại hay địa chỉ cá nhân.
+            <div className="p-3.5 rounded-xl bg-forest-950/60 border border-emerald-500/30 text-xs text-sandstone-light space-y-1">
+              <p className="font-semibold text-emerald-400">
+                ✓ Trải nghiệm tự do · Không giới hạn mã học sinh:
+              </p>
+              <p className="text-sandstone">
+                Giám khảo và học sinh có thể nhập bất kỳ Họ tên, Lớp, Trường nào để khám phá Bảo tàng sử thi và tự động lưu Hộ chiếu cá nhân.
               </p>
             </div>
 

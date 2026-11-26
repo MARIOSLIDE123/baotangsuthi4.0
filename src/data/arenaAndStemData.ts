@@ -503,7 +503,7 @@ export const EVIDENCE_CHALLENGES: EvidenceChallengeItem[] = [
   },
 ];
 
-// Game 6: ĐỐI THOẠI SỬ THI - 2 câu hỏi cố định về trích đoạn "Đăm Săn đi bắt Nữ Thần Mặt Trời"
+// Game 6: ĐỐI THOẠI SỬ THI - Hệ thống câu hỏi tình huống chuyên sâu về trích đoạn "Đăm Săn đi bắt Nữ Thần Mặt Trời"
 export const DIALOGUE_SCENARIOS: DialogueScenarioItem[] = [
   {
     id: 'dlg-1',
@@ -533,15 +533,57 @@ export const DIALOGUE_SCENARIOS: DialogueScenarioItem[] = [
       'Góc nhìn tổng hòa: Kết hợp khát vọng lớn với sự tỉnh táo, nhận thức quy luật để hành động hiệu quả trong thời đại mới.',
     ],
   },
+  {
+    id: 'dlg-3',
+    title: 'Câu hỏi 3 · Lời can ngăn của Đăm Par Kvây và ý chí anh hùng',
+    workTitle: 'Đăm Săn đi bắt Nữ thần Mặt Trời',
+    situation:
+      'Trước khi Đăm Săn lên đường, bạn thân Đăm Par Kvây đã tha thiết can ngăn: "Rừng Sáp Đen đầy chông gai, không ai qua được...". Nhưng Đăm Săn khẳng định: "Người dũng sĩ không thể ngồi yên nơi xó buôn khi còn đỉnh cao chưa chạm tới".',
+    openQuestion:
+      'Cuộc đối thoại giữa Đăm Par Kvây và Đăm Săn phản ánh hai quan niệm sống nào? Em đồng cảm hơn với lối sống yên bình của Đăm Par Kvây hay tinh thần khai phá của Đăm Săn?',
+    coreDimensions: [
+      'Đăm Par Kvây đại diện cho ý thức bảo toàn sinh mệnh, gắn với cuộc sống an lành, ổn định thường nhật của buôn làng.',
+      'Đăm Săn đại diện cho tinh thần quật khởi, bản lĩnh phiêu lưu và khát vọng vượt khỏi giới hạn bình thường của loài người.',
+      'Góc nhìn đối sánh: Cả hai đều có lý lẽ riêng; xã hội cần sự bình yên để duy trì nhưng cũng cần người tiên phong dấn thân để tiến bộ.',
+    ],
+  },
+  {
+    id: 'dlg-4',
+    title: 'Câu hỏi 4 · Hình tượng Nữ thần Mặt Trời và chế độ mẫu hệ',
+    workTitle: 'Đăm Săn đi bắt Nữ thần Mặt Trời',
+    situation:
+      'Trong sử thi, ngôi nhà của Nữ thần Mặt Trời dài dằng dặc, đồ vật bằng đồng vàng sáng lóa. Nàng vừa là nguồn sáng vũ trụ vừa là hiện thân của người phụ nữ quyền uy tối thượng trong văn hóa mẫu hệ Ê-đê.',
+    openQuestion:
+      'Theo em, vì sao Đăm Săn nhất quyết muốn cưới Nữ thần Mặt Trời làm vợ? Mong muốn ấy thể hiện khát vọng gì của cộng đồng người Ê-đê cổ đại?',
+    coreDimensions: [
+      'Khát vọng chinh phục tự nhiên: Biến ánh sáng Mặt Trời và sức sống vũ trụ thành nguồn lực bảo trợ cho cộng đồng buôn làng.',
+      'Tôn vinh chế độ mẫu hệ: Người phụ nữ là biểu tượng của cội nguồn sự sống, quyền năng tối cao và sự thịnh vượng bền lâu.',
+      'Tầm vóc người tù trưởng: Muốn khẳng định sức mạnh phi thường bằng cách sánh đôi cùng đỉnh cao của ánh sáng và cái đẹp tuyệt đối.',
+    ],
+  },
+  {
+    id: 'dlg-5',
+    title: 'Câu hỏi 5 · Sự tiếp nối thế hệ qua hình tượng Đăm Săn cháu',
+    workTitle: 'Đăm Săn đi bắt Nữ thần Mặt Trời',
+    situation:
+      'Đoạn kết sử thi Đăm Săn không chìm trong tang thương mà lập tức mở ra cảnh người cháu của Đăm Săn chào đời, lớn nhanh như thổi, tiếp tục cầm khiên giáo kế tục sự nghiệp của người anh hùng đi trước.',
+    openQuestion:
+      'Hình ảnh "Đăm Săn cháu" tiếp bước cha ông mang ý nghĩa biểu tượng gì đối với sức sống và dòng chảy lịch sử của dân tộc Tây Nguyên?',
+    coreDimensions: [
+      'Quy luật tiếp nối bất diệt: Người anh hùng có thể ngã xuống nhưng tinh thần sử thi và sức sống buôn làng không bao giờ bị dập tắt.',
+      'Sự trao truyền thế hệ: Khát vọng tự do, lòng dũng cảm và lý tưởng bảo vệ cộng đồng được kế thừa tự nhiên như dòng suối đầu nguồn.',
+      'Cảm quan lạc quan của sử thi: Kết thúc một hành trình cá nhân để mở ra một chu kỳ phát triển mới, trường tồn của dân tộc.',
+    ],
+  },
 ];
 
 export const STEM_MISSION_01_HOUSE: StemHouseMission = {
-  code: 'NHIỆM VỤ STEM 01',
-  title: 'THIẾT KẾ MÔ HÌNH NHÀ DÀI Ê-ĐÊ',
+  code: 'NHIỆM VỤ STEAM 01',
+  title: 'NHIỆM VỤ STEAM NHÀ DÀI Ê-ĐÊ',
   subtitle:
-    'Vận dụng kiến thức Ngữ văn 10 kết hợp nguyên lí kết cấu – tỉ lệ – vật liệu để tạo mô hình nhà dài phục vụ thuyết trình và trưng bày bảo tàng lớp học.',
+    'Vận dụng kiến thức Ngữ văn 10 kết hợp nguyên lí kết cấu – tỉ lệ – vật liệu – nghệ thuật tạo hình để tạo mô hình nhà dài phục vụ thuyết trình và trưng bày bảo tàng lớp học.',
   imagePath: '/src/assets/images/zone_stem_studio_1794539494969.jpg',
-  imageAlt: 'Không gian mô hình nhà dài Ê-đê trong xưởng sáng tạo STEM học đường',
+  imageAlt: 'Không gian mô hình nhà dài Ê-đê trong xưởng sáng tạo STEAM học đường',
   objective:
     'Học sinh thiết kế và chế tạo được mô hình nhà dài Ê-đê phản ánh đúng cấu trúc sàn nâng – cột trụ – mái dốc – cầu thang truyền thống, qua đó hiểu rõ mối quan hệ giữa không gian kiến trúc với sinh hoạt cộng đồng và diễn xướng sử thi Tây Nguyên.',
   culturalKnowledge: [
@@ -623,7 +665,7 @@ export const STEM_MISSION_01_HOUSE: StemHouseMission = {
 };
 
 export const STEM_MISSION_02_JOURNEY: StemJourneyMission = {
-  code: 'NHIỆM VỤ STEM 02',
+  code: 'NHIỆM VỤ STEAM 02',
   title: 'THIẾT KẾ CON ĐƯỜNG ĐẾN NỮ THẦN MẶT TRỜI',
   subtitle:
     'Chuyển hóa mạch tự sự đoạn trích “Đăm Săn đi bắt Nữ thần Mặt Trời” thành bản đồ hành trình sáng tạo kết hợp đọc hiểu sử thi.',
@@ -778,32 +820,32 @@ export const STEM_FOUR_LEVEL_RUBRIC: StemRubricCriterion[] = [
   {
     id: 'rubric-stem',
     orderNumber: '03',
-    criterionName: 'Khả năng vận dụng kiến thức STEM',
-    weightLabel: 'Kết cấu, tỉ lệ, vật liệu & Công nghệ số',
+    criterionName: 'Khả năng vận dụng kiến thức STEAM',
+    weightLabel: 'Khoa học, Kỹ thuật, Nghệ thuật tạo hình & Công nghệ số',
     levels: {
       chua_dat: {
         label: 'Chưa đạt',
         scorePoints: 1,
         descriptor:
-          'Mô hình thiếu ổn định, dễ đổ sập; chưa chú ý tỉ lệ hoặc chưa gắn được liên kết số / quy trình thiết kế.',
+          'Mô hình thiếu ổn định, dễ đổ sập; chưa chú ý tỉ lệ, tính thẩm mỹ hoặc chưa gắn được liên kết số / quy trình thiết kế.',
       },
       dat: {
         label: 'Đạt',
         scorePoints: 2,
         descriptor:
-          'Kết cấu đứng vững cơ bản, biết sử dụng vật liệu tái chế phù hợp và thực hiện theo đủ các bước chế tạo.',
+          'Kết cấu đứng vững cơ bản, biết sử dụng vật liệu tái chế phù hợp, có tính mỹ thuật và thực hiện theo đủ các bước chế tạo.',
       },
       kha: {
         label: 'Khá',
         scorePoints: 3,
         descriptor:
-          'Tính toán tỉ lệ hợp lí, xử lí kết cấu cột – sàn – mái hoặc bố cục bản đồ chắc chắn; tích hợp mã QR đúng quy chuẩn.',
+          'Tính toán tỉ lệ hợp lí, xử lí kết cấu cột – sàn – mái hoặc bố cục bản đồ chắc chắn, phối màu nghệ thuật hài hòa; tích hợp mã QR đúng quy chuẩn.',
       },
       tot: {
         label: 'Tốt',
         scorePoints: 4,
         descriptor:
-          'Vận dụng xuất sắc nguyên lí chịu lực, tối ưu vật liệu tái chế bền đẹp, kèm bản phác thảo tỉ lệ khoa học và tích hợp QR – Padlet mượt mà.',
+          'Vận dụng xuất sắc nguyên lí chịu lực, phối hợp tranh nghệ thuật phong cảnh và tối ưu vật liệu tái chế bền đẹp, kèm bản phác thảo tỉ lệ khoa học và tích hợp QR – Padlet mượt mà.',
       },
     },
   },
@@ -844,27 +886,27 @@ export const STEM_FOUR_LEVEL_RUBRIC: StemRubricCriterion[] = [
 export const STEM_QR_PRESETS: StemQrTargetPreset[] = [
   {
     id: 'qr-house',
-    label: 'Nhiệm vụ STEM nhà dài',
-    shortTag: 'STEM 01 · Nhà dài Ê-đê',
+    label: 'Nhiệm vụ STEAM nhà dài Ê-đê',
+    shortTag: 'STEAM 01 · Nhà dài Ê-đê',
     description: 'Quét mã để mở thẳng hướng dẫn thiết kế, vật liệu và các bước chế tạo mô hình nhà dài Ê-đê.',
     stemTab: 'house',
-    fileSlug: 'qr-nhiem-vu-stem-nha-dai',
+    fileSlug: 'qr-nhiem-vu-steam-nha-dai',
   },
   {
     id: 'qr-journey',
     label: 'Nhiệm vụ hành trình Đăm Săn',
-    shortTag: 'STEM 02 · Con đường Mặt Trời',
+    shortTag: 'STEAM 02 · Con đường Mặt Trời',
     description: 'Quét mã để mở yêu cầu thiết kế bản đồ Con đường đến Nữ thần Mặt Trời (4 trạm, thử thách, ý nghĩa).',
     stemTab: 'journey',
-    fileSlug: 'qr-nhiem-vu-hanh-trinh-dam-san',
+    fileSlug: 'qr-nhiem-vu-steam-hanh-trinh-dam-san',
   },
   {
     id: 'qr-gallery',
-    label: 'Trang trưng bày sản phẩm',
+    label: 'Trang trưng bày sản phẩm Padlet',
     shortTag: 'Padlet · Bảo tàng của chúng em',
     description: 'Quét mã đặt trên mô hình vật lí để mở trực tiếp khu vực trưng bày Padlet “Bảo tàng của chúng em”.',
     stemTab: 'gallery',
-    fileSlug: 'qr-trang-trung-bay-san-pham',
+    fileSlug: 'qr-trang-trung-bay-san-pham-padlet',
   },
 ];
 

@@ -55,9 +55,17 @@ export function getLocalPadletUrl(): string | null {
 
 export function getLocalPadletUrls(): LocalPadletUrls {
   try {
-    const house = sanitizeHttpUrl(localStorage.getItem(PADLET_HOUSE_OVERRIDE_KEY));
-    const journey = sanitizeHttpUrl(localStorage.getItem(PADLET_JOURNEY_OVERRIDE_KEY));
-    const legacy = getLocalPadletUrl();
+    const isOldPadlet = (url: string | null) =>
+      Boolean(url && url.includes('tong-ket-oan-trich'));
+
+    const rawHouse = sanitizeHttpUrl(localStorage.getItem(PADLET_HOUSE_OVERRIDE_KEY));
+    const rawJourney = sanitizeHttpUrl(localStorage.getItem(PADLET_JOURNEY_OVERRIDE_KEY));
+    const rawLegacy = getLocalPadletUrl();
+
+    const house = isOldPadlet(rawHouse) ? null : rawHouse;
+    const journey = isOldPadlet(rawJourney) ? null : rawJourney;
+    const legacy = isOldPadlet(rawLegacy) ? null : rawLegacy;
+
     return {
       houseEmbedUrl: house || legacy,
       journeyEmbedUrl: journey || legacy,

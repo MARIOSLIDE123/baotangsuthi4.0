@@ -34,7 +34,7 @@ const LEVEL_STYLES: Record<
 function getRankSummary(score: number, ratedCount: number): string {
   if (ratedCount < 4) return 'Chọn đủ 4 tiêu chí để tính xếp loại tự đánh giá';
   if (score >= 14) return 'Xếp loại: TỐT · Sản phẩm xuất sắc sẵn sàng trưng bày mẫu';
-  if (score >= 11) return 'Xếp loại: KHÁ · Đạt chuẩn nội dung, thẩm mỹ và STEM';
+  if (score >= 11) return 'Xếp loại: KHÁ · Đạt chuẩn nội dung, thẩm mỹ và STEAM';
   if (score >= 7) return 'Xếp loại: ĐẠT · Hoàn thành yêu cầu cơ bản';
   return 'Xếp loại: CHƯA ĐẠT · Cần bổ sung nội dung và độ bền mô hình';
 }
@@ -68,7 +68,7 @@ export const StemRubricSection: React.FC = () => {
             <div className="flex items-center gap-2 text-wood-900">
               <Award className="w-5 h-5 text-gold-600" />
               <h2 className="font-serif text-2xl font-bold">
-                Tiêu chí đánh giá sản phẩm STEM (Rubric 4 tiêu chí × 4 mức)
+                Tiêu chí đánh giá sản phẩm STEAM (Rubrics 4 tiêu chí × 4 mức)
               </h2>
             </div>
             <p className="text-sm text-wood-700 leading-relaxed">

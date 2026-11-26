@@ -62,7 +62,7 @@ import {
   VIETNAM_EPIC_DOSSIERS,
   WORLD_EPIC_DOSSIERS,
 } from '../data/literaryCurriculumData';
-import { ARENA_QUESTIONS } from '../data/arenaAndStemData';
+import { ARENA_QUESTIONS, DIALOGUE_SCENARIOS } from '../data/arenaAndStemData';
 import { CORE_SEVEN_WINGS } from '../data/navigation';
 import {
   getMergedConceptCards,
@@ -1153,7 +1153,7 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
 
           {filteredStudents.length === 0 ? (
             <p className="text-sm text-wood-600 py-6">
-              Chưa có học sinh nào tham gia lớp bạn phụ trách. Hãy tạo lớp ở mục &ldquo;Quản lý lớp&rdquo; và gửi Mã lớp cho học sinh nhập trong Hộ chiếu.
+              Chưa có dữ liệu học sinh hoặc giám khảo nào tham gia. Hệ thống mở tự do: Người dùng chỉ cần nhập Họ tên, Trường, Lớp là có thể vào trải nghiệm Bảo tàng sử thi và tự động ghi nhận kết quả.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -1163,7 +1163,7 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
                     <th className="py-3 pr-4 font-semibold w-12">STT</th>
                     <th className="py-3 pr-4 font-semibold">Họ và tên / UID</th>
                     <th className="py-3 pr-4 font-semibold">Trường &amp; Lớp</th>
-                    <th className="py-3 pr-4 font-semibold">Mã lớp</th>
+                    <th className="py-3 pr-4 font-semibold">Hình thức</th>
                     <th className="py-3 pr-4 font-semibold">Vai trò</th>
                     <th className="py-3 pr-4 font-semibold">Điểm thực tế</th>
                     <th className="py-3 font-semibold">Cộng điểm GV</th>
@@ -1183,8 +1183,10 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
                           <p>{st.className}</p>
                           <p className="text-[11px] text-wood-500">{st.school || '-'}</p>
                         </td>
-                        <td className="py-3 pr-4 font-mono text-wood-700">
-                          {st.joinCode || st.classId || '-'}
+                        <td className="py-3 pr-4">
+                          <span className="px-2 py-0.5 rounded-full bg-forest-100 text-forest-800 text-[11px] font-medium border border-forest-300">
+                            Tự do tham quan
+                          </span>
                         </td>
                         <td className="py-3 pr-4">
                           {passport.role === 'admin' && st.uid !== passport.uid ? (
@@ -1289,11 +1291,10 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
               </div>
               <div>
                 <label className="block text-xs font-semibold text-wood-800 mb-1">
-                  Mã tham gia lớp *
+                  Mã lớp (Tự động / Tùy chọn)
                 </label>
                 <input
                   type="text"
-                  required
                   value={newJoinCode}
                   onChange={(e) => setNewJoinCode(e.target.value.toUpperCase())}
                   className="w-full px-3 py-2 text-sm font-mono uppercase bg-cream border border-sandstone rounded-lg"
@@ -1305,7 +1306,7 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
               disabled={creatingClass}
               className="w-full py-2.5 text-sm font-semibold bg-forest-700 text-cream rounded-xl hover:bg-forest-800 cursor-pointer disabled:opacity-50"
             >
-              {creatingClass ? 'Đang tạo lớp...' : 'Tạo lớp & Phát mã tham gia'}
+              {creatingClass ? 'Đang tạo lớp...' : 'Tạo lớp học'}
             </button>
           </form>
 
@@ -1895,50 +1896,47 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
       {/* TAB 9: Quản lý học liệu */}
       {activeTab === 'curriculum' && (
         <div className="space-y-6">
-          {/* 1. Trọng tâm: 2 Câu hỏi Đối thoại sử thi */}
+          {/* 1. Trọng tâm: Hệ thống Câu hỏi Đối thoại sử thi */}
           <section className="bg-cream border border-sandstone rounded-2xl p-6 sm:p-8 space-y-4 shadow-sm">
             <div className="flex items-center gap-2 border-b border-sandstone pb-4">
               <BookOpenCheck className="w-5 h-5 text-forest-700" />
               <div>
                 <h2 className="font-serif text-xl sm:text-2xl font-bold text-wood-900">
-                  2 Câu hỏi Đối thoại sử thi trọng tâm (Văn bản: Đăm Săn đi bắt Nữ thần Mặt Trời)
+                  Hệ thống {DIALOGUE_SCENARIOS.length} câu hỏi Đối thoại sử thi trọng tâm (Văn bản: Đăm Săn đi bắt Nữ thần Mặt Trời)
                 </h2>
                 <p className="text-xs text-wood-600 mt-0.5">
-                  Bộ câu hỏi tự luận phát triển tư duy phản biện và liên hệ thực tiễn cho học sinh lớp 10
+                  Bộ câu hỏi tự luận phát triển tư duy phản biện, tranh biện văn học và liên hệ thực tiễn cho học sinh lớp 10
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <div className="p-4 rounded-xl bg-parchment/60 border border-sandstone space-y-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-forest-100 text-forest-800 text-[11px] font-bold">
-                  Câu hỏi 1 · Giá trị biểu tượng
-                </span>
-                <p className="text-xs sm:text-sm font-semibold text-wood-900 leading-snug">
-                  Có ý kiến cho rằng: Đăm Săn cố chấp không nghe lời khuyên của Đăm Par Kvây và Nữ Thần Mặt Trời để rồi lún sâu trong rừng Sáp Đen. Đó là một sự thất bại vô nghĩa. Em có đồng tình với ý kiến đó không? Hãy viết quan điểm của em (khoảng 3 - 5 câu) lí giải giá trị biểu tượng của lựa chọn ấy.
-                </p>
-                <div className="p-3 rounded-lg bg-cream border border-sandstone text-xs text-wood-700 space-y-1">
-                  <p className="font-bold text-forest-900">Tiêu chí chấm điểm (15đ):</p>
-                  <p>• Lập trường rõ ràng: Không đồng tình hoặc có góc nhìn phản biện đa chiều (3đ).</p>
-                  <p>• Lí giải giá trị biểu tượng: Khát vọng chinh phục cái đẹp, ý chí dấn thân vượt ngưỡng của cộng đồng Ê-đê (8đ).</p>
-                  <p>• Vẻ đẹp bi tráng và thông điệp nhân văn (4đ).</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+              {DIALOGUE_SCENARIOS.map((sc) => (
+                <div
+                  key={sc.id}
+                  className="p-4 rounded-xl bg-parchment/60 border border-sandstone space-y-2.5 flex flex-col justify-between"
+                >
+                  <div className="space-y-1.5">
+                    <span className="px-2.5 py-0.5 rounded-full bg-forest-100 text-forest-800 text-[11px] font-bold">
+                      {sc.title}
+                    </span>
+                    <p className="text-xs text-wood-600 italic leading-relaxed">
+                      &ldquo;{sc.situation}&rdquo;
+                    </p>
+                    <p className="text-xs sm:text-sm font-semibold text-wood-900 leading-snug">
+                      {sc.openQuestion}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-cream border border-sandstone text-xs text-wood-700 space-y-1">
+                    <p className="font-bold text-forest-900">Khía cạnh cốt lõi:</p>
+                    {sc.coreDimensions.map((dim, dIdx) => (
+                      <p key={dIdx} className="leading-relaxed">
+                        • {dim}
+                      </p>
+                    ))}
+                  </div>
                 </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-parchment/60 border border-sandstone space-y-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-gold-100 text-gold-900 text-[11px] font-bold">
-                  Câu hỏi 2 · Bài học hành động
-                </span>
-                <p className="text-xs sm:text-sm font-semibold text-wood-900 leading-snug">
-                  Từ câu chuyện Đăm Săn đi bắt nữ thần Mặt Trời, em sẽ lựa chọn: dám vượt qua giới hạn để chinh phục những đỉnh cao mới hay nhận thức đúng giới hạn của bản thân để lựa chọn những mục tiêu phù hợp?
-                </p>
-                <div className="p-3 rounded-lg bg-cream border border-sandstone text-xs text-wood-700 space-y-1">
-                  <p className="font-bold text-forest-900">Tiêu chí chấm điểm (15đ):</p>
-                  <p>• Xác định rõ quan điểm hoặc dung hòa cả hai khía cạnh (4đ).</p>
-                  <p>• Lập luận thuyết phục gắn với bối cảnh đời sống giới trẻ hiện nay (7đ).</p>
-                  <p>• Rút ra bài học hành động thiết thực cho bản thân (4đ).</p>
-                </div>
-              </div>
+              ))}
             </div>
           </section>
 

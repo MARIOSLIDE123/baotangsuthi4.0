@@ -41,7 +41,7 @@ const STEM_TABS: Array<{
   {
     id: 'house',
     code: '01',
-    label: 'Nhiệm vụ STEM nhà dài',
+    label: 'Nhiệm vụ STEAM nhà dài Ê-đê',
     actionTitle: 'Đã hoàn thành tìm hiểu & phác thảo mô hình Nhà dài Ê-đê',
     icon: Hammer,
   },
@@ -55,14 +55,14 @@ const STEM_TABS: Array<{
   {
     id: 'rubric',
     code: '03',
-    label: 'Rubric đánh giá 4 mức',
-    actionTitle: 'Đã tự đối chiếu & đánh giá sản phẩm theo Rubric 4 tiêu chí',
+    label: 'Rubrics đánh giá 4 mức (STEAM)',
+    actionTitle: 'Đã tự đối chiếu & đánh giá sản phẩm theo Rubric 4 tiêu chí STEAM',
     icon: Award,
   },
   {
     id: 'gallery',
     code: '04',
-    label: 'Bảo tàng của chúng em (Padlet)',
+    label: 'Bảo tàng Padlet của chúng em',
     actionTitle: 'Đã đăng sản phẩm / tham quan phòng trưng bày Padlet',
     icon: Layers,
   },
@@ -70,7 +70,7 @@ const STEM_TABS: Array<{
     id: 'qr',
     code: '05',
     label: 'Kết nối QR in mô hình',
-    actionTitle: 'Đã tạo mã QR gắn lên mô hình STEM',
+    actionTitle: 'Đã tạo mã QR gắn lên mô hình STEAM',
     icon: QrCode,
   },
 ];
@@ -100,18 +100,18 @@ export const StemStudioPage: React.FC<StemStudioPageProps> = ({
     <div className="space-y-8 pb-14">
       <header className="border-b border-sandstone pb-6 space-y-2.5 max-w-4xl">
         <p className="text-xs font-medium text-wood-600">
-          Phân khu 08 · Liên kết Ngữ văn – Văn hóa – Thiết kế – STEM
+          Phân khu 08 · Liên kết Ngữ văn – Văn hóa – Nghệ thuật – Thiết kế – STEAM
         </p>
         <h1 className="font-serif text-3xl sm:text-4xl font-bold text-wood-900">
-          XƯỞNG SÁNG TẠO DI SẢN
+          XƯỞNG STEAM
         </h1>
         <p className="text-sm sm:text-base text-wood-700 leading-relaxed">
-          Hướng dẫn học sinh thiết kế, chế tạo, trình bày và đánh giá sản phẩm STEM gắn với văn hóa sử thi Tây Nguyên; nộp ảnh sản phẩm qua bảng Padlet nhúng trực tiếp và tạo mã QR gắn lên mô hình vật lí.
+          Hướng dẫn học sinh thiết kế, chế tạo, trình bày và đánh giá sản phẩm STEAM gắn với văn hóa sử thi Tây Nguyên; nộp ảnh sản phẩm qua bảng Padlet nhúng trực tiếp và tạo mã QR gắn lên mô hình vật lí.
         </p>
       </header>
 
       <nav
-        aria-label="Phân khu Xưởng sáng tạo di sản"
+        aria-label="Phân khu Xưởng STEAM"
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3"
       >
         {STEM_TABS.map((tab) => {
@@ -157,11 +157,11 @@ export const StemStudioPage: React.FC<StemStudioPageProps> = ({
         })}
       </nav>
 
-      {/* Action-based STEM milestone confirmation bar */}
+      {/* Action-based STEAM milestone confirmation bar */}
       <div className="p-4 rounded-xl bg-parchment/75 border border-sandstone flex flex-wrap items-center justify-between gap-3">
         <div className="text-xs text-wood-800">
-          <strong className="text-wood-900">Ghi nhận tiến độ STEM:</strong>{' '}
-          <span>{currentMeta.actionTitle} (Cần hoàn thành ít nhất 3/5 hoạt động STEM).</span>
+          <strong className="text-wood-900">Ghi nhận tiến độ STEAM:</strong>{' '}
+          <span>{currentMeta.actionTitle} (Cần hoàn thành ít nhất 3/5 hoạt động STEAM).</span>
         </div>
         <button
           type="button"

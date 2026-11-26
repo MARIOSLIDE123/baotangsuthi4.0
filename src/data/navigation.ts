@@ -81,13 +81,13 @@ export const MUSEUM_ZONES: MuseumZoneInfo[] = [
   {
     id: 'stem-studio',
     orderLabel: '08',
-    title: 'Xưởng sáng tạo di sản',
-    shortTitle: 'Xưởng STEM',
+    title: 'XƯỞNG STEAM',
+    shortTitle: 'Xưởng STEAM',
     category: 'learning',
-    subtitle: 'Thiết kế sản phẩm STEM gắn văn hóa sử thi, tạo mã QR và kết nối bảng trưng bày Padlet.',
+    subtitle: 'Thiết kế sản phẩm STEAM gắn văn hóa sử thi, tạo mã QR và kết nối bảng trưng bày Padlet.',
     guideTip:
-      'Từ kiến trúc nhà dài đến âm học cồng chiêng, bạn có thể tạo mã QR cho mô hình STEM và chia sẻ cùng lớp học.',
-    stampCode: 'XUONG-STEM',
+      'Từ kiến trúc nhà dài đến nghệ thuật Tây Nguyên và âm học cồng chiêng, bạn có thể tạo mã QR cho mô hình STEAM và chia sẻ cùng lớp học.',
+    stampCode: 'XUONG-STEAM',
   },
   {
     id: 'passport',
@@ -188,12 +188,12 @@ export const CORE_SEVEN_WINGS: CoreWingExhibition[] = [
   {
     id: 'stem-studio',
     orderNumber: '07',
-    title: 'XƯỞNG SÁNG TẠO DI SẢN',
+    title: 'XƯỞNG STEAM',
     shortDescription:
-      'Phát triển mô hình STEM văn hóa sử thi, tạo tem mã QR gắn lên sản phẩm và kết nối bảng Padlet.',
+      'Phát triển mô hình STEAM văn hóa sử thi, tạo tem mã QR gắn lên sản phẩm và kết nối bảng Padlet.',
     imagePath: '/src/assets/images/zone_stem_studio_1794539494969.jpg',
-    imageAlt: 'Bàn xưởng sáng tạo mô hình nhà dài STEM, compa và thiết bị đo âm học',
-    ctaLabel: 'Mở xưởng STEM',
+    imageAlt: 'Bàn xưởng sáng tạo mô hình nhà dài STEAM, compa và thiết bị đo âm học',
+    ctaLabel: 'Mở xưởng STEAM',
   },
 ];
 
@@ -201,7 +201,7 @@ export const TOP_NAV_ITEMS: Array<{ id: MuseumRouteId; label: string }> = [
   { id: 'home', label: 'Cổng vào' },
   { id: 'epic-gate', label: 'Kho sử thi' },
   { id: 'museum-3d', label: 'Bảo tàng 3D' },
-  { id: 'hero-arena', label: 'Đấu trường & STEM' },
+  { id: 'hero-arena', label: 'Đấu trường & STEAM' },
   { id: 'ai-assistant', label: 'Trợ lý AI' },
 ];
 

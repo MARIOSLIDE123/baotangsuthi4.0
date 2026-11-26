@@ -31,8 +31,15 @@ export const StemQrGeneratorSection: React.FC<StemQrGeneratorSectionProps> = ({
   const [groupLabel, setGroupLabel] = useState<string>(() => {
     const cleanName = defaultGroupName?.trim();
     const cleanClass = defaultClassName?.trim();
+    if (
+      !cleanName ||
+      cleanName.includes('Hồ Thị Thanh Loan') ||
+      cleanName.includes('Học sinh trải nghiệm')
+    ) {
+      return 'Nhóm Kiến trúc sư di sản lớp 10D3 trường Trung học phổ thông Trần Nguyên Hãn';
+    }
     if (cleanName && cleanClass) return `${cleanName} · ${cleanClass}`;
-    return cleanName || 'Nhóm STEM · Lớp 10';
+    return cleanName || 'Nhóm Kiến trúc sư di sản lớp 10D3 trường Trung học phổ thông Trần Nguyên Hãn';
   });
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
@@ -107,8 +114,12 @@ export const StemQrGeneratorSection: React.FC<StemQrGeneratorSectionProps> = ({
     );
 
     ctx.fillStyle = '#1F4A38';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText(groupLabel.trim() || 'Nhóm STEM · Ngữ văn 10', width / 2, 616);
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText(
+      groupLabel.trim() || 'Nhóm Kiến trúc sư di sản lớp 10D3 trường Trung học phổ thông Trần Nguyên Hãn',
+      width / 2,
+      616
+    );
 
     ctx.fillStyle = '#4E3B27';
     ctx.font = '16px sans-serif';
@@ -126,7 +137,7 @@ export const StemQrGeneratorSection: React.FC<StemQrGeneratorSectionProps> = ({
 
     ctx.fillStyle = '#B68938';
     ctx.font = 'bold 14px sans-serif';
-    ctx.fillText('TEM GẮN MÔ HÌNH TRƯNG BÀY STEM', width / 2, 748);
+    ctx.fillText('TEM GẮN MÔ HÌNH TRƯNG BÀY STEAM', width / 2, 748);
 
     const dataUrl = exportCanvas.toDataURL('image/png');
     const a = document.createElement('a');
@@ -257,7 +268,7 @@ export const StemQrGeneratorSection: React.FC<StemQrGeneratorSectionProps> = ({
       <aside className="lg:col-span-5 bg-wood-900 text-cream rounded-2xl p-6 sm:p-8 flex flex-col items-center text-center space-y-5">
         <div className="space-y-1">
           <p className="text-xs uppercase tracking-widest text-gold-400">
-            Tem trưng bày bảo tàng STEM
+            Tem trưng bày bảo tàng STEAM
           </p>
           <p className="text-xs text-cream/75">{selectedPreset.shortTag}</p>
         </div>
@@ -281,7 +292,8 @@ export const StemQrGeneratorSection: React.FC<StemQrGeneratorSectionProps> = ({
             {selectedPreset.label}
           </h3>
           <p className="text-xs font-medium text-gold-300">
-            {groupLabel.trim() || 'Nhóm STEM · Ngữ văn 10'}
+            {groupLabel.trim() ||
+              'Nhóm Kiến trúc sư di sản lớp 10D3 trường Trung học phổ thông Trần Nguyên Hãn'}
           </p>
         </div>
 

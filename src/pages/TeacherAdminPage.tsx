@@ -335,7 +335,7 @@ export const TeacherAdminPage: React.FC<TeacherAdminPageProps> = ({
 
   // Padlet & curriculum state
   const DEFAULT_PADLET_HOUSE_URL =
-    'https://padlet.com/beloan107/tong-ket-oan-trich-am-san-i-bat-nu-than-mat-troi-s025f1wgbahs8e60vyvk';
+    'https://padlet.com/beloan107/san-pham-cua-nhung-nha-thiet-ke-tri-thuc-va-nguoi-ket-noi-di-s025riagyk6jit5ke2ka';
   const localUrls = getLocalPadletUrls();
   const [houseEmbedUrl, setHouseEmbedUrl] = useState<string>(
     () => serviceStatus.padlet.houseEmbedUrl || localUrls.houseEmbedUrl || DEFAULT_PADLET_HOUSE_URL

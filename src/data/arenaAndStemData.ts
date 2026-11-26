@@ -642,7 +642,7 @@ export const STEM_MISSION_01_HOUSE: StemHouseMission = {
     {
       stepNumber: 5,
       title: 'Hoàn thiện và kiểm tra',
-      detail: 'Thử nghiệm độ đứng vững của mô hình, dán thẻ tên bộ phận, gắn mã QR liên kết tới trang trưng bày số của nhóm.',
+      detail: 'Thử nghiệm độ đứng vững của mô hình, dán thẻ tên bộ phận, gắn mã QR và ghi nhận vào Phiếu kết quả kiểm thử, đánh giá & cải tiến sản phẩm của Nhóm Kiến trúc sư di sản 10D3.',
     },
     {
       stepNumber: 6,

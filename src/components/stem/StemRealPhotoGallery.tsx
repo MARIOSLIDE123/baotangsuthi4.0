@@ -11,7 +11,15 @@ import {
   Compass,
   Sparkles,
   Clock,
+  ExternalLink,
+  Copy,
+  Check,
+  FolderOpen,
+  ShieldCheck,
 } from 'lucide-react';
+
+const GOOGLE_DRIVE_FOLDER_URL =
+  'https://drive.google.com/drive/folders/11aXHvCXqjigN4dQKtTotSoEUHshxYlXJ';
 
 export interface StemPhotoItem {
   id: string;
@@ -106,6 +114,13 @@ export const StemRealPhotoGallery: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState<
     'all' | 'mc1' | 'mc2' | 'mc3' | 'mc4'
   >('all');
+  const [copiedDrive, setCopiedDrive] = useState(false);
+
+  const handleCopyDriveLink = () => {
+    navigator.clipboard.writeText(GOOGLE_DRIVE_FOLDER_URL);
+    setCopiedDrive(true);
+    setTimeout(() => setCopiedDrive(false), 2500);
+  };
 
   const filteredPhotos =
     filterCategory === 'all'
@@ -205,23 +220,134 @@ export const StemRealPhotoGallery: React.FC = () => {
         </button>
       </div>
 
-      {/* MINH CHỨNG 3 SPECIAL NOTICE CARD */}
+      {/* MINH CHỨNG 3: PHIẾU GHI NHẬN KẾT QUẢ KIỂM THỬ, ĐÁNH GIÁ VÀ CẢI TIẾN SẢN PHẨM */}
       {(filterCategory === 'all' || filterCategory === 'mc3') && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3.5 text-wood-900">
-          <div className="p-2 rounded-xl bg-amber-500/20 text-amber-800 shrink-0 mt-0.5">
-            <Clock className="w-5 h-5" />
-          </div>
-          <div className="space-y-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-serif font-bold text-sm sm:text-base text-wood-950">
-                MINH CHỨNG 3: Phiếu ghi nhận kết quả kiểm thử, đánh giá và cải tiến sản phẩm mô hình nhà dài Ê-đê
-              </span>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/20 text-amber-900 border border-amber-500/30">
-                Đang chuẩn bị cập nhật
-              </span>
+        <div className="bg-gradient-to-br from-cream via-parchment/90 to-cream border-2 border-forest-600/40 rounded-3xl p-6 sm:p-8 shadow-md space-y-6 animate-fade-in">
+          {/* Card Header */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 border-b border-sandstone pb-5">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-2xl bg-forest-700 text-cream shadow-md shrink-0 mt-1">
+                <FileText className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-forest-100 text-forest-800 border border-forest-300">
+                    Minh chứng 3 · Kiểm thử &amp; Cải tiến sản phẩm
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Đã xác thực dữ liệu</span>
+                  </span>
+                </div>
+                <h3 className="font-serif text-xl sm:text-2xl font-bold text-wood-950 leading-snug">
+                  PHIẾU GHI NHẬN KẾT QUẢ KIỂM THỬ, ĐÁNH GIÁ VÀ CẢI TIẾN SẢN PHẨM MÔ HÌNH NHÀ DÀI Ê-ĐÊ
+                </h3>
+                <p className="text-xs sm:text-sm text-wood-700">
+                  Thực hiện bởi: <strong>Nhóm Kiến trúc sư di sản lớp 10D3 trường THPT Trần Nguyên Hãn</strong>
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-wood-700 leading-relaxed">
-              Khung lưu trữ hồ sơ đã sẵn sàng. Phiếu kiểm thử và cải tiến sản phẩm của học sinh Nhóm Kiến trúc sư di sản lớp 10D3 sẽ được tích hợp trực tiếp vào mục này ngay khi tiếp nhận bản scan/ảnh chụp từ học sinh.
+
+            {/* Direct Google Drive Action Buttons */}
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <a
+                href={GOOGLE_DRIVE_FOLDER_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-5 py-3 rounded-xl bg-forest-700 hover:bg-forest-800 text-cream font-bold text-xs sm:text-sm shadow-md inline-flex items-center gap-2 cursor-pointer transition-all transform hover:-translate-y-0.5"
+              >
+                <FolderOpen className="w-4 h-4 text-gold-300" />
+                <span>Mở thư mục Google Drive</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
+
+              <button
+                type="button"
+                onClick={handleCopyDriveLink}
+                className="px-4 py-3 rounded-xl bg-cream hover:bg-parchment text-wood-900 border border-sandstone text-xs sm:text-sm font-medium inline-flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                {copiedDrive ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    <span className="text-emerald-700 font-semibold">Đã chép link!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 text-wood-600" />
+                    <span>Sao chép liên kết</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* 4 Core Dimensions of Testing & Improvement Form */}
+          <div className="space-y-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-forest-900">
+              Các nội dung kiểm thử &amp; cải tiến trọng tâm trong phiếu:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              <div className="p-4 rounded-2xl bg-cream/90 border border-sandstone space-y-1.5 shadow-sm">
+                <span className="font-mono text-xs font-bold text-forest-800">01. Tải trọng &amp; Sàn nâng</span>
+                <h5 className="text-xs sm:text-sm font-bold text-wood-900">Độ đứng vững kết cấu</h5>
+                <p className="text-xs text-wood-600 leading-relaxed">
+                  Kiểm tra khả năng chịu lực của các hàng cột chống, dầm ngang và sàn gỗ nâng cao khỏi mặt đất theo đúng thực nghiệm.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-cream/90 border border-sandstone space-y-1.5 shadow-sm">
+                <span className="font-mono text-xs font-bold text-forest-800">02. Tỉ lệ kiến trúc</span>
+                <h5 className="text-xs sm:text-sm font-bold text-wood-900">Chuẩn hóa cấu trúc Ê-đê</h5>
+                <p className="text-xs text-wood-600 leading-relaxed">
+                  Đối chiếu chiều dài thân nhà, độ dốc mái tranh thoát nước và tỉ lệ đối xứng giữa gian khách Gah và gian Ôk.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-cream/90 border border-sandstone space-y-1.5 shadow-sm">
+                <span className="font-mono text-xs font-bold text-forest-800">03. Yếu tố Mẫu hệ &amp; Art</span>
+                <h5 className="text-xs sm:text-sm font-bold text-wood-900">Hoa văn biểu trưng</h5>
+                <p className="text-xs text-wood-600 leading-relaxed">
+                  Đánh giá độ sắc nét của cầu thang cái chạm khắc đôi bầu sữa mẹ, vầng trăng khuyết và phối màu tranh núi rừng Tây Nguyên.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-cream/90 border border-sandstone space-y-1.5 shadow-sm">
+                <span className="font-mono text-xs font-bold text-forest-800">04. Phương án cải tiến</span>
+                <h5 className="text-xs sm:text-sm font-bold text-wood-900">Gia cố &amp; Tích hợp QR</h5>
+                <p className="text-xs text-wood-600 leading-relaxed">
+                  Bổ sung keo cố định các khớp mộng que gỗ, cải tiến độ bền và dán tem mã QR liên kết trực tiếp vào Bảo tàng số 4.0.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Embedded Google Drive Folder Viewer */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between text-xs text-wood-700">
+              <span className="font-semibold text-wood-900">
+                Thư mục hồ sơ trực tuyến Google Drive (Nhóm 10D3):
+              </span>
+              <a
+                href={GOOGLE_DRIVE_FOLDER_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-forest-700 hover:text-forest-900 font-semibold inline-flex items-center gap-1"
+              >
+                <span>Xem trên drive.google.com</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+
+            <div className="w-full rounded-2xl overflow-hidden border border-sandstone bg-white shadow-inner">
+              <iframe
+                src="https://drive.google.com/embeddedfolderview?id=11aXHvCXqjigN4dQKtTotSoEUHshxYlXJ#list"
+                className="w-full h-80 sm:h-96 border-0 bg-white"
+                title="Google Drive – Phiếu kiểm thử và cải tiến mô hình nhà dài Ê-đê"
+                loading="lazy"
+              />
+            </div>
+            <p className="text-[11px] text-wood-500 italic">
+              * Ghi chú: Nếu trình duyệt chặn cookie bên thứ ba hoặc chưa đăng nhập Google, Thầy/Cô và Giám khảo có thể nhấp nút &ldquo;Mở thư mục Google Drive&rdquo; ở góc trên để xem toàn bộ tài liệu và ảnh scan độ phân giải cao.
             </p>
           </div>
         </div>

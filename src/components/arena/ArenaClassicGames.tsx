@@ -85,16 +85,17 @@ export const DecodeEpicGame: React.FC<GameProps> = ({ onProgress, onFinish }) =>
     setCorrectCount(nextCorrect);
     setWrongCount(nextWrong);
 
+    setReviewItems((prev) => [
+      ...prev,
+      {
+        prompt: q.prompt,
+        yourAnswer: q.choices[selected],
+        correctAnswer: q.choices[q.correctIndex],
+        explanation: q.feedback,
+      },
+    ]);
+
     if (!isRight) {
-      setReviewItems((prev) => [
-        ...prev,
-        {
-          prompt: q.prompt,
-          yourAnswer: q.choices[selected],
-          correctAnswer: q.choices[q.correctIndex],
-          explanation: q.feedback,
-        },
-      ]);
       playArenaChime('wrong');
     } else {
       playArenaChime('correct');
@@ -261,6 +262,15 @@ export const HeroMatchGame: React.FC<GameProps> = ({ onProgress, onFinish }) => 
       const nextMatched = [...matchedIds, leftPair.id];
       setMatchedIds(nextMatched);
       setRoundFeedback({ ok: true, text: `Chuẩn xác: ${leftPair.heroName} — ${leftPair.explanation}` });
+      setReviewItems((prev) => [
+        ...prev,
+        {
+          prompt: `${currentRound.dimensionLabel}: ${leftPair.heroName}`,
+          yourAnswer: leftPair.targetText,
+          correctAnswer: leftPair.targetText,
+          explanation: leftPair.explanation,
+        },
+      ]);
       playArenaChime('correct');
 
       const doneSoFar =
@@ -479,22 +489,23 @@ export const TimelineOrderGame: React.FC<GameProps> = ({ onProgress, onFinish })
     setWrongCount(nextWrong);
     setBaseScore(nextBase);
 
+    setReviewItems((prev) => [
+      ...prev,
+      {
+        prompt: `Dòng thời gian: ${round.workTitle}`,
+        yourAnswer: orderedEvents.map((e, i) => `${i + 1}) ${e.text}`).join(' → '),
+        correctAnswer: [...round.events]
+          .sort((a, b) => a.order - b.order)
+          .map((e) => `${e.order}) ${e.text}`)
+          .join(' → '),
+        explanation: round.explanation,
+      },
+    ]);
+
     if (allInOrder) {
       playArenaChime('correct');
     } else {
       playArenaChime('wrong');
-      setReviewItems((prev) => [
-        ...prev,
-        {
-          prompt: `Dòng thời gian: ${round.workTitle}`,
-          yourAnswer: orderedEvents.map((e, i) => `${i + 1}) ${e.text}`).join(' → '),
-          correctAnswer: [...round.events]
-            .sort((a, b) => a.order - b.order)
-            .map((e) => `${e.order}) ${e.text}`)
-            .join(' → '),
-          explanation: round.explanation,
-        },
-      ]);
     }
 
     onProgress({
@@ -696,6 +707,16 @@ export const MysteryTilesGame: React.FC<GameProps> = ({ onProgress, onFinish }) 
     setWrongCount(nextWrong);
     setBaseScore(nextBase);
 
+    setReviewItems((prev) => [
+      ...prev,
+      {
+        prompt: activeTile.prompt,
+        yourAnswer: activeTile.choices[selectedChoice],
+        correctAnswer: activeTile.choices[activeTile.correctIndex],
+        explanation: activeTile.explanation,
+      },
+    ]);
+
     if (isRight) {
       playArenaChime('correct');
       const nextUnlocked = unlockedTiles.includes(activeTileIdx)
@@ -730,15 +751,6 @@ export const MysteryTilesGame: React.FC<GameProps> = ({ onProgress, onFinish }) 
         ok: false,
         msg: `Chưa chính xác. Gợi ý: ${activeTile.explanation}`,
       });
-      setReviewItems((prev) => [
-        ...prev,
-        {
-          prompt: activeTile.prompt,
-          yourAnswer: activeTile.choices[selectedChoice],
-          correctAnswer: activeTile.choices[activeTile.correctIndex],
-          explanation: activeTile.explanation,
-        },
-      ]);
       onProgress({
         stepIndex: puzzleIdx * 5 + unlockedTiles.length,
         totalSteps,
@@ -761,19 +773,20 @@ export const MysteryTilesGame: React.FC<GameProps> = ({ onProgress, onFinish }) 
     setWrongCount(nextWrong);
     setBaseScore(nextBase);
 
+    setReviewItems((prev) => [
+      ...prev,
+      {
+        prompt: puzzle.matchQuestion,
+        yourAnswer: puzzle.matchOptions[matchSelected],
+        correctAnswer: puzzle.matchOptions[puzzle.correctMatchIndex],
+        explanation: puzzle.summaryFact,
+      },
+    ]);
+
     if (isRight) {
       playArenaChime('correct');
     } else {
       playArenaChime('wrong');
-      setReviewItems((prev) => [
-        ...prev,
-        {
-          prompt: puzzle.matchQuestion,
-          yourAnswer: puzzle.matchOptions[matchSelected],
-          correctAnswer: puzzle.matchOptions[puzzle.correctMatchIndex],
-          explanation: puzzle.summaryFact,
-        },
-      ]);
     }
 
     onProgress({

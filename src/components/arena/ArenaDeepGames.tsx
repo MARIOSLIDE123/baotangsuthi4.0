@@ -97,19 +97,20 @@ export const EvidenceChallengeGame: React.FC<DeepGameProps> = ({ onProgress, onF
     setEvidenceBonus(nextEvBonus);
     setAnalysisBonus(nextAnalysisBonus);
 
+    setReviewItems((prev) => [
+      ...prev,
+      {
+        prompt: `Nhận định (${item.workTitle}): "${item.claim}"`,
+        yourAnswer: item.evidenceChoices[selectedEv],
+        correctAnswer: item.evidenceChoices[item.correctIndex],
+        explanation: item.explanation,
+      },
+    ]);
+
     if (isRightChoice) {
       playArenaChime('correct');
     } else {
       playArenaChime('wrong');
-      setReviewItems((prev) => [
-        ...prev,
-        {
-          prompt: `Nhận định (${item.workTitle}): "${item.claim}"`,
-          yourAnswer: item.evidenceChoices[selectedEv],
-          correctAnswer: item.evidenceChoices[item.correctIndex],
-          explanation: item.explanation,
-        },
-      ]);
     }
 
     onProgress({
@@ -334,19 +335,20 @@ export const EpicDialogueGame: React.FC<DeepGameProps> = ({ onProgress, onFinish
     setBaseScore(nextBase);
     setAnalysisBonus(nextAnalysis);
 
+    setReviewItems((prev) => [
+      ...prev,
+      {
+        prompt: `${item.title}: ${item.openQuestion}`,
+        yourAnswer: answer.trim() || '(Chưa viết đầy đủ)',
+        correctAnswer: item.coreDimensions.join(' | '),
+        explanation: resData.feedback,
+      },
+    ]);
+
     if (passed) {
       playArenaChime('correct');
     } else {
       playArenaChime('wrong');
-      setReviewItems((prev) => [
-        ...prev,
-        {
-          prompt: `${item.title}: ${item.openQuestion}`,
-          yourAnswer: answer.trim() || '(Chưa viết đầy đủ)',
-          correctAnswer: item.coreDimensions.join(' | '),
-          explanation: resData.feedback,
-        },
-      ]);
     }
 
     onProgress({

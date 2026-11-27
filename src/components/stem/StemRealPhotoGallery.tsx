@@ -88,6 +88,16 @@ export const REAL_STEM_PHOTOS: StemPhotoItem[] = [
 
   // MINH CHỨNG 4: Thuyết trình trong tiết dạy học đường
   {
+    id: 'mc-4-toan-canh-lop-hoc',
+    imageSrc: '/assets/images/stem/stem_toan_canh_tiet_day_10d3.jpg',
+    title: 'Toàn cảnh tiết dạy học STEAM Ngữ văn 10 tại lớp 10D3 trường THPT Trần Nguyên Hãn',
+    caption:
+      'Cô giáo Hồ Thị Thanh Loan và học sinh lớp 10D3 trong tiết học ứng dụng mô hình STEAM: Khởi động với mô hình nhà dài Ê-đê thực tế, tem mã QR và học liệu số bài "Đăm Săn đi bắt Nữ thần Mặt Trời".',
+    stage: 'Minh chứng 4 · Không gian lớp học STEAM',
+    tag: 'Tiết dạy thực tế · 10D3',
+    minhChungCategory: 'mc4',
+  },
+  {
     id: 'mc-4-thuyet-trinh-1',
     imageSrc: '/assets/images/stem/stem_minh_chung_4_thuyet_trinh_tiet_hoc_1.jpg',
     title: 'Đại diện nhóm thuyết trình kiến trúc và văn hóa mẫu hệ trước lớp',

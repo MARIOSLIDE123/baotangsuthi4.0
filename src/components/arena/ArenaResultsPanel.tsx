@@ -143,33 +143,47 @@ export const ArenaSummaryView: React.FC<ArenaSummaryViewProps> = ({
 
       {/* Questions Requiring Review */}
       <div className="relative z-10 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-cream">
-          <BookOpen className="w-4 h-4 text-gold-400" />
-          <span>
-            Những câu cần ôn tập ({attempt.reviewItems.length})
-          </span>
-        </div>
+        {(() => {
+          const missedReviewItems = attempt.reviewItems.filter(
+            (item) =>
+              Boolean(item.correctAnswer) &&
+              item.yourAnswer.trim().toLowerCase() !== item.correctAnswer.trim().toLowerCase()
+          );
 
-        {attempt.reviewItems.length === 0 ? (
-          <div className="p-4 rounded-xl bg-forest-800/30 border border-emerald-500/40 text-sm text-emerald-200 flex items-center gap-2.5">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>Xuất sắc! Bạn không mắc lỗi sai nào ở lượt chơi này.</span>
-          </div>
-        ) : (
-          <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
-            {attempt.reviewItems.map((item, idx) => (
-              <div
-                key={`${item.prompt}-${idx}`}
-                className="p-4 rounded-xl bg-wood-900 border border-wood-800 space-y-1.5 text-xs sm:text-sm"
-              >
-                <p className="font-semibold text-cream">{item.prompt}</p>
-                <p className="text-amber-300">Lựa chọn của bạn: {item.yourAnswer}</p>
-                <p className="text-emerald-300">Đáp án chuẩn: {item.correctAnswer}</p>
-                <p className="text-cream/80 leading-relaxed">{item.explanation}</p>
+          return (
+            <>
+              <div className="flex items-center gap-2 text-sm font-semibold text-cream">
+                <BookOpen className="w-4 h-4 text-gold-400" />
+                <span>
+                  {missedReviewItems.length === 0
+                    ? 'Kết quả bài làm (Đúng 100%)'
+                    : `Những câu cần ôn tập (${missedReviewItems.length})`}
+                </span>
               </div>
-            ))}
-          </div>
-        )}
+
+              {missedReviewItems.length === 0 ? (
+                <div className="p-4 rounded-xl bg-forest-800/30 border border-emerald-500/40 text-sm text-emerald-200 flex items-center gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>Xuất sắc! Bạn đã trả lời đúng toàn bộ các câu hỏi ở lượt chơi này.</span>
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
+                  {missedReviewItems.map((item, idx) => (
+                    <div
+                      key={`${item.prompt}-${idx}`}
+                      className="p-4 rounded-xl bg-wood-900 border border-wood-800 space-y-1.5 text-xs sm:text-sm"
+                    >
+                      <p className="font-semibold text-cream">{item.prompt}</p>
+                      <p className="text-amber-300">Lựa chọn của bạn: {item.yourAnswer}</p>
+                      <p className="text-emerald-300">Đáp án chuẩn: {item.correctAnswer}</p>
+                      <p className="text-cream/80 leading-relaxed">{item.explanation}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {/* Actions */}
@@ -401,21 +415,29 @@ export const ArenaBadgesAndResults: React.FC<ArenaBadgesAndResultsProps> = ({
         )}
 
         {/* Personal Missed Items Study List */}
-        {attempts.some((a) => a.reviewItems.length > 0) && (
-          <div className="pt-4 border-t border-sandstone space-y-3">
-            <h3 className="font-serif text-xl font-bold text-wood-900">
-              Kho câu cần ôn tập cá nhân (từ các lượt vừa chơi)
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {attempts
-                .flatMap((a) =>
-                  a.reviewItems.map((rev) => ({
-                    ...rev,
-                    gameTitle: a.gameTitle,
-                  }))
+        {(() => {
+          const missedAll = attempts
+            .flatMap((a) =>
+              a.reviewItems
+                .filter(
+                  (rev) =>
+                    Boolean(rev.correctAnswer) &&
+                    rev.yourAnswer.trim().toLowerCase() !== rev.correctAnswer!.trim().toLowerCase()
                 )
-                .slice(0, 6)
-                .map((rev, idx) => (
+                .map((rev) => ({
+                  ...rev,
+                  gameTitle: a.gameTitle,
+                }))
+            )
+            .slice(0, 6);
+          if (missedAll.length === 0) return null;
+          return (
+            <div className="pt-4 border-t border-sandstone space-y-3">
+              <h3 className="font-serif text-xl font-bold text-wood-900">
+                Kho câu cần ôn tập cá nhân (từ các lượt vừa chơi)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {missedAll.map((rev, idx) => (
                   <div
                     key={`${rev.prompt}-${idx}`}
                     className="p-4 rounded-xl bg-parchment/60 border border-sandstone space-y-1 text-xs"
@@ -426,9 +448,10 @@ export const ArenaBadgesAndResults: React.FC<ArenaBadgesAndResultsProps> = ({
                     <p className="text-wood-700">{rev.explanation}</p>
                   </div>
                 ))}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </section>
     </div>
   );

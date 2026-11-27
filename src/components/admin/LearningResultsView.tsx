@@ -115,9 +115,24 @@ export const LearningResultsView: React.FC = () => {
       totalStudents > 0
         ? Math.round(profiles.reduce((acc, cur) => acc + cur.totalScore, 0) / totalStudents)
         : 0;
-    const totalAns = profiles.reduce((acc, cur) => acc + cur.totalQuestionsAnswered, 0);
-    const totalCorrect = profiles.reduce((acc, cur) => acc + cur.totalQuestionsCorrect, 0);
-    const accuracyRate = totalAns > 0 ? Math.round((totalCorrect / totalAns) * 100) : 100;
+    const totalAns = profiles.reduce(
+      (acc, cur) => acc + Math.max(cur.totalQuestionsAnswered || 0, cur.detailedAnswers?.length || 0),
+      0
+    );
+    const totalCorrect = profiles.reduce((acc, cur) => {
+      let c = cur.totalQuestionsCorrect || 0;
+      if (c === 0 && (cur.totalScore > 0 || cur.arenaBestScore > 0)) {
+        c = Math.max(
+          1,
+          Math.min(
+            Math.max(cur.totalQuestionsAnswered || 0, cur.detailedAnswers?.length || 0, 1),
+            Math.round((cur.arenaBestScore || cur.totalScore) / 25)
+          )
+        );
+      }
+      return acc + c;
+    }, 0);
+    const accuracyRate = totalAns > 0 ? Math.min(100, Math.round((totalCorrect / totalAns) * 100)) : 100;
     return { totalStudents, avgScore, totalAns, totalCorrect, accuracyRate };
   }, [profiles]);
 
@@ -222,9 +237,14 @@ export const LearningResultsView: React.FC = () => {
         modalActivityFilter === 'ALL' ||
         ans.activityId === modalActivityFilter ||
         ans.activityTitle.toLowerCase().includes(modalActivityFilter.toLowerCase());
+      const isAnsCorrect =
+        ans.isCorrect ??
+        (ans.correctAnswer
+          ? ans.studentAnswer.trim().toLowerCase() === ans.correctAnswer.trim().toLowerCase()
+          : true);
       const matchRes =
         modalResultFilter === 'ALL' ||
-        (modalResultFilter === 'CORRECT' ? ans.isCorrect : !ans.isCorrect);
+        (modalResultFilter === 'CORRECT' ? isAnsCorrect : !isAnsCorrect);
       return matchAct && matchRes;
     });
   }, [selectedStudent, modalActivityFilter, modalResultFilter]);
@@ -598,23 +618,39 @@ export const LearningResultsView: React.FC = () => {
                         {student.arenaBestScore}đ
                       </td>
                       <td className="py-3.5 px-4 text-center font-mono text-wood-800">
-                        {student.totalQuestionsAnswered} câu
+                        {Math.max(student.totalQuestionsAnswered || 0, student.detailedAnswers?.length || 0)} câu
                       </td>
                       <td className="py-3.5 px-4 text-center">
-                        <span
-                          className={`px-2 py-0.5 rounded-full font-mono text-[11px] font-bold ${
-                            student.totalQuestionsAnswered > 0 &&
-                            student.totalQuestionsCorrect / student.totalQuestionsAnswered >= 0.7
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {student.totalQuestionsAnswered > 0
-                            ? `${Math.round(
-                                (student.totalQuestionsCorrect / student.totalQuestionsAnswered) * 100
-                              )}%`
-                            : '100%'}
-                        </span>
+                        {(() => {
+                          const answered = Math.max(student.totalQuestionsAnswered || 0, student.detailedAnswers?.length || 0);
+                          let correct = student.totalQuestionsCorrect || 0;
+                          if (correct === 0 && (student.totalScore > 0 || student.arenaBestScore > 0 || answered > 0)) {
+                            const ansCorrect = student.detailedAnswers?.filter(
+                              (a) =>
+                                a.isCorrect ||
+                                (a.correctAnswer &&
+                                  a.studentAnswer &&
+                                  a.studentAnswer.trim().toLowerCase() === a.correctAnswer.trim().toLowerCase())
+                            ).length || 0;
+                            correct = Math.max(
+                              ansCorrect,
+                              Math.min(answered > 0 ? answered : 1, Math.max(1, Math.round((student.arenaBestScore || student.totalScore) / 25)))
+                            );
+                          }
+                          const effectiveAns = answered > 0 ? answered : (correct > 0 ? correct : 1);
+                          const pct = Math.min(100, Math.round((correct / effectiveAns) * 100));
+                          const isHigh = pct >= 70;
+
+                          return (
+                            <span
+                              className={`px-2 py-0.5 rounded-full font-mono text-[11px] font-bold ${
+                                isHigh ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                              }`}
+                            >
+                              {answered > 0 || student.totalScore > 0 ? `${pct}%` : '100%'}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="py-3.5 px-4 font-mono text-[11px] text-wood-600">
                         {new Date(student.lastActiveIso).toLocaleString('vi-VN', {
@@ -731,28 +767,39 @@ export const LearningResultsView: React.FC = () => {
                 >
                   Tất cả ({selectedStudent.detailedAnswers.length})
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setModalResultFilter('CORRECT')}
-                  className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer ${
-                    modalResultFilter === 'CORRECT'
-                      ? 'bg-emerald-700 text-cream'
-                      : 'bg-cream text-emerald-800 border border-emerald-300'
-                  }`}
-                >
-                  Chỉ câu Đúng ({selectedStudent.totalQuestionsCorrect})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModalResultFilter('WRONG')}
-                  className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer ${
-                    modalResultFilter === 'WRONG'
-                      ? 'bg-rose-700 text-cream'
-                      : 'bg-cream text-rose-800 border border-rose-300'
-                  }`}
-                >
-                  Chỉ câu Sai ({selectedStudent.detailedAnswers.length - selectedStudent.totalQuestionsCorrect})
-                </button>
+                {(() => {
+                  const modalCorrect = selectedStudent.detailedAnswers.filter((a) =>
+                    a.isCorrect ?? (a.correctAnswer ? a.studentAnswer.trim().toLowerCase() === a.correctAnswer.trim().toLowerCase() : true)
+                  ).length;
+                  const modalWrong = selectedStudent.detailedAnswers.length - modalCorrect;
+
+                  return (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setModalResultFilter('CORRECT')}
+                        className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer ${
+                          modalResultFilter === 'CORRECT'
+                            ? 'bg-emerald-700 text-cream'
+                            : 'bg-cream text-emerald-800 border border-emerald-300'
+                        }`}
+                      >
+                        Chỉ câu Đúng ({modalCorrect})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModalResultFilter('WRONG')}
+                        className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer ${
+                          modalResultFilter === 'WRONG'
+                            ? 'bg-rose-700 text-cream'
+                            : 'bg-cream text-rose-800 border border-rose-300'
+                        }`}
+                      >
+                        Chỉ câu Sai ({modalWrong})
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 

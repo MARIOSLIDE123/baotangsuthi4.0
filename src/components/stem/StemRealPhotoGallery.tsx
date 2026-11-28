@@ -16,7 +16,12 @@ import {
   Check,
   FolderOpen,
   ShieldCheck,
+  Film,
 } from 'lucide-react';
+import {
+  STEM_GROUP2_VIDEO_DRIVE_URL,
+  STEM_GROUP2_VIDEO_EMBED_URL,
+} from './StemLonghouseVideoPlayer';
 
 const GOOGLE_DRIVE_FOLDER_URL =
   'https://drive.google.com/drive/folders/11aXHvCXqjigN4dQKtTotSoEUHshxYlXJ';
@@ -328,6 +333,55 @@ export const StemRealPhotoGallery: React.FC = () => {
                   Bổ sung keo cố định các khớp mộng que gỗ, cải tiến độ bền và dán tem mã QR liên kết trực tiếp vào Bảo tàng số 4.0.
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Video trước cải tiến của Nhóm 2 - Hướng dẫn viên bảo tàng */}
+          <div className="p-5 rounded-2xl bg-wood-950 text-cream space-y-3.5 border border-gold-500/30 shadow-md">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-wood-800 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-gold-500/20 text-gold-400 border border-gold-500/30 shrink-0">
+                  <Film className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-forest-800 text-forest-200">
+                      Tư liệu thực nghiệm
+                    </span>
+                    <span className="text-xs text-gold-400 font-semibold">
+                      Nhóm 2: Hướng dẫn viên bảo tàng (10D3)
+                    </span>
+                  </div>
+                  <h4 className="font-serif text-base sm:text-lg font-bold text-cream mt-0.5">
+                    Video trước cải tiến – Thuyết minh mô hình nhà dài Ê-đê
+                  </h4>
+                </div>
+              </div>
+
+              <a
+                href={STEM_GROUP2_VIDEO_DRIVE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 rounded-xl bg-forest-700 hover:bg-forest-600 text-cream text-xs font-bold inline-flex items-center gap-1.5 shrink-0 transition-colors shadow-sm"
+              >
+                <span>Xem trên Google Drive</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+
+            <p className="text-xs sm:text-sm text-cream/80 leading-relaxed">
+              Video thực tế ghi nhận phần thuyết minh của <strong>Nhóm 2 (Hướng dẫn viên bảo tàng)</strong> trước khi đối chiếu và lập Phiếu kiểm thử, làm căn cứ cải tiến độ vững chắc và hoàn thiện mô hình.
+            </p>
+
+            <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-wood-800 shadow-lg">
+              <iframe
+                src={STEM_GROUP2_VIDEO_EMBED_URL}
+                title="Video trước cải tiến của Nhóm 2 – Hướng dẫn viên bảo tàng"
+                className="w-full h-full border-0"
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+                loading="lazy"
+              />
             </div>
           </div>
 

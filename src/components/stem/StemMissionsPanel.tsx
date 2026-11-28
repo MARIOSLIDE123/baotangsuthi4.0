@@ -17,6 +17,7 @@ import {
 import { MuseumRouteId, StemStudioTabId } from '../../types/museum';
 import { StemRealPhotoGallery } from './StemRealPhotoGallery';
 import { StemLonghouseVideoPlayer } from './StemLonghouseVideoPlayer';
+import { Lesson52PresentationSlidesSection } from './Lesson52PresentationSlidesSection';
 
 const HOUSE_STEPS_KEY = 'suthiso_stem_house_steps_v1';
 const JOURNEY_STEPS_KEY = 'suthiso_stem_journey_steps_v1';
@@ -470,6 +471,11 @@ export const StemJourneyMissionPanel: React.FC<StemJourneyMissionPanelProps> = (
             </button>
           </div>
         </section>
+      </div>
+
+      {/* Sản phẩm trình chiếu 4 Tổ chuẩn bị cho Tiết 52 - Đăm Săn đi bắt Nữ thần Mặt Trời */}
+      <div className="pt-4 border-t border-sandstone">
+        <Lesson52PresentationSlidesSection />
       </div>
     </div>
   );

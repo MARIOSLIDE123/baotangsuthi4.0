@@ -14,6 +14,7 @@ import { CompassEvaluationResult, StationStatus, SunGoddessStation } from '../ty
 import { SafeImage } from '../components/common/SafeImage';
 import { SunGoddess3DMap, renderStationEmblem } from '../components/threeD/SunGoddess3DMap';
 import { EpicCompassLab } from '../components/epics/EpicCompassLab';
+import { Lesson52PresentationSlidesSection } from '../components/stem/Lesson52PresentationSlidesSection';
 import { playCorrectSound, playWrongSound } from '../services/ambientAudioService';
 
 interface DamSanJourneyPageProps {
@@ -487,6 +488,11 @@ export const DamSanJourneyPage: React.FC<DamSanJourneyPageProps> = ({
         activeStationId={activeStationId}
         onCompassEvaluated={onCompassEvaluated}
       />
+
+      {/* Sản phẩm trình chiếu 4 Tổ chuẩn bị cho Tiết 52 - Đăm Săn đi bắt Nữ thần Mặt Trời */}
+      <div className="pt-6">
+        <Lesson52PresentationSlidesSection />
+      </div>
     </div>
   );
 };

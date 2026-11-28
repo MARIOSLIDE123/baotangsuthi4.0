@@ -19,6 +19,7 @@ import { sanitizeHttpUrl } from '../../services/configService';
 import { MuseumRouteId, ServiceConnectionStatus } from '../../types/museum';
 import { StemRealPhotoGallery } from './StemRealPhotoGallery';
 import { StemLonghouseVideoPlayer } from './StemLonghouseVideoPlayer';
+import { Lesson52PresentationSlidesSection } from './Lesson52PresentationSlidesSection';
 
 type PadletBoardKey = 'infographic-mindmap' | 'house' | 'journey';
 
@@ -382,15 +383,19 @@ export const StemPadletGallery: React.FC<StemPadletGalleryProps> = ({
         </div>
       )}
 
-      {/* TAB 3: Sản phẩm hành trình Đăm Săn */}
+      {/* TAB 3: Sản phẩm hành trình Đăm Săn (Tiết học 52) */}
       {activeBoard === 'journey' && (
         <div className="space-y-6 animate-fade-in">
-          {journeyUrl ? (
-            <div className="space-y-4">
+          {/* Sản phẩm trình chiếu 4 Tổ chuẩn bị cho Tiết 52 */}
+          <Lesson52PresentationSlidesSection />
+
+          {/* Bảng Padlet bổ trợ hành trình Đăm Săn (nếu đã cấu hình) */}
+          {journeyUrl && (
+            <div className="space-y-4 pt-4 border-t border-sandstone">
               <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-xl bg-parchment/50 border border-sandstone">
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <p className="text-xs font-bold text-wood-900">
-                    Bảng nộp bài hành trình Đăm Săn:
+                    Bảng nộp bài bổ trợ Padlet hành trình Đăm Săn:
                   </p>
                   <p className="text-xs font-mono text-wood-600 truncate">{journeyUrl}</p>
                 </div>
@@ -414,24 +419,6 @@ export const StemPadletGallery: React.FC<StemPadletGalleryProps> = ({
                   loading="lazy"
                 />
               </div>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-sandstone bg-parchment/50 p-6 sm:p-8 space-y-4 text-center">
-              <Info className="w-6 h-6 text-gold-700 mx-auto" />
-              <h3 className="font-serif text-lg font-bold text-wood-900">
-                Chưa cấu hình URL Padlet cho Sản phẩm Hành trình Đăm Săn
-              </h3>
-              <p className="text-xs sm:text-sm text-wood-700 max-w-md mx-auto leading-relaxed">
-                Giáo viên có thể mở mục Quản trị GV để dán đường dẫn bảng Padlet của lớp mình.
-              </p>
-              <button
-                type="button"
-                onClick={() => onNavigate('teacher-admin')}
-                className="px-4 py-2 text-xs font-semibold bg-forest-700 text-cream rounded-lg hover:bg-forest-800 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-              >
-                <Settings className="w-4 h-4" />
-                <span>Mở cấu hình Quản trị GV</span>
-              </button>
             </div>
           )}
         </div>

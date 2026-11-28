@@ -91,15 +91,15 @@ export const REAL_STEM_PHOTOS: StemPhotoItem[] = [
     minhChungCategory: 'mc2',
   },
 
-  // MINH CHỨNG 3: Quy trình 5 bước cải tiến cầu thang nhà dài Ê-đê
+  // MINH CHỨNG 3: Giải pháp cải tiến cầu thang nhà dài Ê-đê cho phù hợp với đặc điểm kiến trúc nhà dài và tư duy văn hóa của người dân địa phương
   {
     id: 'mc-3-cai-tien-cau-thang-1',
     imageSrc: '/assets/images/stem/stem_cai_tien_cau_thang_1_ban_ve_thuoc_ke.jpg',
     title: 'Bước 1: Phác thảo bản vẽ cải tiến kích thước & góc nghiêng cầu thang',
     caption:
-      'Học sinh sử dụng thước đo kỹ thuật tính toán lại tỉ lệ độ dốc, bề rộng mặt thang và số bậc thang lẻ cho cả cầu thang đực (Kpal) và cầu thang cái (Ngă) mang biểu tượng trăng khuyết và đôi bầu sữa mẹ.',
-    stage: 'Minh chứng 3 · Cải tiến cầu thang',
-    tag: 'Bước 1 · Bản vẽ đo đạc tỉ lệ',
+      'Học sinh sử dụng thước đo kỹ thuật tính toán lại tỉ lệ độ dốc, bề rộng mặt thang và số bậc thang lẻ (5 hoặc 7 bậc) cho cả cầu thang đực (Kpal) và cầu thang cái (Ngă), bảo đảm đúng đặc điểm kiến trúc nhà dài và tư duy văn hóa của người dân địa phương.',
+    stage: 'Giải pháp cải tiến cầu thang Ê-đê',
+    tag: 'Bước 1 · Bản vẽ đo đạc kiến trúc',
     minhChungCategory: 'mc3',
   },
   {
@@ -107,9 +107,9 @@ export const REAL_STEM_PHOTOS: StemPhotoItem[] = [
     imageSrc: '/assets/images/stem/stem_cai_tien_cau_thang_2_phac_thao_chi_tiet.jpg',
     title: 'Bước 2: Phác thảo chi tiết biểu tượng vầng trăng khuyết & đôi bầu sữa mẹ',
     caption:
-      'Bản vẽ phóng to phần đỉnh cầu thang cái với biểu tượng đôi bầu sữa mẹ căng tròn và vầng trăng khuyết – biểu trưng thiêng liêng của chế độ mẫu hệ Ê-đê được đưa vào phương án cải tiến sản phẩm mô hình.',
-    stage: 'Minh chứng 3 · Cải tiến cầu thang',
-    tag: 'Bước 2 · Hoa văn văn hóa mẫu hệ',
+      'Bản vẽ phóng to phần đỉnh cầu thang cái với biểu tượng đôi bầu sữa mẹ và vầng trăng khuyết – biểu trưng thiêng liêng thể hiện tư duy văn hóa mẫu hệ của người dân địa phương được đưa vào phương án cải tiến sản phẩm.',
+    stage: 'Giải pháp cải tiến cầu thang Ê-đê',
+    tag: 'Bước 2 · Tư duy văn hóa mẫu hệ',
     minhChungCategory: 'mc3',
   },
   {
@@ -117,9 +117,9 @@ export const REAL_STEM_PHOTOS: StemPhotoItem[] = [
     imageSrc: '/assets/images/stem/stem_cai_tien_cau_thang_3_chuan_bi_phoi_xop.jpg',
     title: 'Bước 3: Chuẩn bị phôi xốp định hình và dụng cụ gia công bậc thang',
     caption:
-      'Học sinh chuẩn bị phôi xốp đặc, bút chì và thước kẻ chuyên dụng để chuyển đổi từ bản vẽ 2D sang phôi vật liệu 3D, tối ưu độ nhẹ và khả năng bám dính chắc chắn vào sàn mô hình.',
-    stage: 'Minh chứng 3 · Cải tiến cầu thang',
-    tag: 'Bước 3 · Chuẩn bị phôi xốp 3D',
+      'Học sinh chuẩn bị phôi xốp đặc, bút chì và thước kẻ chuyên dụng để chuyển đổi từ bản vẽ 2D sang khối vật liệu 3D, tối ưu độ nhẹ, độ bền và khả năng liên kết vững chắc vào sàn hiên Gah theo đúng kết cấu nhà dài.',
+    stage: 'Giải pháp cải tiến cầu thang Ê-đê',
+    tag: 'Bước 3 · Chuẩn bị phôi khối 3D',
     minhChungCategory: 'mc3',
   },
   {
@@ -127,9 +127,9 @@ export const REAL_STEM_PHOTOS: StemPhotoItem[] = [
     imageSrc: '/assets/images/stem/stem_cai_tien_cau_thang_4_ve_dinh_hinh_xop.jpg',
     title: 'Bước 4: Vẽ định hình từng bậc thang và hoa văn mẫu hệ lên phôi xốp',
     caption:
-      'Học sinh dùng bút lông vẽ chính xác vị trí từng bậc thang, vầng trăng khuyết và đôi mắt/bầu sữa mẹ lên khối xốp trước khi tiến hành cắt gọt và khía bậc.',
-    stage: 'Minh chứng 3 · Cải tiến cầu thang',
-    tag: 'Bước 4 · Định hình kỹ thuật',
+      'Học sinh dùng bút lông vẽ chính xác vị trí từng bậc thang và hoa văn mẫu hệ lên khối xốp trước khi tiến hành cắt gọt, bảo đảm tính đối xứng và thẩm mỹ văn hóa Tây Nguyên.',
+    stage: 'Giải pháp cải tiến cầu thang Ê-đê',
+    tag: 'Bước 4 · Định hình hoa văn & bậc',
     minhChungCategory: 'mc3',
   },
   {
@@ -137,9 +137,9 @@ export const REAL_STEM_PHOTOS: StemPhotoItem[] = [
     imageSrc: '/assets/images/stem/stem_cai_tien_cau_thang_5_hoan_thien_khia_bac.jpg',
     title: 'Bước 5: Hoàn thiện cắt khía bậc thang đực và cầu thang cái sau cải tiến',
     caption:
-      'Cặp cầu thang hoàn thiện sau quy trình cải tiến: Cầu thang đực thanh thoát và cầu thang cái rộng bản được khía từng bậc sắc nét, phẳng mịn, sẵn sàng gắn lên bục sàn Gah của mô hình nhà dài Ê-đê.',
-    stage: 'Minh chứng 3 · Cải tiến cầu thang',
-    tag: 'Bước 5 · Sản phẩm hoàn thiện',
+      'Cặp cầu thang hoàn thiện sau quy trình cải tiến: Cầu thang đực thanh thoát và cầu thang cái rộng bản được khía từng bậc sắc nét, phẳng mịn, phù hợp hoàn hảo với đặc điểm kiến trúc nhà dài và tư duy văn hóa của người dân địa phương.',
+    stage: 'Giải pháp cải tiến cầu thang Ê-đê',
+    tag: 'Bước 5 · Hoàn thiện chuẩn văn hóa',
     minhChungCategory: 'mc3',
   },
 
@@ -270,7 +270,7 @@ export const StemRealPhotoGallery: React.FC = () => {
             }`}
           >
             <FileText className="w-3.5 h-3.5 text-terracotta-700" />
-            <span>Minh chứng 3: Cải tiến cầu thang ({REAL_STEM_PHOTOS.filter((p) => p.minhChungCategory === 'mc3').length})</span>
+            <span>Minh chứng 3: Giải pháp cải tiến cầu thang ({REAL_STEM_PHOTOS.filter((p) => p.minhChungCategory === 'mc3').length})</span>
           </button>
 
         <button
@@ -437,33 +437,69 @@ export const StemRealPhotoGallery: React.FC = () => {
             </div>
           </div>
 
-          {/* Quy trình 5 bước cải tiến cầu thang nhà dài Ê-đê */}
-          <div className="space-y-4 pt-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-sandstone/60 pb-2">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-lg bg-forest-700 text-cream">
-                  <CheckCircle2 className="w-4 h-4" />
-                </span>
-                <div>
-                  <h4 className="font-serif text-base sm:text-lg font-bold text-wood-950">
-                    HÌNH ẢNH THỰC TẾ: QUY TRÌNH 5 BƯỚC CẢI TIẾN CẦU THANG NHÀ DÀI Ê-ĐÊ
+          {/* GIẢI PHÁP CẢI TIẾN CẦU THANG NHÀ DÀI Ê-ĐÊ CHO PHÙ HỢP VỚI ĐẶC ĐIỂM KIẾN TRÚC NHÀ DÀI VÀ TƯ DUY VĂN HÓA CỦA NGƯỜI DÂN ĐỊA PHƯƠNG */}
+          <div className="rounded-3xl border-2 border-forest-600/40 bg-gradient-to-br from-cream via-parchment/90 to-cream p-5 sm:p-7 shadow-md space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-sandstone/80 pb-4">
+              <div className="flex items-start gap-3.5">
+                <div className="p-3 rounded-2xl bg-forest-700 text-cream shadow-sm shrink-0 mt-0.5">
+                  <Compass className="w-6 h-6 text-gold-300" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-gold-100 text-gold-900 border border-gold-300">
+                      Hồ sơ cải tiến sản phẩm STEAM
+                    </span>
+                    <span className="px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-forest-100 text-forest-800 border border-forest-300">
+                      Minh chứng 3
+                    </span>
+                  </div>
+                  <h4 className="font-serif text-lg sm:text-xl font-bold text-wood-950 leading-snug">
+                    GIẢI PHÁP CẢI TIẾN CẦU THANG NHÀ DÀI Ê-ĐÊ CHO PHÙ HỢP VỚI ĐẶC ĐIỂM KIẾN TRÚC NHÀ DÀI VÀ TƯ DUY VĂN HÓA CỦA NGƯỜI DÂN ĐỊA PHƯƠNG
                   </h4>
-                  <p className="text-xs text-wood-600">
-                    Khắc phục nhược điểm về tỉ lệ và hoa văn mẫu hệ (cầu thang đực Kpal &amp; cầu thang cái Ngă) sau kiểm thử thực tế
+                  <p className="text-xs sm:text-sm text-wood-700 leading-relaxed">
+                    Sau quá trình kiểm thử thực tế và đối chiếu với không gian nhà dài Tây Nguyên, nhóm học sinh đã tiến hành cải tiến toàn diện cặp cầu thang đực (Kpal) và cầu thang cái (Ngă) bảo đảm chuẩn xác cả về kích thước kỹ thuật lẫn chiều sâu văn hóa mẫu hệ.
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-semibold text-forest-800 bg-forest-100 border border-forest-300 px-2.5 py-1 rounded-full shrink-0">
-                5 Ảnh minh chứng thực tế
+              <span className="text-xs font-semibold text-forest-800 bg-forest-100 border border-forest-300 px-3 py-1.5 rounded-full shrink-0 self-start sm:self-auto">
+                5 Ảnh quy trình thực tế
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+            {/* Hai trụ cột: Đặc điểm kiến trúc & Tư duy văn hóa */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <div className="p-4 rounded-2xl bg-cream/90 border border-sandstone space-y-1.5 shadow-sm">
+                <span className="font-mono text-xs font-bold text-forest-800 uppercase tracking-wide">
+                  Trụ cột 01 · Đặc điểm kiến trúc nhà dài
+                </span>
+                <h5 className="text-sm font-bold text-wood-900">
+                  Tỉ lệ độ dốc, tải trọng sàn &amp; Quy chuẩn số bậc lẻ
+                </h5>
+                <p className="text-xs text-wood-700 leading-relaxed">
+                  Cải tiến góc nghiêng của thân thang tương thích chuẩn xác với độ cao sàn hiên Gah; bề rộng mặt thang được mở rộng để bước chân vững chãi; tính toán số bậc thang là số lẻ (5 hoặc 7 bậc) theo quy chuẩn kiến trúc dân gian truyền thống của người Ê-đê.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-cream/90 border border-sandstone space-y-1.5 shadow-sm">
+                <span className="font-mono text-xs font-bold text-forest-800 uppercase tracking-wide">
+                  Trụ cột 02 · Tư duy văn hóa của người dân địa phương
+                </span>
+                <h5 className="text-sm font-bold text-wood-900">
+                  Biểu tượng văn hóa Mẫu hệ &amp; Phân định Kpal - Ngă
+                </h5>
+                <p className="text-xs text-wood-700 leading-relaxed">
+                  Chạm khắc đôi bầu sữa mẹ căng tràn sức sống cùng vầng trăng khuyết ở đầu cầu thang cái (Ngă) – biểu trưng thiêng liêng cho quyền lực người phụ nữ và sự tiếp nối nòi giống trong chế độ mẫu hệ; đối xứng cùng cầu thang đực (Kpal) thanh thoát dành cho nam giới.
+                </p>
+              </div>
+            </div>
+
+            {/* 5 Photos Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 pt-1">
               {REAL_STEM_PHOTOS.filter((p) => p.minhChungCategory === 'mc3').map((item, idx) => (
                 <div
                   key={item.id}
                   onClick={() => setSelectedPhoto(item)}
-                  className="group relative bg-cream border border-sandstone rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:border-gold-500 transition-all cursor-pointer flex flex-col justify-between"
+                  className="group relative bg-cream border border-sandstone rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:border-gold-500 transition-all cursor-pointer flex flex-col justify-between"
                 >
                   <div className="relative aspect-4/3 bg-wood-950 overflow-hidden">
                     <img
@@ -476,12 +512,12 @@ export const StemRealPhotoGallery: React.FC = () => {
                     <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-wood-900/90 text-gold-300 text-[10px] font-bold border border-gold-500/30">
                       Bước {idx + 1}
                     </span>
-                    <span className="absolute bottom-2 right-2 p-1 rounded-full bg-wood-900/80 text-cream opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Maximize2 className="w-3 h-3" />
+                    <span className="absolute bottom-2 right-2 p-1.5 rounded-full bg-wood-900/80 text-cream opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Maximize2 className="w-3.5 h-3.5" />
                     </span>
                   </div>
-                  <div className="p-3 space-y-1">
-                    <h5 className="font-serif text-xs font-bold text-wood-900 line-clamp-2 leading-snug">
+                  <div className="p-3.5 space-y-1.5">
+                    <h5 className="font-serif text-xs font-bold text-wood-900 line-clamp-2 leading-snug group-hover:text-forest-800 transition-colors">
                       {item.title.replace(/^Bước \d+:\s*/, '')}
                     </h5>
                     <p className="text-[11px] text-wood-600 line-clamp-3 leading-relaxed">

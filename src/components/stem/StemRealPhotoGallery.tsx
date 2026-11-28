@@ -91,6 +91,58 @@ export const REAL_STEM_PHOTOS: StemPhotoItem[] = [
     minhChungCategory: 'mc2',
   },
 
+  // MINH CHỨNG 3: Quy trình 5 bước cải tiến cầu thang nhà dài Ê-đê
+  {
+    id: 'mc-3-cai-tien-cau-thang-1',
+    imageSrc: '/assets/images/stem/stem_cai_tien_cau_thang_1_ban_ve_thuoc_ke.jpg',
+    title: 'Bước 1: Phác thảo bản vẽ cải tiến kích thước & góc nghiêng cầu thang',
+    caption:
+      'Học sinh sử dụng thước đo kỹ thuật tính toán lại tỉ lệ độ dốc, bề rộng mặt thang và số bậc thang lẻ cho cả cầu thang đực (Kpal) và cầu thang cái (Ngă) mang biểu tượng trăng khuyết và đôi bầu sữa mẹ.',
+    stage: 'Minh chứng 3 · Cải tiến cầu thang',
+    tag: 'Bước 1 · Bản vẽ đo đạc tỉ lệ',
+    minhChungCategory: 'mc3',
+  },
+  {
+    id: 'mc-3-cai-tien-cau-thang-2',
+    imageSrc: '/assets/images/stem/stem_cai_tien_cau_thang_2_phac_thao_chi_tiet.jpg',
+    title: 'Bước 2: Phác thảo chi tiết biểu tượng vầng trăng khuyết & đôi bầu sữa mẹ',
+    caption:
+      'Bản vẽ phóng to phần đỉnh cầu thang cái với biểu tượng đôi bầu sữa mẹ căng tròn và vầng trăng khuyết – biểu trưng thiêng liêng của chế độ mẫu hệ Ê-đê được đưa vào phương án cải tiến sản phẩm mô hình.',
+    stage: 'Minh chứng 3 · Cải tiến cầu thang',
+    tag: 'Bước 2 · Hoa văn văn hóa mẫu hệ',
+    minhChungCategory: 'mc3',
+  },
+  {
+    id: 'mc-3-cai-tien-cau-thang-3',
+    imageSrc: '/assets/images/stem/stem_cai_tien_cau_thang_3_chuan_bi_phoi_xop.jpg',
+    title: 'Bước 3: Chuẩn bị phôi xốp định hình và dụng cụ gia công bậc thang',
+    caption:
+      'Học sinh chuẩn bị phôi xốp đặc, bút chì và thước kẻ chuyên dụng để chuyển đổi từ bản vẽ 2D sang phôi vật liệu 3D, tối ưu độ nhẹ và khả năng bám dính chắc chắn vào sàn mô hình.',
+    stage: 'Minh chứng 3 · Cải tiến cầu thang',
+    tag: 'Bước 3 · Chuẩn bị phôi xốp 3D',
+    minhChungCategory: 'mc3',
+  },
+  {
+    id: 'mc-3-cai-tien-cau-thang-4',
+    imageSrc: '/assets/images/stem/stem_cai_tien_cau_thang_4_ve_dinh_hinh_xop.jpg',
+    title: 'Bước 4: Vẽ định hình từng bậc thang và hoa văn mẫu hệ lên phôi xốp',
+    caption:
+      'Học sinh dùng bút lông vẽ chính xác vị trí từng bậc thang, vầng trăng khuyết và đôi mắt/bầu sữa mẹ lên khối xốp trước khi tiến hành cắt gọt và khía bậc.',
+    stage: 'Minh chứng 3 · Cải tiến cầu thang',
+    tag: 'Bước 4 · Định hình kỹ thuật',
+    minhChungCategory: 'mc3',
+  },
+  {
+    id: 'mc-3-cai-tien-cau-thang-5',
+    imageSrc: '/assets/images/stem/stem_cai_tien_cau_thang_5_hoan_thien_khia_bac.jpg',
+    title: 'Bước 5: Hoàn thiện cắt khía bậc thang đực và cầu thang cái sau cải tiến',
+    caption:
+      'Cặp cầu thang hoàn thiện sau quy trình cải tiến: Cầu thang đực thanh thoát và cầu thang cái rộng bản được khía từng bậc sắc nét, phẳng mịn, sẵn sàng gắn lên bục sàn Gah của mô hình nhà dài Ê-đê.',
+    stage: 'Minh chứng 3 · Cải tiến cầu thang',
+    tag: 'Bước 5 · Sản phẩm hoàn thiện',
+    minhChungCategory: 'mc3',
+  },
+
   // MINH CHỨNG 4: Thuyết trình trong tiết dạy học đường
   {
     id: 'mc-4-toan-canh-lop-hoc',
@@ -208,18 +260,18 @@ export const StemRealPhotoGallery: React.FC = () => {
           <span>Minh chứng 2: Mô hình &amp; Bức tranh</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setFilterCategory('mc3')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
-            filterCategory === 'mc3'
-              ? 'bg-wood-900 text-cream border-wood-900 shadow-sm'
-              : 'bg-parchment/70 text-wood-800 border-sandstone hover:border-gold-500'
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5 text-terracotta-700" />
-          <span>Minh chứng 3: Phiếu kiểm thử</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setFilterCategory('mc3')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
+              filterCategory === 'mc3'
+                ? 'bg-wood-900 text-cream border-wood-900 shadow-sm'
+                : 'bg-parchment/70 text-wood-800 border-sandstone hover:border-gold-500'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5 text-terracotta-700" />
+            <span>Minh chứng 3: Cải tiến cầu thang ({REAL_STEM_PHOTOS.filter((p) => p.minhChungCategory === 'mc3').length})</span>
+          </button>
 
         <button
           type="button"
@@ -382,6 +434,62 @@ export const StemRealPhotoGallery: React.FC = () => {
                 allowFullScreen
                 loading="lazy"
               />
+            </div>
+          </div>
+
+          {/* Quy trình 5 bước cải tiến cầu thang nhà dài Ê-đê */}
+          <div className="space-y-4 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-sandstone/60 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-forest-700 text-cream">
+                  <CheckCircle2 className="w-4 h-4" />
+                </span>
+                <div>
+                  <h4 className="font-serif text-base sm:text-lg font-bold text-wood-950">
+                    HÌNH ẢNH THỰC TẾ: QUY TRÌNH 5 BƯỚC CẢI TIẾN CẦU THANG NHÀ DÀI Ê-ĐÊ
+                  </h4>
+                  <p className="text-xs text-wood-600">
+                    Khắc phục nhược điểm về tỉ lệ và hoa văn mẫu hệ (cầu thang đực Kpal &amp; cầu thang cái Ngă) sau kiểm thử thực tế
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-semibold text-forest-800 bg-forest-100 border border-forest-300 px-2.5 py-1 rounded-full shrink-0">
+                5 Ảnh minh chứng thực tế
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+              {REAL_STEM_PHOTOS.filter((p) => p.minhChungCategory === 'mc3').map((item, idx) => (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedPhoto(item)}
+                  className="group relative bg-cream border border-sandstone rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:border-gold-500 transition-all cursor-pointer flex flex-col justify-between"
+                >
+                  <div className="relative aspect-4/3 bg-wood-950 overflow-hidden">
+                    <img
+                      src={item.imageSrc}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-wood-950/70 via-transparent to-transparent" />
+                    <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-wood-900/90 text-gold-300 text-[10px] font-bold border border-gold-500/30">
+                      Bước {idx + 1}
+                    </span>
+                    <span className="absolute bottom-2 right-2 p-1 rounded-full bg-wood-900/80 text-cream opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Maximize2 className="w-3 h-3" />
+                    </span>
+                  </div>
+                  <div className="p-3 space-y-1">
+                    <h5 className="font-serif text-xs font-bold text-wood-900 line-clamp-2 leading-snug">
+                      {item.title.replace(/^Bước \d+:\s*/, '')}
+                    </h5>
+                    <p className="text-[11px] text-wood-600 line-clamp-3 leading-relaxed">
+                      {item.caption}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
